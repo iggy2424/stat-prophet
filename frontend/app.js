@@ -1,15 +1,20 @@
 const API_URL = 'https://stat-prophet.vercel.app/api';
 
-const featuredPlayers = [
-  'LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Dončić', 
-  'Kevin Durant', 'Jayson Tatum', 'Joel Embiid', 'Nikola Jokić',
-  'Anthony Edwards', 'Shai Gilgeous-Alexander', 'Ja Morant', 'Damian Lillard'
-];
-
-const statCategories = ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'];
+const sportsData = {
+  'NBA': {
+    icon: '🏀',
+    players: [
+      'LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Dončić', 
+      'Kevin Durant', 'Jayson Tatum', 'Joel Embiid', 'Nikola Jokić',
+      'Anthony Edwards', 'Shai Gilgeous-Alexander', 'Ja Morant', 'Damian Lillard'
+    ],
+    stats: ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks']
+  }
+};
 
 function App() {
   const [step, setStep] = React.useState(1);
+  const [sport, setSport] = React.useState('');
   const [player, setPlayer] = React.useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [stat, setStat] = React.useState('');
@@ -19,37 +24,37 @@ function App() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
 
+  const featuredPlayers = sport ? sportsData[sport].players : [];
+  const statCategories = sport ? sportsData[sport].stats : [];
+
   const filteredPlayers = featuredPlayers.filter(p => 
     p.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handlePlayerSelect = (p) => { 
-    setPlayer(p); 
-    setSearchQuery('');
-    setStep(2); 
-  };
+  const handleSportSelect = (s) => { setSport(s); setStep(2); };
+  const handlePlayerSelect = (p) => { setPlayer(p); setSearchQuery(''); setStep(3); };
+  const handleStatSelect = (s) => { setStat(s); setStep(4); };
+  const handleDirectionSelect = (d) => { setDirection(d); setStep(5); };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setPlayer(searchQuery.trim());
       setSearchQuery('');
-      setStep(2);
+      setStep(3);
     }
   };
 
-  const handleStatSelect = (s) => { setStat(s); setStep(3); };
-  const handleDirectionSelect = (d) => { setDirection(d); setStep(4); };
-
   const reset = () => {
-    setStep(1); setPlayer(''); setSearchQuery(''); setStat(''); 
+    setStep(1); setSport(''); setPlayer(''); setSearchQuery(''); setStat(''); 
     setDirection(''); setLine(''); setPrediction(null); setError(null);
   };
 
   const goBack = () => {
-    if (step === 2) { setStep(1); setPlayer(''); }
+    if (step === 2) { setStep(1); setSport(''); setPlayer(''); }
     else if (step === 3) { setStep(2); setStat(''); }
     else if (step === 4) { setStep(3); setDirection(''); }
+    else if (step === 5) { setStep(4); setLine(''); setPrediction(null); }
   };
 
   const getPrediction = async () => {
@@ -79,12 +84,13 @@ function App() {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '40px 20px' },
     header: { textAlign: 'center', marginBottom: '60px' },
     badge: { display: 'inline-block', padding: '8px 24px', background: 'linear-gradient(90deg, #00ff88, #00cc6a)', color: '#0a0a0f', fontSize: '12px', fontFamily: "'Space Mono', monospace", fontWeight: '700', letterSpacing: '3px', marginBottom: '20px' },
-    title: { fontSize: 'clamp(48px, 10vw, 80px)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #888 100)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+    title: { fontSize: 'clamp(48px, 10vw, 80px)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
     subtitle: { fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#666', letterSpacing: '2px' },
     progress: { display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '50px' },
     sectionTitle: { textAlign: 'center', fontSize: '24px', fontWeight: '300', letterSpacing: '4px', marginBottom: '40px', color: '#888' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', maxWidth: '900px', margin: '0 auto' },
     card: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '20px', cursor: 'pointer', transition: 'all 0.3s ease', textAlign: 'center' },
+    sportCard: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '40px 60px', cursor: 'pointer', transition: 'all 0.3s ease', textAlign: 'center' },
     backBtn: { background: 'none', border: 'none', color: '#00ff88', fontFamily: "'Space Mono', monospace", fontSize: '12px', cursor: 'pointer', marginBottom: '30px' },
     searchContainer: { maxWidth: '500px', margin: '0 auto 40px' },
     searchInput: { width: '100%', padding: '16px 24px', background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontFamily: "'Oswald', sans-serif", fontSize: '18px', outline: 'none', transition: 'border-color 0.3s' },
@@ -105,14 +111,42 @@ function App() {
       </header>
 
       <div style={styles.progress}>
-        {[1,2,3,4].map(s => (
-          <div key={s} style={{ width: s <= step ? '60px' : '12px', height: '4px', background: s <= step ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'all 0.4s' }} />
+        {[1,2,3,4,5].map(s => (
+          <div key={s} style={{ width: s <= step ? '50px' : '12px', height: '4px', background: s <= step ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'all 0.4s' }} />
         ))}
       </div>
 
-      {/* Step 1: Player Selection */}
+      {/* Step 1: Sport Selection */}
       {step === 1 && (
         <div>
+          <h2 style={styles.sectionTitle}>SELECT YOUR SPORT</h2>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            {Object.entries(sportsData).map(([sportName, data]) => (
+              <div 
+                key={sportName}
+                onClick={() => handleSportSelect(sportName)}
+                style={styles.sportCard}
+                onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)';}}
+                onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none';}}
+              >
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>{data.icon}</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px' }}>{sportName}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#444', marginTop: '40px' }}>More sports coming soon...</p>
+        </div>
+      )}
+
+      {/* Step 2: Player Selection */}
+      {step === 2 && (
+        <div>
+          <button style={styles.backBtn} onClick={goBack}>← BACK TO SPORTS</button>
+          
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <span style={{ fontSize: '36px' }}>{sportsData[sport].icon}</span>
+          </div>
+          
           <h2 style={styles.sectionTitle}>SELECT PLAYER</h2>
           
           {/* Search Bar */}
@@ -164,8 +198,8 @@ function App() {
         </div>
       )}
 
-      {/* Step 2: Stat Selection */}
-      {step === 2 && (
+      {/* Step 3: Stat Selection */}
+      {step === 3 && (
         <div>
           <button style={styles.backBtn} onClick={goBack}>← BACK</button>
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -190,8 +224,8 @@ function App() {
         </div>
       )}
 
-      {/* Step 3: Over/Under Selection */}
-      {step === 3 && (
+      {/* Step 4: Over/Under Selection */}
+      {step === 4 && (
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           <button style={styles.backBtn} onClick={goBack}>← BACK</button>
           
@@ -229,8 +263,8 @@ function App() {
         </div>
       )}
 
-      {/* Step 4: Enter Line Value */}
-      {step === 4 && (
+      {/* Step 5: Enter Line Value */}
+      {step === 5 && (
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <button style={styles.backBtn} onClick={goBack}>← BACK</button>
           
