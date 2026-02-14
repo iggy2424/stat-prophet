@@ -1,7 +1,6 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-from urllib.parse import urlparse, parse_qs
 
 class handler(BaseHTTPRequestHandler):
     
@@ -15,9 +14,8 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         response = {
             "api": "Stat Prophet Prediction API",
-            "version": "1.0.0",
-            "status": "running",
-            "usage": "POST to /api with player_name, stat_type, and line"
+            "version": "1.1.0",
+            "status": "running"
         }
         self._send_json(200, response)
     
@@ -32,17 +30,30 @@ class handler(BaseHTTPRequestHandler):
             player_name = data.get('player_name', 'Unknown')
             stat_type = data.get('stat_type', 'points')
             line = data.get('line', 0)
+            direction = data.get('direction', 'OVER')
             
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             
-            prompt = f"""You are an expert NBA analyst. Analyze this prop bet:
+            prompt = f"""You are an NBA statistics expert. A user wants to know the probability of a specific betting outcome.
 
-Player: {player_name}
-Stat: {stat_type}
-Line: {line}
+PLAYER: {player_name}
+STAT: {stat_type}
+BET: {direction} {line}
 
-Respond ONLY with JSON:
-{{"prediction": "OVER" or "UNDER", "probability": number 0-100, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence"}}"""
+The user is asking: "What is the percentage chance that {player_name} scores {direction} {line} {stat_type} in their next game?"
+
+Think about:
+- This player's typical season average for this stat
+- Their recent performance trends
+- How often they hit this type of line historically
+
+IMPORTANT: 
+- If the bet is "{direction} {line}", give the probability that THIS SPECIFIC BET WINS
+- For example, if someone bets "UNDER 10 points" for LeBron (who averages 25+), the probability should be very LOW (like 2-5%) because LeBron almost never scores under 10
+- If someone bets "OVER 25 points" for LeBron, the probability should be around 50-60% based on his averages
+
+Respond ONLY with this JSON format:
+{{"probability": <number 0-100 representing chance this exact bet wins>, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence explanation"}}"""
 
             message = client.messages.create(
                 model="claude-sonnet-4-20250514",
@@ -56,9 +67,12 @@ Respond ONLY with JSON:
                     response_text = response_text.split("```")[1].replace("json", "").strip()
                 prediction = json.loads(response_text)
             except:
-                prediction = {"prediction": "UNKNOWN", "probability": 50, "summary": response_text[:200]}
+                prediction = {"probability": 50, "confidence": "low", "summary": response_text[:200]}
             
-            self._send_json(200, {"success": True, "player": player_name, "stat": stat_type, "line": line, "prediction": prediction})
+            # Add the direction to the response
+            prediction['direction'] = direction
+            
+            self._send_json(200, {"success": True, "player": player_name, "stat": stat_type, "line": line, "direction": direction, "prediction": prediction})
             
         except Exception as e:
             self._send_json(500, {"error": str(e)})
