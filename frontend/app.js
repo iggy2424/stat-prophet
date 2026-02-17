@@ -8,7 +8,287 @@ const featuredPlayerNames = [
 
 const statCategories = ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'];
 
+// Navigation Component
+function Navbar({ currentPage, setCurrentPage }) {
+  const navStyles = {
+    nav: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '60px',
+      background: 'rgba(10, 10, 15, 0.95)',
+      backdropFilter: 'blur(20px)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 24px',
+      zIndex: 1001
+    },
+    logo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      cursor: 'pointer'
+    },
+    logoIcon: {
+      width: '32px',
+      height: '32px',
+      background: 'linear-gradient(135deg, #00ff88, #00cc6a)',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '16px'
+    },
+    logoText: {
+      fontFamily: "'Bebas Neue', sans-serif",
+      fontSize: '20px',
+      letterSpacing: '2px',
+      color: '#fff'
+    },
+    navLinks: {
+      display: 'flex',
+      gap: '4px'
+    },
+    navLink: (active) => ({
+      padding: '8px 16px',
+      background: active ? 'rgba(0, 255, 136, 0.1)' : 'transparent',
+      border: active ? '1px solid rgba(0, 255, 136, 0.3)' : '1px solid transparent',
+      borderRadius: '6px',
+      fontFamily: "'Space Mono', monospace",
+      fontSize: '11px',
+      letterSpacing: '1px',
+      color: active ? '#00ff88' : '#888',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    })
+  };
+
+  return (
+    <nav style={navStyles.nav}>
+      <div style={navStyles.logo} onClick={() => setCurrentPage('home')}>
+        <div style={navStyles.logoIcon}>🏀</div>
+        <span style={navStyles.logoText}>STAT PROPHET</span>
+      </div>
+      
+      <div style={navStyles.navLinks}>
+        {[
+          { id: 'home', label: 'HOME' },
+          { id: 'analyzer', label: 'PROP ANALYZER' },
+          { id: 'datalab', label: 'DATA LAB' }
+        ].map(item => (
+          <button
+            key={item.id}
+            onClick={() => setCurrentPage(item.id)}
+            style={navStyles.navLink(currentPage === item.id)}
+            onMouseOver={e => {
+              if (currentPage !== item.id) {
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              }
+            }}
+            onMouseOut={e => {
+              if (currentPage !== item.id) {
+                e.currentTarget.style.color = '#888';
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+// Coming Soon Component
+function ComingSoon({ title, icon, description }) {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      paddingTop: '60px',
+      background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: "'Oswald', sans-serif"
+    }}>
+      <div style={{
+        width: '80px',
+        height: '80px',
+        background: 'rgba(0, 255, 136, 0.1)',
+        border: '1px solid rgba(0, 255, 136, 0.2)',
+        borderRadius: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '36px',
+        marginBottom: '24px'
+      }}>
+        {icon}
+      </div>
+      <h1 style={{
+        fontFamily: "'Bebas Neue', sans-serif",
+        fontSize: '48px',
+        letterSpacing: '4px',
+        color: '#fff',
+        marginBottom: '12px'
+      }}>
+        {title}
+      </h1>
+      <p style={{
+        fontFamily: "'Space Mono', monospace",
+        fontSize: '14px',
+        color: '#666',
+        marginBottom: '8px'
+      }}>
+        {description}
+      </p>
+      <div style={{
+        marginTop: '24px',
+        padding: '12px 32px',
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '4px'
+      }}>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#00ff88' }}>
+          COMING SOON
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Home Page Component
+function HomePage({ setCurrentPage }) {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      paddingTop: '60px',
+      background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)',
+      fontFamily: "'Oswald', sans-serif"
+    }}>
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '80px 20px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          display: 'inline-block',
+          padding: '8px 24px',
+          background: 'linear-gradient(90deg, #00ff88, #00cc6a)',
+          color: '#0a0a0f',
+          fontSize: '12px',
+          fontFamily: "'Space Mono', monospace",
+          fontWeight: '700',
+          letterSpacing: '3px',
+          marginBottom: '24px'
+        }}>
+          AI-POWERED ANALYTICS
+        </div>
+        
+        <h1 style={{
+          fontSize: 'clamp(56px, 12vw, 100px)',
+          fontFamily: "'Bebas Neue', sans-serif",
+          letterSpacing: '4px',
+          background: 'linear-gradient(180deg, #fff 0%, #888 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          marginBottom: '16px',
+          lineHeight: 1
+        }}>
+          STAT PROPHET
+        </h1>
+        
+        <p style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '14px',
+          color: '#666',
+          letterSpacing: '2px',
+          marginBottom: '60px'
+        }}>
+          NEXT-GEN NBA PROP PREDICTIONS
+        </p>
+
+        <div style={{
+          display: 'flex',
+          gap: '20px',
+          justifyContent: 'center',
+          flexWrap: 'wrap'
+        }}>
+          <div 
+            onClick={() => setCurrentPage('analyzer')}
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(0, 255, 136, 0.3)',
+              borderRadius: '8px',
+              padding: '32px 40px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              textAlign: 'center',
+              minWidth: '200px'
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = '#00ff88';
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎯</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '2px', color: '#00ff88', marginBottom: '8px' }}>
+              PROP ANALYZER
+            </div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
+              AI-powered predictions
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setCurrentPage('datalab')}
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              padding: '32px 40px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              textAlign: 'center',
+              minWidth: '200px',
+              opacity: 0.6
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+            }}
+          >
+            <div style={{ fontSize: '40px', marginBottom: '16px' }}>📊</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '2px', color: '#fff', marginBottom: '8px' }}>
+              DATA LAB
+            </div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
+              Coming soon
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [currentPage, setCurrentPage] = React.useState('home');
   const [step, setStep] = React.useState(1);
   const [sport, setSport] = React.useState('');
   const [player, setPlayer] = React.useState(null);
@@ -173,7 +453,7 @@ function App() {
   );
 
   const styles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '40px 20px', paddingBottom: parlayLegs.length > 0 ? '140px' : '40px' },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '100px 20px 40px', paddingBottom: parlayLegs.length > 0 ? '140px' : '40px' },
     header: { textAlign: 'center', marginBottom: '60px' },
     badge: { display: 'inline-block', padding: '8px 24px', background: 'linear-gradient(90deg, #00ff88, #00cc6a)', color: '#0a0a0f', fontSize: '12px', fontFamily: "'Space Mono', monospace", fontWeight: '700', letterSpacing: '3px', marginBottom: '20px' },
     title: { fontSize: 'clamp(48px, 10vw, 80px)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
@@ -244,46 +524,67 @@ function App() {
   // Loading state
   if (dataLoading) {
     return (
-      <div style={styles.container}>
-        <header style={styles.header}>
-          <div style={styles.badge}>AI-POWERED ANALYTICS</div>
-          <h1 style={styles.title}>STAT PROPHET</h1>
-        </header>
-        <div style={styles.loadingSpinner}>
-          <div style={{ width: '50px', height: '50px', border: '3px solid rgba(0,255,136,0.2)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <>
+        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <div style={{...styles.container, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={styles.loadingSpinner}>
+            <div style={{ width: '50px', height: '50px', border: '3px solid rgba(0,255,136,0.2)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+          <p style={{ textAlign: 'center', color: '#666', fontFamily: "'Space Mono', monospace" }}>Loading players...</p>
         </div>
-        <p style={{ textAlign: 'center', color: '#666', fontFamily: "'Space Mono', monospace" }}>Loading players...</p>
-      </div>
+      </>
     );
   }
 
+  // Page routing
+  if (currentPage === 'home') {
+    return (
+      <>
+        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <HomePage setCurrentPage={setCurrentPage} />
+      </>
+    );
+  }
+
+  if (currentPage === 'datalab') {
+    return (
+      <>
+        <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <ComingSoon 
+          title="DATA LAB" 
+          icon="📊" 
+          description="Player charts and advanced analytics"
+        />
+      </>
+    );
+  }
+
+  // Prop Analyzer (currentPage === 'analyzer')
+
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.badge}>AI-POWERED ANALYTICS</div>
-        <h1 style={styles.title}>STAT PROPHET</h1>
-        <p style={styles.subtitle}>NEXT-GEN PROP PREDICTIONS</p>
-      </header>
+    <>
+      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <div style={styles.container}>
 
-      <div style={styles.progress}>
-        {[1,2,3,4,5,6].map(s => (
-          <div key={s} style={{ width: s <= step ? '40px' : '10px', height: '4px', background: s <= step ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'all 0.4s' }} />
-        ))}
-      </div>
+        <div style={styles.progress}>
+          {[1,2,3,4,5,6].map(s => (
+            <div key={s} style={{ width: s <= step ? '40px' : '10px', height: '4px', background: s <= step ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'rgba(255,255,255,0.1)', borderRadius: '2px', transition: 'all 0.4s' }} />
+          ))}
+        </div>
 
-      {/* Step 1: Sport Selection */}
-      {step === 1 && (
-        <div>
-          <h2 style={styles.sectionTitle}>SELECT YOUR SPORT</h2>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            <div 
-              onClick={() => handleSportSelect('NBA')}
-              style={styles.sportCard}
-              onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)';}}
-              onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none';}}
-            >
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏀</div>
+        {/* Step 1: Sport Selection */}
+        {step === 1 && (
+          <div>
+            <h2 style={styles.sectionTitle}>SELECT YOUR SPORT</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <div 
+                onClick={() => handleSportSelect('NBA')}
+                style={styles.sportCard}
+                onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)';}}
+                onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none';}}
+              >
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏀</div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px' }}>NBA</div>
             </div>
           </div>
@@ -806,7 +1107,8 @@ function App() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
