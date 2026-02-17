@@ -157,7 +157,43 @@ class handler(BaseHTTPRequestHandler):
             # ═══════════════════════════════════════════════════════
             client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
             
-            prompt = f"""{context}
+            # Determine if we have player stats or odds-only
+            has_player_stats = player_stats.get('games_played', 0) > 0
+            has_odds_data = odds_data.get('summary', {}).get('consensus_line') is not None
+            
+            if has_odds_data and not has_player_stats:
+                # ODDS-ONLY MODE
+                prompt = f"""{context}
+
+You are analyzing this bet using MARKET DATA ONLY (no player statistics available).
+
+IMPORTANT: The odds data IS valuable for making predictions. Use these signals:
+
+1. **Consensus Line vs User's Line**: If user's line differs from market consensus, there may be value
+2. **Sharp vs Soft Book Delta**: If sharp books (Pinnacle, DraftKings) differ from soft books, follow the sharps
+3. **Implied Probabilities**: Shows which side the market favors
+4. **Line Movement**: Indicates where smart money is going
+5. **Best Available Price**: Better prices = better value
+
+RULES:
+- You CAN make OVER/UNDER recommendations based on market signals alone
+- If market is perfectly neutral (50/50), lean toward the user's selection with LEAN confidence
+- If there's a sharp/soft discrepancy, follow the sharp money
+- Only say NO BET if the market shows significant value AGAINST the user's selection
+
+Respond with ONLY this JSON format:
+{{
+    "recommendation": "OVER" or "UNDER" or "NO BET",
+    "confidence_tier": "STRONG" or "MODERATE" or "LEAN",
+    "probability": <number 40-60 for neutral markets, adjust based on signals>,
+    "key_factors_for": ["market signal 1", "market signal 2"],
+    "key_factors_against": ["risk 1"],
+    "market_alignment": "ALIGNED" or "CONFLICTING" or "NEUTRAL",
+    "summary": "2-3 sentence synthesis focusing on market signals"
+}}"""
+            else:
+                # FULL DATA MODE
+                prompt = f"""{context}
 
 Based on ALL the data above, provide your final analysis.
 
