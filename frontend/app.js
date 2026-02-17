@@ -26,6 +26,12 @@ function App() {
   const [allTeams, setAllTeams] = React.useState([]);
   const [dataLoading, setDataLoading] = React.useState(true);
 
+  // Parlay state
+  const [parlayLegs, setParlayLegs] = React.useState([]);
+  const [parlayExpanded, setParlayExpanded] = React.useState(false);
+  const [parlayResult, setParlayResult] = React.useState(null);
+  const [parlayLoading, setParlayLoading] = React.useState(false);
+
   // Fetch players and teams on mount
   React.useEffect(() => {
     const fetchData = async () => {
@@ -103,8 +109,71 @@ function App() {
     setLoading(false);
   };
 
+  // Parlay functions
+  const addToParlay = () => {
+    if (parlayLegs.length >= 6) return;
+    
+    const newLeg = {
+      id: Date.now(),
+      player: player.name,
+      stat: stat,
+      line: parseFloat(line),
+      direction: direction,
+      opponent: opponent.name,
+      probability: prediction.probability
+    };
+    
+    // Check if same player/stat combo already exists
+    const exists = parlayLegs.some(leg => 
+      leg.player === newLeg.player && leg.stat === newLeg.stat
+    );
+    
+    if (!exists) {
+      setParlayLegs([...parlayLegs, newLeg]);
+      setParlayResult(null); // Reset parlay result when legs change
+    }
+  };
+
+  const removeFromParlay = (id) => {
+    setParlayLegs(parlayLegs.filter(leg => leg.id !== id));
+    setParlayResult(null);
+  };
+
+  const clearParlay = () => {
+    setParlayLegs([]);
+    setParlayResult(null);
+    setParlayExpanded(false);
+  };
+
+  const calculateParlay = async () => {
+    if (parlayLegs.length < 2) return;
+    
+    setParlayLoading(true);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: 'parlay',
+          legs: parlayLegs
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setParlayResult(data.parlay);
+      }
+    } catch (e) {
+      console.error('Parlay calculation failed:', e);
+    }
+    setParlayLoading(false);
+  };
+
+  const isInParlay = prediction && parlayLegs.some(leg => 
+    leg.player === player.name && leg.stat === stat && leg.line === parseFloat(line)
+  );
+
   const styles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '40px 20px' },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '40px 20px', paddingBottom: parlayLegs.length > 0 ? '140px' : '40px' },
     header: { textAlign: 'center', marginBottom: '60px' },
     badge: { display: 'inline-block', padding: '8px 24px', background: 'linear-gradient(90deg, #00ff88, #00cc6a)', color: '#0a0a0f', fontSize: '12px', fontFamily: "'Space Mono', monospace", fontWeight: '700', letterSpacing: '3px', marginBottom: '20px' },
     title: { fontSize: 'clamp(48px, 10vw, 80px)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
@@ -124,7 +193,52 @@ function App() {
     resultCard: { background: 'linear-gradient(145deg, rgba(0,0,0,0.5), rgba(0,0,0,0.3))', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '50px', marginBottom: '24px', textAlign: 'center' },
     footer: { textAlign: 'center', marginTop: '80px', paddingTop: '40px', borderTop: '1px solid rgba(255,255,255,0.05)', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' },
     teamCard: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '14px', cursor: 'pointer', transition: 'all 0.3s ease', textAlign: 'center' },
-    loadingSpinner: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px' }
+    loadingSpinner: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px' },
+    // Parlay styles
+    parlayBar: {
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background: 'rgba(10, 10, 15, 0.98)',
+      borderTop: '1px solid rgba(0, 255, 136, 0.3)',
+      padding: '0',
+      zIndex: 1000,
+      backdropFilter: 'blur(20px)',
+      transition: 'all 0.3s ease'
+    },
+    parlayHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '16px 20px',
+      cursor: 'pointer'
+    },
+    parlayContent: {
+      maxHeight: parlayExpanded ? '400px' : '0',
+      overflow: 'hidden',
+      transition: 'max-height 0.3s ease',
+      borderTop: parlayExpanded ? '1px solid rgba(255,255,255,0.1)' : 'none'
+    },
+    parlayLeg: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '12px 20px',
+      borderBottom: '1px solid rgba(255,255,255,0.05)'
+    },
+    addToParlayBtn: {
+      background: 'rgba(138, 43, 226, 0.2)',
+      border: '1px solid rgba(138, 43, 226, 0.5)',
+      borderRadius: '4px',
+      padding: '12px 24px',
+      cursor: 'pointer',
+      fontFamily: "'Space Mono', monospace",
+      fontSize: '12px',
+      color: '#a855f7',
+      transition: 'all 0.3s',
+      marginTop: '16px'
+    }
   };
 
   // Loading state
@@ -442,20 +556,256 @@ function App() {
                 )}
               </div>
 
-              <button 
-                onClick={reset} 
-                style={{ width: '100%', background: 'transparent', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '16px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#888', transition: 'all 0.3s' }} 
-                onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.color = '#00ff88';}} 
-                onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#888';}}
-              >
-                NEW PREDICTION
-              </button>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <button 
+                  onClick={reset} 
+                  style={{ flex: 1, background: 'transparent', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '16px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#888', transition: 'all 0.3s' }} 
+                  onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.color = '#00ff88';}} 
+                  onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#888';}}
+                >
+                  NEW PREDICTION
+                </button>
+                
+                {!isInParlay && parlayLegs.length < 6 && (
+                  <button 
+                    onClick={addToParlay}
+                    style={styles.addToParlayBtn}
+                    onMouseOver={e => {e.currentTarget.style.background = 'rgba(138, 43, 226, 0.3)'; e.currentTarget.style.borderColor = '#a855f7';}}
+                    onMouseOut={e => {e.currentTarget.style.background = 'rgba(138, 43, 226, 0.2)'; e.currentTarget.style.borderColor = 'rgba(138, 43, 226, 0.5)';}}
+                  >
+                    + ADD TO PARLAY
+                  </button>
+                )}
+                
+                {isInParlay && (
+                  <div style={{ 
+                    flex: 'none',
+                    padding: '16px 24px', 
+                    background: 'rgba(138, 43, 226, 0.1)', 
+                    border: '1px solid rgba(138, 43, 226, 0.3)', 
+                    borderRadius: '4px',
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: '12px',
+                    color: '#a855f7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    ✓ IN PARLAY
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
       )}
 
       <footer style={styles.footer}>POWERED BY CLAUDE AI • FOR ENTERTAINMENT PURPOSES ONLY</footer>
+
+      {/* Parlay Floating Bar */}
+      {parlayLegs.length > 0 && (
+        <div style={styles.parlayBar}>
+          {/* Header - Always visible */}
+          <div 
+            style={styles.parlayHeader}
+            onClick={() => setParlayExpanded(!parlayExpanded)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ 
+                background: 'linear-gradient(135deg, #a855f7, #7c3aed)', 
+                borderRadius: '50%', 
+                width: '32px', 
+                height: '32px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '700'
+              }}>
+                {parlayLegs.length}
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '1px', color: '#a855f7' }}>
+                  PARLAY BUILDER
+                </div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666' }}>
+                  {parlayLegs.length} leg{parlayLegs.length !== 1 ? 's' : ''} • Tap to {parlayExpanded ? 'collapse' : 'expand'}
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {parlayLegs.length >= 2 && !parlayExpanded && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); calculateParlay(); setParlayExpanded(true); }}
+                  style={{
+                    background: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '10px 20px',
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: '14px',
+                    letterSpacing: '1px',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  CALCULATE
+                </button>
+              )}
+              <div style={{ 
+                transform: parlayExpanded ? 'rotate(180deg)' : 'rotate(0deg)', 
+                transition: 'transform 0.3s',
+                fontSize: '20px',
+                color: '#666'
+              }}>
+                ▲
+              </div>
+            </div>
+          </div>
+          
+          {/* Expandable Content */}
+          <div style={styles.parlayContent}>
+            {/* Legs List */}
+            {parlayLegs.map((leg, index) => (
+              <div key={leg.id} style={styles.parlayLeg}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ 
+                    fontFamily: "'Space Mono', monospace", 
+                    fontSize: '12px', 
+                    color: '#666',
+                    width: '20px'
+                  }}>
+                    #{index + 1}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                      {leg.player} <span style={{ color: leg.direction === 'OVER' ? '#00ff88' : '#ff4444' }}>{leg.direction}</span> {leg.line} {leg.stat}
+                    </div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666' }}>
+                      vs {leg.opponent} • {leg.probability}% confidence
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => removeFromParlay(leg.id)}
+                  style={{
+                    background: 'rgba(255,68,68,0.1)',
+                    border: '1px solid rgba(255,68,68,0.3)',
+                    borderRadius: '4px',
+                    padding: '6px 12px',
+                    color: '#ff4444',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            
+            {/* Parlay Result */}
+            {parlayResult && (
+              <div style={{ 
+                padding: '20px', 
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(124, 58, 237, 0.05))',
+                borderTop: '1px solid rgba(168, 85, 247, 0.2)'
+              }}>
+                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#a855f7', letterSpacing: '2px', marginBottom: '8px' }}>
+                    COMBINED PARLAY ODDS
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '56px', color: '#a855f7', textShadow: '0 0 40px rgba(168, 85, 247, 0.5)' }}>
+                    {parlayResult.combined_probability}%
+                  </div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                    Implied Odds: +{parlayResult.implied_odds}
+                  </div>
+                </div>
+                
+                {parlayResult.analysis && (
+                  <div style={{ 
+                    background: 'rgba(0,0,0,0.2)', 
+                    borderRadius: '4px', 
+                    padding: '12px',
+                    marginBottom: '12px'
+                  }}>
+                    <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#ccc', margin: 0, lineHeight: 1.5 }}>
+                      {parlayResult.analysis}
+                    </p>
+                  </div>
+                )}
+                
+                {parlayResult.correlation_warning && (
+                  <div style={{ 
+                    background: 'rgba(255, 215, 0, 0.1)', 
+                    border: '1px solid rgba(255, 215, 0, 0.3)',
+                    borderRadius: '4px', 
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '16px' }}>⚠️</span>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ffd700' }}>
+                      {parlayResult.correlation_warning}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div style={{ padding: '16px 20px', display: 'flex', gap: '12px' }}>
+              {parlayLegs.length >= 2 && (
+                <button
+                  onClick={calculateParlay}
+                  disabled={parlayLoading}
+                  style={{
+                    flex: 1,
+                    background: parlayLoading ? '#333' : 'linear-gradient(135deg, #a855f7, #7c3aed)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '14px',
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: '18px',
+                    letterSpacing: '2px',
+                    color: parlayLoading ? '#666' : '#fff',
+                    cursor: parlayLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {parlayLoading ? 'CALCULATING...' : 'CALCULATE PARLAY'}
+                </button>
+              )}
+              
+              <button
+                onClick={clearParlay}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '4px',
+                  padding: '14px 20px',
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: '12px',
+                  color: '#888',
+                  cursor: 'pointer'
+                }}
+              >
+                CLEAR ALL
+              </button>
+            </div>
+            
+            {parlayLegs.length < 2 && (
+              <div style={{ padding: '0 20px 16px', textAlign: 'center' }}>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
+                  Add at least 2 legs to calculate parlay odds
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
