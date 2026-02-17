@@ -223,15 +223,16 @@ Respond with ONLY this JSON format:
     # ═══════════════════════════════════════════════════════════════
     # API-SPORTS: Get player's last 30 games
     # ═══════════════════════════════════════════════════════════════
-    def _get_player_stats(self, player_name, stat_type, requests):
+def _get_player_stats(self, player_name, stat_type, requests):
         try:
-            # Search for player
             headers = {
                 "x-rapidapi-key": API_SPORTS_KEY,
                 "x-rapidapi-host": "v2.nba.api-sports.io"
             }
             
-            search_url = f"{API_SPORTS_BASE}/players?search={player_name.split()[0]}"
+            # Search for player
+            first_name = player_name.split()[0]
+            search_url = f"{API_SPORTS_BASE}/players?search={first_name}"
             response = requests.get(search_url, headers=headers)
             players = response.json().get("response", [])
             
@@ -252,31 +253,53 @@ Respond with ONLY this JSON format:
             if not player_id:
                 return {"error": "Player ID not found", "games": []}
             
-            # Get player's game stats (current season)
-            stats_url = f"{API_SPORTS_BASE}/players/statistics?id={player_id}&season=2024"
-            response = requests.get(stats_url, headers=headers)
-            games = response.json().get("response", [])
+            # Try multiple seasons (2024-25 season could be listed as 2024 or 2025)
+            games = []
+            for season in ["2024", "2025"]:
+                stats_url = f"{API_SPORTS_BASE}/players/statistics?id={player_id}&season={season}"
+                response = requests.get(stats_url, headers=headers)
+                games = response.json().get("response", [])
+                if games:
+                    break
             
             if not games:
-                return {"error": "No games found", "games": [], "player_id": player_id}
+                return {"error": "No games found for any season", "games": [], "player_id": player_id}
             
             # Extract relevant stat from each game
             stat_key = STAT_TO_API_SPORTS.get(stat_type, "points")
             game_stats = []
             
             for game in games[:30]:  # Last 30 games
-                if game.get("min") and game.get("min") != "0:00":
+                minutes = game.get("min")
+                if minutes and minutes != "0:00" and minutes != "0":
                     stat_value = game.get(stat_key, 0)
                     if stat_value is not None:
                         game_stats.append({
                             "value": int(stat_value) if stat_value else 0,
-                            "minutes": game.get("min", "0"),
+                            "minutes": minutes,
                             "date": game.get("game", {}).get("date", ""),
                             "opponent": game.get("team", {}).get("name", "")
                         })
             
             if not game_stats:
-                return {"error": "No valid game stats", "games": [], "player_id": player_id}
+                return {"error": "No valid game stats", "games": [], "player_id": player_id, "raw_games_count": len(games)}
+            
+            # Calculate stats
+            values = [g["value"] for g in game_stats]
+            
+            return {
+                "player_id": player_id,
+                "games": game_stats[:10],  # Only return last 10 for response size
+                "games_played": len(game_stats),
+                "season_avg": round(sum(values) / len(values), 1) if values else 0,
+                "last_5_avg": round(sum(values[:5]) / min(5, len(values)), 1) if values else 0,
+                "last_10_avg": round(sum(values[:10]) / min(10, len(values)), 1) if values else 0,
+                "max_last_10": max(values[:10]) if values else 0,
+                "min_last_10": min(values[:10]) if values else 0,
+            }
+            
+        except Exception as e:
+            return {"error": str(e), "games": []}
             
             # Calculate stats
             values = [g["value"] for g in game_stats]
