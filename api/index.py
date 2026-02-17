@@ -1,6 +1,11 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+from urllib.parse import urlparse, parse_qs
+
+# Supabase setup
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 class handler(BaseHTTPRequestHandler):
     
@@ -12,12 +17,69 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_GET(self):
-        response = {
-            "api": "Stat Prophet Prediction API",
-            "version": "1.1.0",
-            "status": "running"
+        try:
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            data_type = query_params.get('type', [None])[0]
+            
+            # If type parameter exists, fetch data from Supabase
+            if data_type:
+                self._handle_data_request(data_type)
+            else:
+                # Default API info
+                response = {
+                    "api": "Stat Prophet Prediction API",
+                    "version": "2.0.0",
+                    "status": "running",
+                    "endpoints": {
+                        "GET /api?type=players": "Get all players",
+                        "GET /api?type=teams": "Get all teams",
+                        "POST /api": "Get prediction"
+                    }
+                }
+                self._send_json(200, response)
+        except Exception as e:
+            self._send_json(500, {"error": str(e)})
+    
+    def _handle_data_request(self, data_type):
+        import requests
+        
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json"
         }
-        self._send_json(200, response)
+        
+        if data_type == 'players':
+            url = f"{SUPABASE_URL}/rest/v1/players?select=id,name,team_id,position,sport,teams(id,name,city,abbreviation,conference)&order=name"
+            response = requests.get(url, headers=headers)
+            players = response.json()
+            
+            formatted = []
+            for p in players:
+                team = p.get('teams', {})
+                formatted.append({
+                    "id": p['id'],
+                    "name": p['name'],
+                    "team_id": p['team_id'],
+                    "position": p.get('position'),
+                    "sport": p.get('sport', 'NBA'),
+                    "team_name": team.get('name') if team else None,
+                    "team_city": team.get('city') if team else None,
+                    "team_abbrev": team.get('abbreviation') if team else None
+                })
+            
+            self._send_json(200, {"success": True, "players": formatted, "count": len(formatted)})
+        
+        elif data_type == 'teams':
+            url = f"{SUPABASE_URL}/rest/v1/teams?select=*&order=city"
+            response = requests.get(url, headers=headers)
+            teams = response.json()
+            
+            self._send_json(200, {"success": True, "teams": teams, "count": len(teams)})
+        
+        else:
+            self._send_json(400, {"error": "Invalid type. Use 'players' or 'teams'"})
     
     def do_POST(self):
         try:
@@ -31,6 +93,7 @@ class handler(BaseHTTPRequestHandler):
             stat_type = data.get('stat_type', 'points')
             line = data.get('line', 0)
             direction = data.get('direction', 'OVER')
+            opponent = data.get('opponent', 'Unknown')
             
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             
@@ -38,19 +101,22 @@ class handler(BaseHTTPRequestHandler):
 
 PLAYER: {player_name}
 STAT: {stat_type}
+OPPONENT: {opponent}
 BET: {direction} {line}
 
-The user is asking: "What is the percentage chance that {player_name} scores {direction} {line} {stat_type} in their next game?"
+The user is asking: "What is the percentage chance that {player_name} scores {direction} {line} {stat_type} in their next game against {opponent}?"
 
 Think about:
 - This player's typical season average for this stat
 - Their recent performance trends
 - How often they hit this type of line historically
+- The opponent's defensive strength
 
 IMPORTANT: 
 - If the bet is "{direction} {line}", give the probability that THIS SPECIFIC BET WINS
 - For example, if someone bets "UNDER 10 points" for LeBron (who averages 25+), the probability should be very LOW (like 2-5%) because LeBron almost never scores under 10
 - If someone bets "OVER 25 points" for LeBron, the probability should be around 50-60% based on his averages
+- Factor in the opponent's defense - tough defenders lower scoring probability
 
 Respond ONLY with this JSON format:
 {{"probability": <number 0-100 representing chance this exact bet wins>, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence explanation"}}"""
@@ -69,10 +135,17 @@ Respond ONLY with this JSON format:
             except:
                 prediction = {"probability": 50, "confidence": "low", "summary": response_text[:200]}
             
-            # Add the direction to the response
             prediction['direction'] = direction
             
-            self._send_json(200, {"success": True, "player": player_name, "stat": stat_type, "line": line, "direction": direction, "prediction": prediction})
+            self._send_json(200, {
+                "success": True, 
+                "player": player_name, 
+                "stat": stat_type, 
+                "line": line, 
+                "direction": direction,
+                "opponent": opponent,
+                "prediction": prediction
+            })
             
         except Exception as e:
             self._send_json(500, {"error": str(e)})
