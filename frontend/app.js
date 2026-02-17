@@ -18,6 +18,7 @@ function App() {
   const [direction, setDirection] = React.useState('');
   const [line, setLine] = React.useState('');
   const [prediction, setPrediction] = React.useState(null);
+  const [oddsData, setOddsData] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   
@@ -68,7 +69,7 @@ function App() {
 
   const reset = () => {
     setStep(1); setSport(''); setPlayer(null); setSearchQuery(''); setStat(''); 
-    setOpponent(null); setDirection(''); setLine(''); setPrediction(null); setError(null);
+    setOpponent(null); setDirection(''); setLine(''); setPrediction(null); setOddsData(null); setError(null);
   };
 
   const goBack = () => {
@@ -76,7 +77,7 @@ function App() {
     else if (step === 3) { setStep(2); setStat(''); }
     else if (step === 4) { setStep(3); setOpponent(null); }
     else if (step === 5) { setStep(4); setDirection(''); }
-    else if (step === 6) { setStep(5); setLine(''); setPrediction(null); }
+    else if (step === 6) { setStep(5); setLine(''); setPrediction(null); setOddsData(null); }
   };
 
   const getPrediction = async () => {
@@ -91,17 +92,33 @@ function App() {
           stat_type: stat.toLowerCase(), 
           line: parseFloat(line),
           direction: direction,
-          opponent: `${opponent.city} ${opponent.name}`
+          opponent: `${opponent.city} ${opponent.name}`,
+          player_team: `${player.team_city} ${player.team_name}`
         })
       });
       const data = await res.json();
-      if (data.success) setPrediction(data.prediction);
-      else setError(data.error || 'Prediction failed');
+      if (data.success) {
+        setPrediction(data.prediction);
+        setOddsData(data.odds_data);
+      } else {
+        setError(data.error || 'Prediction failed');
+      }
     } catch (e) {
       setError('Failed to connect to API');
     }
     setLoading(false);
   };
+
+  // Check if user's pick matches AI recommendation
+  const getUserPickStatus = () => {
+    if (!prediction) return null;
+    const rec = prediction.recommendation;
+    if (rec === 'NO BET') return 'warning';
+    if (rec === direction) return 'aligned';
+    return 'conflicting';
+  };
+
+  const pickStatus = getUserPickStatus();
 
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '40px 20px' },
@@ -121,7 +138,6 @@ function App() {
     primaryBtn: { background: 'linear-gradient(90deg, #00ff88, #00cc6a)', border: 'none', borderRadius: '4px', padding: '20px 60px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '3px', color: '#0a0a0f' },
     disabledBtn: { background: '#333', color: '#666', cursor: 'not-allowed' },
     directionBtn: { flex: 1, padding: '30px', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.3s', background: 'rgba(255,255,255,0.03)' },
-    resultCard: { background: 'linear-gradient(145deg, rgba(0,0,0,0.5), rgba(0,0,0,0.3))', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '50px', marginBottom: '24px', textAlign: 'center' },
     footer: { textAlign: 'center', marginTop: '80px', paddingTop: '40px', borderTop: '1px solid rgba(255,255,255,0.05)', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' },
     teamCard: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '14px', cursor: 'pointer', transition: 'all 0.3s ease', textAlign: 'center' },
     loadingSpinner: { display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px' }
@@ -188,7 +204,6 @@ function App() {
           
           <h2 style={styles.sectionTitle}>SELECT PLAYER</h2>
           
-          {/* Search Bar */}
           <div style={styles.searchContainer}>
             <input
               type="text"
@@ -307,7 +322,7 @@ function App() {
             </div>
           </div>
 
-          <h2 style={styles.sectionTitle}>CHOOSE DIRECTION</h2>
+          <h2 style={styles.sectionTitle}>YOUR PICK</h2>
           
           <div style={{ display: 'flex', gap: '20px', marginTop: '40px' }}>
             <div 
@@ -333,9 +348,9 @@ function App() {
         </div>
       )}
 
-      {/* Step 6: Enter Line Value */}
+      {/* Step 6: Enter Line & Results */}
       {step === 6 && (
-        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <button style={styles.backBtn} onClick={goBack}>← BACK</button>
           
           {/* Summary Header */}
@@ -362,7 +377,7 @@ function App() {
                   step="0.5"
                   value={line} 
                   onChange={e => setLine(e.target.value)} 
-                  placeholder="25.5" 
+                  placeholder="24.5" 
                   style={styles.lineInput}
                   onFocus={(e) => e.target.style.borderColor = '#00ff88'}
                   onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
@@ -381,12 +396,8 @@ function App() {
                 disabled={!line} 
                 style={{...styles.primaryBtn, ...(line ? {} : styles.disabledBtn)}}
               >
-                GET PREDICTION
+                ANALYZE MY PICK
               </button>
-              
-              <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#444', marginTop: '24px' }}>
-                What are the odds {player.name} goes {direction} {line || '___'} {stat.toLowerCase()} vs {opponent.name}?
-              </p>
             </div>
           )}
 
@@ -394,7 +405,7 @@ function App() {
           {loading && (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <div style={{ width: '50px', height: '50px', border: '3px solid rgba(0,255,136,0.2)', borderTopColor: '#00ff88', borderRadius: '50%', margin: '0 auto 24px', animation: 'spin 1s linear infinite' }} />
-              <div style={{ fontFamily: "'Space Mono', monospace", color: '#00ff88' }}>ANALYZING WITH AI...</div>
+              <div style={{ fontFamily: "'Space Mono', monospace", color: '#00ff88' }}>ANALYZING MARKET DATA...</div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
@@ -402,43 +413,181 @@ function App() {
           {/* Results */}
           {prediction && !loading && (
             <div>
-              <div style={styles.resultCard}>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#666', letterSpacing: '2px', marginBottom: '16px' }}>
-                  {player.name.toUpperCase()} VS {opponent.name.toUpperCase()}
+              {/* User's Pick Card */}
+              <div style={{ 
+                background: 'rgba(255,255,255,0.03)', 
+                border: `2px solid ${pickStatus === 'aligned' ? '#00ff88' : pickStatus === 'conflicting' ? '#ff4444' : '#ffd700'}`,
+                borderRadius: '8px', 
+                padding: '24px', 
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#888', letterSpacing: '2px', marginBottom: '12px' }}>
+                  YOUR PICK
                 </div>
-                
-                <div style={{ marginBottom: '24px' }}>
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '48px', color: direction === 'OVER' ? '#00ff88' : '#ff4444' }}>{direction}</span>
-                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '48px', color: '#fff', margin: '0 16px' }}>{line}</span>
-                  <span style={{ fontSize: '24px', color: '#888' }}>{stat}</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', color: direction === 'OVER' ? '#00ff88' : '#ff4444' }}>{direction}</span>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', color: '#fff' }}>{line}</span>
+                  <span style={{ fontSize: '18px', color: '#888' }}>{stat}</span>
                 </div>
-
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '100px', lineHeight: 1, color: prediction.probability >= 60 ? '#00ff88' : prediction.probability >= 45 ? '#ffd700' : '#ff4444', textShadow: '0 0 60px currentColor' }}>
-                  {prediction.probability}%
-                </div>
-                
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#888', marginTop: '16px' }}>
-                  CONFIDENCE: <span style={{ color: prediction.confidence === 'high' ? '#00ff88' : prediction.confidence === 'medium' ? '#ffd700' : '#ff4444', textTransform: 'uppercase' }}>{prediction.confidence}</span>
+                <div style={{ 
+                  marginTop: '16px', 
+                  padding: '8px 16px', 
+                  background: pickStatus === 'aligned' ? 'rgba(0,255,136,0.1)' : pickStatus === 'conflicting' ? 'rgba(255,68,68,0.1)' : 'rgba(255,215,0,0.1)',
+                  borderRadius: '4px',
+                  display: 'inline-block'
+                }}>
+                  <span style={{ 
+                    fontFamily: "'Space Mono', monospace", 
+                    fontSize: '12px', 
+                    color: pickStatus === 'aligned' ? '#00ff88' : pickStatus === 'conflicting' ? '#ff4444' : '#ffd700',
+                    fontWeight: 'bold'
+                  }}>
+                    {pickStatus === 'aligned' ? '✓ MARKET AGREES' : pickStatus === 'conflicting' ? '✗ MARKET DISAGREES' : '⚠ CAUTION ADVISED'}
+                  </span>
                 </div>
               </div>
 
-              {prediction.summary && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '24px', marginBottom: '24px' }}>
-                  <p style={{ color: '#ccc', lineHeight: 1.6, margin: 0, fontSize: '15px' }}>"{prediction.summary}"</p>
+              {/* AI Recommendation Card */}
+              <div style={{ 
+                background: 'linear-gradient(145deg, rgba(0,0,0,0.5), rgba(0,0,0,0.3))', 
+                border: '1px solid rgba(255,255,255,0.1)', 
+                borderRadius: '8px', 
+                padding: '32px', 
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#888', letterSpacing: '2px', marginBottom: '16px' }}>
+                  AI RECOMMENDATION
+                </div>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <span style={{ 
+                    fontFamily: "'Bebas Neue', sans-serif", 
+                    fontSize: '56px', 
+                    color: prediction.recommendation === 'OVER' ? '#00ff88' : prediction.recommendation === 'UNDER' ? '#ff4444' : '#ffd700'
+                  }}>
+                    {prediction.recommendation}
+                  </span>
+                  {prediction.recommendation !== 'NO BET' && (
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '56px', color: '#fff', marginLeft: '16px' }}>{line}</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginBottom: '20px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '4px' }}>CONFIDENCE</div>
+                    <div style={{ 
+                      fontFamily: "'Bebas Neue', sans-serif", 
+                      fontSize: '24px', 
+                      color: prediction.confidence_tier === 'STRONG' ? '#00ff88' : prediction.confidence_tier === 'MODERATE' ? '#ffd700' : '#888'
+                    }}>
+                      {prediction.confidence_tier}
+                    </div>
+                  </div>
+                  <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '4px' }}>PROBABILITY</div>
+                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', color: '#fff' }}>
+                      {prediction.probability}%
+                    </div>
+                  </div>
+                  <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '4px' }}>MARKET</div>
+                    <div style={{ 
+                      fontFamily: "'Bebas Neue', sans-serif", 
+                      fontSize: '24px', 
+                      color: prediction.market_alignment === 'ALIGNED' ? '#00ff88' : prediction.market_alignment === 'CONFLICTING' ? '#ff4444' : '#888'
+                    }}>
+                      {prediction.market_alignment}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                {prediction.summary && (
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.03)', 
+                    borderRadius: '4px', 
+                    padding: '16px', 
+                    marginTop: '16px',
+                    borderLeft: '3px solid #00ff88'
+                  }}>
+                    <p style={{ color: '#ccc', lineHeight: 1.6, margin: 0, fontSize: '14px', textAlign: 'left' }}>
+                      {prediction.summary}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Market Data Card */}
+              {oddsData && oddsData.consensus_line && (
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.08)', 
+                  borderRadius: '8px', 
+                  padding: '24px', 
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#888', letterSpacing: '2px', marginBottom: '20px', textAlign: 'center' }}>
+                    LIVE MARKET DATA
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '8px' }}>CONSENSUS LINE</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#00ff88' }}>{oddsData.consensus_line}</div>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666' }}>{oddsData.books_count} books</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '8px' }}>BEST OVER</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#00ff88' }}>{oddsData.best_over_price > 0 ? '+' : ''}{oddsData.best_over_price}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '8px' }}>BEST UNDER</div>
+                      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#ff4444' }}>{oddsData.best_under_price > 0 ? '+' : ''}{oddsData.best_under_price}</div>
+                    </div>
+                  </div>
+
+                  {/* Lines by Book */}
+                  {oddsData.lines_by_book && Object.keys(oddsData.lines_by_book).length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', marginBottom: '12px', textAlign: 'center' }}>LINES BY BOOK</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                        {Object.entries(oddsData.lines_by_book).map(([book, bookLine]) => (
+                          <div key={book} style={{ 
+                            padding: '8px 12px', 
+                            background: 'rgba(0,0,0,0.3)', 
+                            borderRadius: '4px',
+                            border: '1px solid rgba(255,255,255,0.05)'
+                          }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', textTransform: 'uppercase' }}>{book}: </span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>{bookLine}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-                {prediction.factors && prediction.factors.length > 0 && (
+              {/* Factors */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                {prediction.key_factors_for && prediction.key_factors_for.length > 0 && (
                   <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '4px', padding: '20px' }}>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#00ff88', marginBottom: '12px', letterSpacing: '1px' }}>▲ SUPPORTING FACTORS</div>
-                    {prediction.factors.map((f, i) => <div key={i} style={{ fontSize: '13px', color: '#ccc', marginBottom: '8px', paddingLeft: '12px', borderLeft: '2px solid #00ff88' }}>{f}</div>)}
+                    {prediction.key_factors_for.map((f, i) => (
+                      <div key={i} style={{ fontSize: '13px', color: '#ccc', marginBottom: '8px', paddingLeft: '12px', borderLeft: '2px solid #00ff88' }}>{f}</div>
+                    ))}
                   </div>
                 )}
-                {prediction.risks && prediction.risks.length > 0 && (
+                {prediction.key_factors_against && prediction.key_factors_against.length > 0 && (
                   <div style={{ background: 'rgba(255,68,68,0.05)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: '4px', padding: '20px' }}>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#ff4444', marginBottom: '12px', letterSpacing: '1px' }}>▼ RISK FACTORS</div>
-                    {prediction.risks.map((r, i) => <div key={i} style={{ fontSize: '13px', color: '#ccc', marginBottom: '8px', paddingLeft: '12px', borderLeft: '2px solid #ff4444' }}>{r}</div>)}
+                    {prediction.key_factors_against.map((r, i) => (
+                      <div key={i} style={{ fontSize: '13px', color: '#ccc', marginBottom: '8px', paddingLeft: '12px', borderLeft: '2px solid #ff4444' }}>{r}</div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -456,7 +605,7 @@ function App() {
         </div>
       )}
 
-      <footer style={styles.footer}>POWERED BY CLAUDE AI • FOR ENTERTAINMENT PURPOSES ONLY</footer>
+      <footer style={styles.footer}>POWERED BY CLAUDE AI & ODDS API • FOR ENTERTAINMENT PURPOSES ONLY</footer>
     </div>
   );
 }
