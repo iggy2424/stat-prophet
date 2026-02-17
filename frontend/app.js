@@ -228,16 +228,16 @@ function App() {
       borderBottom: '1px solid rgba(255,255,255,0.05)'
     },
     addToParlayBtn: {
+      flex: 1,
       background: 'rgba(138, 43, 226, 0.2)',
-      border: '1px solid rgba(138, 43, 226, 0.5)',
+      border: '2px solid rgba(138, 43, 226, 0.5)',
       borderRadius: '4px',
-      padding: '12px 24px',
+      padding: '16px',
       cursor: 'pointer',
       fontFamily: "'Space Mono', monospace",
-      fontSize: '12px',
+      fontSize: '14px',
       color: '#a855f7',
-      transition: 'all 0.3s',
-      marginTop: '16px'
+      transition: 'all 0.3s'
     }
   };
 
