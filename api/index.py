@@ -2,10 +2,49 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 from urllib.parse import urlparse, parse_qs
+from collections import defaultdict
+from difflib import get_close_matches
+from statistics import mode, median
 
-# Supabase setup
+# API Keys
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
+API_SPORTS_KEY = os.environ.get("API_SPORTS_KEY")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
+# Odds API Config
+ODDS_BASE = "https://api.the-odds-api.com/v4"
+SPORT = "basketball_nba"
+
+# API-Sports Config
+API_SPORTS_BASE = "https://v2.nba.api-sports.io"
+
+# Stat mappings
+STAT_TO_MARKET = {
+    "points": "player_points",
+    "rebounds": "player_rebounds",
+    "assists": "player_assists",
+    "steals": "player_steals",
+    "blocks": "player_blocks",
+    "three-pointers": "player_threes",
+    "3pm": "player_threes",
+    "pra": "player_points_rebounds_assists",
+}
+
+STAT_TO_API_SPORTS = {
+    "points": "points",
+    "rebounds": "totReb",
+    "assists": "assists",
+    "steals": "steals",
+    "blocks": "blocks",
+    "three-pointers": "tpm",
+    "3pm": "tpm",
+}
+
+SHARP_BOOKS = ["pinnacle", "draftkings", "fanduel"]
+SOFT_BOOKS = ["betmgm", "caesars", "bovada", "mybookieag"]
+
 
 class handler(BaseHTTPRequestHandler):
     
@@ -22,20 +61,14 @@ class handler(BaseHTTPRequestHandler):
             query_params = parse_qs(parsed_path.query)
             data_type = query_params.get('type', [None])[0]
             
-            # If type parameter exists, fetch data from Supabase
             if data_type:
                 self._handle_data_request(data_type)
             else:
-                # Default API info
                 response = {
                     "api": "Stat Prophet Prediction API",
-                    "version": "2.0.0",
+                    "version": "3.0.0",
                     "status": "running",
-                    "endpoints": {
-                        "GET /api?type=players": "Get all players",
-                        "GET /api?type=teams": "Get all teams",
-                        "POST /api": "Get prediction"
-                    }
+                    "features": ["API-Sports Integration", "Odds API Integration", "Claude Analysis"]
                 }
                 self._send_json(200, response)
         except Exception as e:
@@ -75,7 +108,6 @@ class handler(BaseHTTPRequestHandler):
             url = f"{SUPABASE_URL}/rest/v1/teams?select=*&order=city"
             response = requests.get(url, headers=headers)
             teams = response.json()
-            
             self._send_json(200, {"success": True, "teams": teams, "count": len(teams)})
         
         else:
@@ -83,6 +115,7 @@ class handler(BaseHTTPRequestHandler):
     
     def do_POST(self):
         try:
+            import requests
             import anthropic
             
             content_length = int(self.headers.get('Content-Length', 0))
@@ -90,40 +123,64 @@ class handler(BaseHTTPRequestHandler):
             data = json.loads(body.decode('utf-8'))
             
             player_name = data.get('player_name', 'Unknown')
-            stat_type = data.get('stat_type', 'points')
-            line = data.get('line', 0)
+            stat_type = data.get('stat_type', 'points').lower()
+            line = float(data.get('line', 0))
             direction = data.get('direction', 'OVER')
             opponent = data.get('opponent', 'Unknown')
+            player_team = data.get('player_team', '')
             
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            # ═══════════════════════════════════════════════════════
+            # STEP 1: Get player stats from API-Sports
+            # ═══════════════════════════════════════════════════════
+            player_stats = self._get_player_stats(player_name, stat_type, requests)
             
-            prompt = f"""You are an NBA statistics expert. A user wants to know the probability of a specific betting outcome.
+            # ═══════════════════════════════════════════════════════
+            # STEP 2: Get odds data from The Odds API
+            # ═══════════════════════════════════════════════════════
+            odds_data = self._get_odds_data(player_name, stat_type, player_team, opponent, requests)
+            
+            # ═══════════════════════════════════════════════════════
+            # STEP 3: Calculate Python-based metrics
+            # ═══════════════════════════════════════════════════════
+            analysis = self._calculate_analysis(player_stats, line, direction, odds_data)
+            
+            # ═══════════════════════════════════════════════════════
+            # STEP 4: Build context for Claude
+            # ═══════════════════════════════════════════════════════
+            context = self._build_claude_context(
+                player_name, stat_type, line, direction, opponent,
+                player_stats, odds_data, analysis
+            )
+            
+            # ═══════════════════════════════════════════════════════
+            # STEP 5: Get Claude's synthesis
+            # ═══════════════════════════════════════════════════════
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            
+            prompt = f"""{context}
 
-PLAYER: {player_name}
-STAT: {stat_type}
-OPPONENT: {opponent}
-BET: {direction} {line}
+Based on ALL the data above, provide your final analysis.
 
-The user is asking: "What is the percentage chance that {player_name} scores {direction} {line} {stat_type} in their next game against {opponent}?"
+IMPORTANT RULES:
+1. Do NOT recalculate any numbers - use the pre-calculated values provided
+2. Identify the 2-3 STRONGEST signals (agree or conflict)
+3. If player stats and market odds conflict, explain why
+4. Give a final call: OVER, UNDER, or NO BET
 
-Think about:
-- This player's typical season average for this stat
-- Their recent performance trends
-- How often they hit this type of line historically
-- The opponent's defensive strength
-
-IMPORTANT: 
-- If the bet is "{direction} {line}", give the probability that THIS SPECIFIC BET WINS
-- For example, if someone bets "UNDER 10 points" for LeBron (who averages 25+), the probability should be very LOW (like 2-5%) because LeBron almost never scores under 10
-- If someone bets "OVER 25 points" for LeBron, the probability should be around 50-60% based on his averages
-- Factor in the opponent's defense - tough defenders lower scoring probability
-
-Respond ONLY with this JSON format:
-{{"probability": <number 0-100 representing chance this exact bet wins>, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence explanation"}}"""
+Respond with ONLY this JSON format:
+{{
+    "recommendation": "OVER" or "UNDER" or "NO BET",
+    "confidence_tier": "STRONG" or "MODERATE" or "LEAN",
+    "probability": <number 0-100>,
+    "key_factors_for": ["reason1", "reason2"],
+    "key_factors_against": ["risk1", "risk2"],
+    "market_alignment": "ALIGNED" or "CONFLICTING" or "NEUTRAL",
+    "summary": "2-3 sentence synthesis of the key signals"
+}}"""
 
             message = client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=500,
+                max_tokens=600,
                 messages=[{"role": "user", "content": prompt}]
             )
             
@@ -133,22 +190,445 @@ Respond ONLY with this JSON format:
                     response_text = response_text.split("```")[1].replace("json", "").strip()
                 prediction = json.loads(response_text)
             except:
-                prediction = {"probability": 50, "confidence": "low", "summary": response_text[:200]}
+                prediction = {
+                    "recommendation": direction,
+                    "confidence_tier": "LEAN",
+                    "probability": 50,
+                    "key_factors_for": [],
+                    "key_factors_against": [],
+                    "market_alignment": "NEUTRAL",
+                    "summary": response_text[:300]
+                }
             
-            prediction['direction'] = direction
-            
+            # ═══════════════════════════════════════════════════════
+            # STEP 6: Build final response
+            # ═══════════════════════════════════════════════════════
             self._send_json(200, {
-                "success": True, 
-                "player": player_name, 
-                "stat": stat_type, 
-                "line": line, 
+                "success": True,
+                "player": player_name,
+                "stat": stat_type,
+                "line": line,
                 "direction": direction,
                 "opponent": opponent,
-                "prediction": prediction
+                "prediction": prediction,
+                "player_stats": player_stats,
+                "odds_data": odds_data.get("summary", {}),
+                "analysis": analysis
             })
             
         except Exception as e:
-            self._send_json(500, {"error": str(e)})
+            import traceback
+            self._send_json(500, {"error": str(e), "trace": traceback.format_exc()})
+    
+    # ═══════════════════════════════════════════════════════════════
+    # API-SPORTS: Get player's last 30 games
+    # ═══════════════════════════════════════════════════════════════
+    def _get_player_stats(self, player_name, stat_type, requests):
+        try:
+            # Search for player
+            headers = {
+                "x-rapidapi-key": API_SPORTS_KEY,
+                "x-rapidapi-host": "v2.nba.api-sports.io"
+            }
+            
+            search_url = f"{API_SPORTS_BASE}/players?search={player_name.split()[0]}"
+            response = requests.get(search_url, headers=headers)
+            players = response.json().get("response", [])
+            
+            if not players:
+                return {"error": "Player not found", "games": []}
+            
+            # Find best match
+            player_id = None
+            for p in players:
+                full_name = f"{p.get('firstname', '')} {p.get('lastname', '')}".strip()
+                if player_name.lower() in full_name.lower() or full_name.lower() in player_name.lower():
+                    player_id = p.get("id")
+                    break
+            
+            if not player_id and players:
+                player_id = players[0].get("id")
+            
+            if not player_id:
+                return {"error": "Player ID not found", "games": []}
+            
+            # Get player's game stats (current season)
+            stats_url = f"{API_SPORTS_BASE}/players/statistics?id={player_id}&season=2024"
+            response = requests.get(stats_url, headers=headers)
+            games = response.json().get("response", [])
+            
+            if not games:
+                return {"error": "No games found", "games": [], "player_id": player_id}
+            
+            # Extract relevant stat from each game
+            stat_key = STAT_TO_API_SPORTS.get(stat_type, "points")
+            game_stats = []
+            
+            for game in games[:30]:  # Last 30 games
+                if game.get("min") and game.get("min") != "0:00":
+                    stat_value = game.get(stat_key, 0)
+                    if stat_value is not None:
+                        game_stats.append({
+                            "value": int(stat_value) if stat_value else 0,
+                            "minutes": game.get("min", "0"),
+                            "date": game.get("game", {}).get("date", ""),
+                            "opponent": game.get("team", {}).get("name", "")
+                        })
+            
+            if not game_stats:
+                return {"error": "No valid game stats", "games": [], "player_id": player_id}
+            
+            # Calculate stats
+            values = [g["value"] for g in game_stats]
+            
+            return {
+                "player_id": player_id,
+                "games": game_stats,
+                "games_played": len(game_stats),
+                "season_avg": round(sum(values) / len(values), 1) if values else 0,
+                "last_5_avg": round(sum(values[:5]) / min(5, len(values)), 1) if values else 0,
+                "last_10_avg": round(sum(values[:10]) / min(10, len(values)), 1) if values else 0,
+                "max_last_10": max(values[:10]) if values else 0,
+                "min_last_10": min(values[:10]) if values else 0,
+            }
+            
+        except Exception as e:
+            return {"error": str(e), "games": []}
+    
+    # ═══════════════════════════════════════════════════════════════
+    # ODDS API: Get market data
+    # ═══════════════════════════════════════════════════════════════
+    def _get_odds_data(self, player_name, stat_type, player_team, opponent, requests):
+        try:
+            # Step 1: Get today's NBA events
+            events_url = f"{ODDS_BASE}/sports/{SPORT}/events"
+            response = requests.get(events_url, params={"apiKey": ODDS_API_KEY})
+            events = response.json()
+            
+            if not events:
+                return {"error": "No NBA events today", "summary": {}}
+            
+            # Step 2: Find matching event
+            event = None
+            for e in events:
+                home = e.get("home_team", "").lower()
+                away = e.get("away_team", "").lower()
+                opp_lower = opponent.lower()
+                
+                if opp_lower in home or opp_lower in away or home in opp_lower or away in opp_lower:
+                    event = e
+                    break
+            
+            if not event:
+                # Fuzzy match
+                all_teams = []
+                for e in events:
+                    all_teams.append((e["home_team"], e))
+                    all_teams.append((e["away_team"], e))
+                
+                matches = get_close_matches(opponent, [t[0] for t in all_teams], n=1, cutoff=0.5)
+                if matches:
+                    for team, evt in all_teams:
+                        if team == matches[0]:
+                            event = evt
+                            break
+            
+            if not event:
+                return {"error": f"Event not found for opponent: {opponent}", "summary": {}, "available_events": [f"{e['away_team']} @ {e['home_team']}" for e in events[:5]]}
+            
+            event_id = event["id"]
+            
+            # Step 3: Get prop lines
+            market_key = STAT_TO_MARKET.get(stat_type, "player_points")
+            odds_url = f"{ODDS_BASE}/sports/{SPORT}/events/{event_id}/odds"
+            params = {
+                "apiKey": ODDS_API_KEY,
+                "regions": "us",
+                "markets": market_key,
+                "oddsFormat": "american"
+            }
+            response = requests.get(odds_url, params=params)
+            odds_data = response.json()
+            
+            # Step 4: Parse and analyze
+            player_odds = self._parse_player_odds(odds_data, market_key, player_name)
+            
+            return {
+                "event": {
+                    "id": event_id,
+                    "home_team": event["home_team"],
+                    "away_team": event["away_team"],
+                    "commence_time": event.get("commence_time", "")
+                },
+                "summary": player_odds
+            }
+            
+        except Exception as e:
+            return {"error": str(e), "summary": {}}
+    
+    def _parse_player_odds(self, odds_data, market_key, player_name):
+        """Parse odds data and calculate consensus, sharp/soft delta, etc."""
+        player_books = defaultdict(dict)
+        
+        for bookmaker in odds_data.get("bookmakers", []):
+            book_key = bookmaker["key"]
+            for market in bookmaker.get("markets", []):
+                if market["key"] != market_key:
+                    continue
+                
+                for outcome in market.get("outcomes", []):
+                    player = outcome.get("description", "")
+                    if not player:
+                        continue
+                    
+                    side = outcome["name"]
+                    price = outcome["price"]
+                    point = outcome.get("point")
+                    
+                    if side == "Over":
+                        player_books[player][book_key] = player_books[player].get(book_key, {})
+                        player_books[player][book_key]["over_price"] = price
+                        player_books[player][book_key]["line"] = point
+                    elif side == "Under":
+                        player_books[player][book_key] = player_books[player].get(book_key, {})
+                        player_books[player][book_key]["under_price"] = price
+                        if point:
+                            player_books[player][book_key]["line"] = point
+        
+        # Find our player (fuzzy match)
+        matched_player = None
+        player_data = {}
+        
+        for p in player_books.keys():
+            if player_name.lower() in p.lower() or p.lower() in player_name.lower():
+                matched_player = p
+                player_data = player_books[p]
+                break
+        
+        if not matched_player:
+            matches = get_close_matches(player_name, list(player_books.keys()), n=1, cutoff=0.5)
+            if matches:
+                matched_player = matches[0]
+                player_data = player_books[matches[0]]
+        
+        if not player_data:
+            return {"error": "Player not found in odds", "available_players": list(player_books.keys())[:10]}
+        
+        # Calculate consensus and analysis
+        lines = []
+        over_prices = []
+        under_prices = []
+        sharp_lines = []
+        soft_lines = []
+        
+        for book, data in player_data.items():
+            if data.get("line"):
+                lines.append(data["line"])
+                if book in SHARP_BOOKS:
+                    sharp_lines.append(data["line"])
+                if book in SOFT_BOOKS:
+                    soft_lines.append(data["line"])
+            if data.get("over_price"):
+                over_prices.append(data["over_price"])
+            if data.get("under_price"):
+                under_prices.append(data["under_price"])
+        
+        if not lines:
+            return {"error": "No lines found"}
+        
+        # Consensus line
+        try:
+            consensus_line = mode(lines)
+        except:
+            consensus_line = round(median(lines) * 2) / 2
+        
+        # Sharp vs Soft
+        sharp_consensus = round(sum(sharp_lines) / len(sharp_lines) * 2) / 2 if sharp_lines else None
+        soft_consensus = round(sum(soft_lines) / len(soft_lines) * 2) / 2 if soft_lines else None
+        sharp_soft_delta = round(sharp_consensus - soft_consensus, 1) if sharp_consensus and soft_consensus else None
+        
+        # Implied probabilities
+        def american_to_implied(odds):
+            if odds > 0:
+                return 100 / (odds + 100)
+            else:
+                return abs(odds) / (abs(odds) + 100)
+        
+        avg_over_implied = round(sum(american_to_implied(p) for p in over_prices) / len(over_prices) * 100, 1) if over_prices else None
+        avg_under_implied = round(sum(american_to_implied(p) for p in under_prices) / len(under_prices) * 100, 1) if under_prices else None
+        
+        # Market lean
+        market_lean = "NEUTRAL"
+        if avg_over_implied and avg_under_implied:
+            if avg_over_implied > avg_under_implied + 3:
+                market_lean = "UNDER"
+            elif avg_under_implied > avg_over_implied + 3:
+                market_lean = "OVER"
+        
+        # Line movement signal
+        line_movement = "No significant movement"
+        if sharp_soft_delta:
+            if sharp_soft_delta > 0.4:
+                line_movement = f"Sharp books HIGHER by {sharp_soft_delta} → UNDER pressure"
+            elif sharp_soft_delta < -0.4:
+                line_movement = f"Sharp books LOWER by {abs(sharp_soft_delta)} → OVER pressure"
+        
+        return {
+            "matched_player": matched_player,
+            "consensus_line": consensus_line,
+            "books_count": len(player_data),
+            "line_spread": max(lines) - min(lines),
+            "sharp_consensus": sharp_consensus,
+            "soft_consensus": soft_consensus,
+            "sharp_soft_delta": sharp_soft_delta,
+            "line_movement": line_movement,
+            "avg_over_implied": avg_over_implied,
+            "avg_under_implied": avg_under_implied,
+            "market_lean": market_lean,
+            "best_over_price": max(over_prices) if over_prices else None,
+            "best_under_price": max(under_prices) if under_prices else None,
+            "lines_by_book": {book: data.get("line") for book, data in player_data.items() if data.get("line")}
+        }
+    
+    # ═══════════════════════════════════════════════════════════════
+    # ANALYSIS: Python calculations
+    # ═══════════════════════════════════════════════════════════════
+    def _calculate_analysis(self, player_stats, line, direction, odds_data):
+        """Calculate hit rates, trends, edge, and confidence."""
+        games = player_stats.get("games", [])
+        
+        if not games:
+            return {"error": "No games to analyze"}
+        
+        values = [g["value"] for g in games]
+        
+        # Hit rates
+        def hit_rate(vals, line, direction):
+            if direction == "OVER":
+                hits = sum(1 for v in vals if v > line)
+            else:
+                hits = sum(1 for v in vals if v < line)
+            return round(hits / len(vals) * 100, 1) if vals else 0
+        
+        hit_rate_5 = hit_rate(values[:5], line, direction) if len(values) >= 5 else None
+        hit_rate_10 = hit_rate(values[:10], line, direction) if len(values) >= 10 else None
+        hit_rate_season = hit_rate(values, line, direction)
+        
+        # Recency-weighted average (more weight on recent games)
+        weights = [1.5, 1.4, 1.3, 1.2, 1.1] + [1.0] * (len(values) - 5)
+        weights = weights[:len(values)]
+        weighted_avg = round(sum(v * w for v, w in zip(values, weights)) / sum(weights), 1) if values else 0
+        
+        # Trend detection
+        last_5_avg = sum(values[:5]) / min(5, len(values)) if values else 0
+        rest_avg = sum(values[5:]) / len(values[5:]) if len(values) > 5 else last_5_avg
+        
+        if last_5_avg > rest_avg * 1.1:
+            trend = "HOT 🔥"
+        elif last_5_avg < rest_avg * 0.9:
+            trend = "COLD ❄️"
+        else:
+            trend = "STABLE"
+        
+        # Edge calculation
+        projection = weighted_avg
+        edge = round(projection - line, 1)
+        
+        # Confidence score (0-100)
+        confidence = 50
+        
+        # Adjust for hit rate
+        if hit_rate_10:
+            if hit_rate_10 >= 70:
+                confidence += 15
+            elif hit_rate_10 >= 60:
+                confidence += 10
+            elif hit_rate_10 <= 30:
+                confidence -= 15
+            elif hit_rate_10 <= 40:
+                confidence -= 10
+        
+        # Adjust for trend
+        if trend == "HOT 🔥" and direction == "OVER":
+            confidence += 10
+        elif trend == "COLD ❄️" and direction == "UNDER":
+            confidence += 10
+        elif trend == "HOT 🔥" and direction == "UNDER":
+            confidence -= 10
+        elif trend == "COLD ❄️" and direction == "OVER":
+            confidence -= 10
+        
+        # Adjust for edge
+        if abs(edge) >= 3:
+            confidence += 10 if (edge > 0 and direction == "OVER") or (edge < 0 and direction == "UNDER") else -10
+        
+        # Adjust for market alignment
+        odds_summary = odds_data.get("summary", {})
+        market_lean = odds_summary.get("market_lean", "NEUTRAL")
+        if market_lean == direction:
+            confidence += 5
+        elif market_lean != "NEUTRAL" and market_lean != direction:
+            confidence -= 5
+        
+        confidence = max(10, min(95, confidence))
+        
+        return {
+            "weighted_avg": weighted_avg,
+            "projection": projection,
+            "edge": edge,
+            "hit_rate_last_5": hit_rate_5,
+            "hit_rate_last_10": hit_rate_10,
+            "hit_rate_season": hit_rate_season,
+            "trend": trend,
+            "confidence_score": confidence,
+            "games_analyzed": len(values)
+        }
+    
+    # ═══════════════════════════════════════════════════════════════
+    # BUILD CLAUDE CONTEXT
+    # ═══════════════════════════════════════════════════════════════
+    def _build_claude_context(self, player_name, stat_type, line, direction, opponent, player_stats, odds_data, analysis):
+        """Build the full context block for Claude."""
+        
+        odds_summary = odds_data.get("summary", {})
+        
+        return f"""
+═══════════════════════════════════════════════════════════════
+STAT PROPHET ANALYSIS: {player_name} {stat_type.upper()} {direction} {line}
+vs {opponent}
+═══════════════════════════════════════════════════════════════
+
+PLAYER PERFORMANCE DATA (API-Sports):
+  Season Average:     {player_stats.get('season_avg', 'N/A')}
+  Last 5 Games Avg:   {player_stats.get('last_5_avg', 'N/A')}
+  Last 10 Games Avg:  {player_stats.get('last_10_avg', 'N/A')}
+  Range (Last 10):    {player_stats.get('min_last_10', 'N/A')} - {player_stats.get('max_last_10', 'N/A')}
+  Games Analyzed:     {player_stats.get('games_played', 0)}
+
+PYTHON-CALCULATED ANALYSIS:
+  Weighted Projection: {analysis.get('weighted_avg', 'N/A')}
+  Edge vs Line:        {analysis.get('edge', 'N/A')} ({'+' if analysis.get('edge', 0) > 0 else ''}{analysis.get('edge', 0)} from {line})
+  Hit Rate (Last 5):   {analysis.get('hit_rate_last_5', 'N/A')}%
+  Hit Rate (Last 10):  {analysis.get('hit_rate_last_10', 'N/A')}%
+  Hit Rate (Season):   {analysis.get('hit_rate_season', 'N/A')}%
+  Trend:               {analysis.get('trend', 'N/A')}
+  System Confidence:   {analysis.get('confidence_score', 50)}/100
+
+ODDS API MARKET DATA:
+  Consensus Line:      {odds_summary.get('consensus_line', 'N/A')} ({odds_summary.get('books_count', 0)} books)
+  Line Spread:         {odds_summary.get('line_spread', 'N/A')} pts variation
+  Sharp Books Line:    {odds_summary.get('sharp_consensus', 'N/A')}
+  Soft Books Line:     {odds_summary.get('soft_consensus', 'N/A')}
+  Sharp-Soft Delta:    {odds_summary.get('sharp_soft_delta', 'N/A')}
+  Line Movement:       {odds_summary.get('line_movement', 'N/A')}
+  
+  Implied Probability: OVER {odds_summary.get('avg_over_implied', 'N/A')}% | UNDER {odds_summary.get('avg_under_implied', 'N/A')}%
+  Market Lean:         {odds_summary.get('market_lean', 'N/A')}
+  Best Prices:         OVER {odds_summary.get('best_over_price', 'N/A')} | UNDER {odds_summary.get('best_under_price', 'N/A')}
+
+USER'S SELECTION: {direction} {line}
+═══════════════════════════════════════════════════════════════
+"""
     
     def _send_json(self, status, data):
         self.send_response(status)
