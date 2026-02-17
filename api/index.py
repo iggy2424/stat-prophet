@@ -223,7 +223,7 @@ Respond with ONLY this JSON format:
     # ═══════════════════════════════════════════════════════════════
     # API-SPORTS: Get player's last 30 games
     # ═══════════════════════════════════════════════════════════════
-def _get_player_stats(self, player_name, stat_type, requests):
+    def _get_player_stats(self, player_name, stat_type, requests):
         try:
             headers = {
                 "x-rapidapi-key": API_SPORTS_KEY,
@@ -290,23 +290,6 @@ def _get_player_stats(self, player_name, stat_type, requests):
             return {
                 "player_id": player_id,
                 "games": game_stats[:10],  # Only return last 10 for response size
-                "games_played": len(game_stats),
-                "season_avg": round(sum(values) / len(values), 1) if values else 0,
-                "last_5_avg": round(sum(values[:5]) / min(5, len(values)), 1) if values else 0,
-                "last_10_avg": round(sum(values[:10]) / min(10, len(values)), 1) if values else 0,
-                "max_last_10": max(values[:10]) if values else 0,
-                "min_last_10": min(values[:10]) if values else 0,
-            }
-            
-        except Exception as e:
-            return {"error": str(e), "games": []}
-            
-            # Calculate stats
-            values = [g["value"] for g in game_stats]
-            
-            return {
-                "player_id": player_id,
-                "games": game_stats,
                 "games_played": len(game_stats),
                 "season_avg": round(sum(values) / len(values), 1) if values else 0,
                 "last_5_avg": round(sum(values[:5]) / min(5, len(values)), 1) if values else 0,
