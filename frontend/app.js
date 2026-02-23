@@ -1,12 +1,24 @@
 const API_URL = 'https://stat-prophet.vercel.app/api';
 
-const featuredPlayerNames = [
-  'LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Dončić', 
-  'Kevin Durant', 'Jayson Tatum', 'Joel Embiid', 'Nikola Jokić',
-  'Anthony Edwards', 'Shai Gilgeous-Alexander', 'Ja Morant', 'Victor Wembanyama'
-];
+const featuredPlayerNames = {
+  NBA: ['LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Dončić',
+        'Kevin Durant', 'Jayson Tatum', 'Joel Embiid', 'Nikola Jokić',
+        'Anthony Edwards', 'Shai Gilgeous-Alexander', 'Ja Morant', 'Victor Wembanyama'],
+  NFL: ['Patrick Mahomes', 'Josh Allen', 'Lamar Jackson', 'Joe Burrow',
+        'Jalen Hurts', 'Saquon Barkley', 'CeeDee Lamb', 'Tyreek Hill',
+        'Justin Jefferson', 'Travis Kelce', 'Christian McCaffrey', "Ja'Marr Chase"],
+  MLB: ['Shohei Ohtani', 'Aaron Judge', 'Freddie Freeman', 'Yordan Alvarez',
+        'Ronald Acuna Jr.', 'Manny Machado', 'Vladimir Guerrero Jr.', 'Juan Soto',
+        'Corey Seager', 'Bobby Witt Jr.', 'Mookie Betts', 'Bryce Harper']
+};
 
-const statCategories = ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'];
+const statCategoriesBySport = {
+  NBA: ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'],
+  NFL: ['Passing Yards', 'Passing TDs', 'Rushing Yards', 'Receiving Yards', 'Receptions', 'Touchdowns'],
+  MLB: ['Hits', 'Strikeouts', 'Home Runs', 'RBIs', 'Total Bases', 'Walks']
+};
+
+const sportEmojis = { NBA: '🏀', NFL: '🏈', MLB: '⚾' };
 
 // Navigation Component
 function Navbar({ currentPage, setCurrentPage }) {
@@ -70,7 +82,7 @@ function Navbar({ currentPage, setCurrentPage }) {
     <nav style={navStyles.nav}>
       <div style={navStyles.logo} onClick={() => setCurrentPage('home')}>
         <div style={navStyles.logoIcon}>🏀</div>
-        <span style={navStyles.logoText}>STAT PROPHET</span>
+        <span style={navStyles.logoText}>TRENDBET</span>
       </div>
       
       <div style={navStyles.navLinks}>
@@ -202,7 +214,7 @@ function HomePage({ setCurrentPage }) {
           marginBottom: '16px',
           lineHeight: 1
         }}>
-          STAT PROPHET
+          TREND<span style={{ WebkitTextFillColor: '#00ff88' }}>BET</span>
         </h1>
         
         <p style={{
@@ -212,7 +224,7 @@ function HomePage({ setCurrentPage }) {
           letterSpacing: '2px',
           marginBottom: '60px'
         }}>
-          NEXT-GEN NBA PROP PREDICTIONS
+          NEXT-GEN SPORTS PROP PREDICTIONS
         </p>
 
         <div style={{
@@ -253,7 +265,7 @@ function HomePage({ setCurrentPage }) {
             </div>
           </div>
 
-          <div 
+          <div
             onClick={() => setCurrentPage('datalab')}
             style={{
               background: 'rgba(255,255,255,0.03)',
@@ -276,6 +288,62 @@ function HomePage({ setCurrentPage }) {
             <div style={{ fontSize: '40px', marginBottom: '16px' }}>📊</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '2px', color: '#fff', marginBottom: '8px' }}>
               DATA LAB
+            </div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
+              Coming soon
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              padding: '32px 40px',
+              cursor: 'default',
+              transition: 'all 0.3s ease',
+              textAlign: 'center',
+              minWidth: '200px',
+              opacity: 0.6
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+            }}
+          >
+            <div style={{ fontSize: '40px', marginBottom: '16px' }}>⚖️</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '2px', color: '#fff', marginBottom: '8px' }}>
+              ARBITRAGE
+            </div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
+              Coming soon
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              padding: '32px 40px',
+              cursor: 'default',
+              transition: 'all 0.3s ease',
+              textAlign: 'center',
+              minWidth: '200px',
+              opacity: 0.6
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+            }}
+          >
+            <div style={{ fontSize: '40px', marginBottom: '16px' }}>🤖</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '2px', color: '#fff', marginBottom: '8px' }}>
+              TRENDBET GPT
             </div>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#666' }}>
               Coming soon
@@ -333,18 +401,24 @@ function App() {
     fetchData();
   }, []);
 
-  // Get featured players from loaded data
-  const featuredPlayers = allPlayers.filter(p => featuredPlayerNames.includes(p.name));
-  
-  // Filter players based on search
+  // Sport-specific derived data
+  const currentFeaturedNames = featuredPlayerNames[sport] || featuredPlayerNames.NBA;
+  const currentStatCategories = statCategoriesBySport[sport] || statCategoriesBySport.NBA;
+  const sportPlayers = sport ? allPlayers.filter(p => p.sport === sport || (!p.sport && sport === 'NBA')) : allPlayers;
+  const sportTeams = sport ? allTeams.filter(t => t.sport === sport || (!t.sport && sport === 'NBA')) : allTeams;
+
+  // Get featured players from loaded data (filtered by sport)
+  const featuredPlayers = sportPlayers.filter(p => currentFeaturedNames.includes(p.name));
+
+  // Filter players based on search (within selected sport)
   const filteredPlayers = searchQuery.length > 0
-    ? allPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 12)
+    ? sportPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 12)
     : featuredPlayers;
 
-  // Get available opponents (exclude player's team)
-  const availableOpponents = player 
-    ? allTeams.filter(t => t.id !== player.team_id)
-    : allTeams;
+  // Get available opponents (exclude player's own team, filtered by sport)
+  const availableOpponents = player
+    ? sportTeams.filter(t => String(t.id) !== String(player.team_id))
+    : sportTeams;
 
   const handleSportSelect = (s) => { setSport(s); setStep(2); };
   const handlePlayerSelect = (p) => { setPlayer(p); setSearchQuery(''); setStep(3); };
@@ -372,9 +446,10 @@ function App() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          player_name: player.name, 
-          stat_type: stat.toLowerCase(), 
+        body: JSON.stringify({
+          player_name: player.name,
+          stat_type: stat.toLowerCase(),
+          sport: sport,
           line: parseFloat(line),
           direction: direction,
           opponent: `${opponent.city} ${opponent.name}`
@@ -578,19 +653,25 @@ function App() {
           <div>
             <h2 style={styles.sectionTitle}>SELECT YOUR SPORT</h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-              <div 
-                onClick={() => handleSportSelect('NBA')}
-                style={styles.sportCard}
-                onMouseOver={e => {e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)';}}
-                onMouseOut={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none';}}
-              >
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏀</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px' }}>NBA</div>
+              {[
+                { key: 'NBA', emoji: '🏀', label: 'NBA' },
+                { key: 'NFL', emoji: '🏈', label: 'NFL' },
+                { key: 'MLB', emoji: '⚾', label: 'MLB' }
+              ].map(({ key, emoji, label }) => (
+                <div
+                  key={key}
+                  onClick={() => handleSportSelect(key)}
+                  style={styles.sportCard}
+                  onMouseOver={e => { e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,255,136,0.2)'; }}
+                  onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>{emoji}</div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '2px' }}>{label}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <p style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#444', marginTop: '40px' }}>More sports coming soon...</p>
-        </div>
-      )}
+        )}
 
       {/* Step 2: Player Selection */}
       {step === 2 && (
@@ -598,15 +679,15 @@ function App() {
           <button style={styles.backBtn} onClick={goBack}>← BACK TO SPORTS</button>
           
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <span style={{ fontSize: '36px' }}>🏀</span>
+            <span style={{ fontSize: '36px' }}>{sportEmojis[sport]}</span>
           </div>
-          
+
           <h2 style={styles.sectionTitle}>SELECT PLAYER</h2>
-          
+
           <div style={styles.searchContainer}>
             <input
               type="text"
-              placeholder="Search 300+ NBA players..."
+              placeholder={`Search ${sport} players...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={styles.searchInput}
@@ -617,7 +698,7 @@ function App() {
 
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#00ff88', letterSpacing: '2px' }}>
-              {searchQuery ? `${allPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length} PLAYERS FOUND` : 'FEATURED PLAYERS'}
+              {searchQuery ? `${sportPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length} PLAYERS FOUND` : 'FEATURED PLAYERS'}
             </span>
           </div>
           
@@ -656,7 +737,7 @@ function App() {
           </div>
           <h2 style={styles.sectionTitle}>SELECT STAT</h2>
           <div style={{...styles.grid, maxWidth: '700px'}}>
-            {statCategories.map(s => (
+            {currentStatCategories.map(s => (
               <div 
                 key={s} 
                 onClick={() => handleStatSelect(s)} 

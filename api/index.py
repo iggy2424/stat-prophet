@@ -90,32 +90,40 @@ class handler(BaseHTTPRequestHandler):
             # Regular single prediction
             player_name = data.get('player_name', 'Unknown')
             stat_type = data.get('stat_type', 'points')
+            sport = data.get('sport', 'NBA')
             line = data.get('line', 0)
             direction = data.get('direction', 'OVER')
             opponent = data.get('opponent', 'Unknown')
-            
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-            
-            prompt = f"""You are an NBA statistics expert. A user wants to know the probability of a specific betting outcome.
 
+            sport_context = {
+                'NBA': 'NBA basketball',
+                'NFL': 'NFL football',
+                'MLB': 'MLB baseball'
+            }.get(sport, 'NBA basketball')
+
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+            prompt = f"""You are a professional {sport_context} statistics expert. A user wants to know the probability of a specific prop bet outcome.
+
+SPORT: {sport}
 PLAYER: {player_name}
 STAT: {stat_type}
 OPPONENT: {opponent}
 BET: {direction} {line}
 
-The user is asking: "What is the percentage chance that {player_name} scores {direction} {line} {stat_type} in their next game against {opponent}?"
+The user is asking: "What is the percentage chance that {player_name} goes {direction} {line} {stat_type} against {opponent}?"
 
 Think about:
 - This player's typical season average for this stat
-- Their recent performance trends
+- Their recent performance trends (last 5-10 games)
 - How often they hit this type of line historically
-- The opponent's defensive strength
+- The opponent's defensive/pitching strength for this specific stat
+- Home/away factors if relevant
 
-IMPORTANT: 
-- If the bet is "{direction} {line}", give the probability that THIS SPECIFIC BET WINS
-- For example, if someone bets "UNDER 10 points" for LeBron (who averages 25+), the probability should be very LOW (like 2-5%) because LeBron almost never scores under 10
-- If someone bets "OVER 25 points" for LeBron, the probability should be around 50-60% based on his averages
-- Factor in the opponent's defense - tough defenders lower scoring probability
+IMPORTANT:
+- Give the probability that THIS SPECIFIC BET WINS
+- Be realistic: if the line is far from the player's average, the probability should reflect that strongly
+- Factor in matchup quality (e.g., tough CB coverage for WRs, elite pitcher for batting stats)
 
 Respond ONLY with this JSON format:
 {{"probability": <number 0-100 representing chance this exact bet wins>, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence explanation"}}"""
