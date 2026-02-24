@@ -87,21 +87,20 @@ class handler(BaseHTTPRequestHandler):
     # ── GAMES (Sportradar) ────────────────────────────────────────────────────
     def _handle_games(self, requests, sport):
         if sport == 'ALL':
-            nba = self._fetch_nba(requests)
-            nfl = self._fetch_nfl(requests)
-            mlb = self._fetch_mlb(requests)
-            self._send_json(200, {"success": True, "NBA": nba, "NFL": nfl, "MLB": mlb})
+            nba, nba_d = self._fetch_nba(requests)
+            nfl, nfl_d = self._fetch_nfl(requests)
+            mlb, mlb_d = self._fetch_mlb(requests)
+            self._send_json(200, {"success": True, "NBA": nba, "NFL": nfl, "MLB": mlb,
+                                  "_debug": {"key_len": len(SR_KEY), "nba": nba_d, "nfl": nfl_d, "mlb": mlb_d}})
         elif sport == 'NBA':
-            self._send_json(200, {"success": True, "sport": "NBA", "games": self._fetch_nba(requests)})
-        elif sport == 'NFL':
-            self._send_json(200, {"success": True, "sport": "NFL", "games": self._fetch_nfl(requests)})
-        elif sport == 'MLB':
-            self._send_json(200, {"success": True, "sport": "MLB", "games": self._fetch_mlb(requests)})
+            games, debug = self._fetch_nba(requests)
+            self._send_json(200, {"success": True, "sport": "NBA", "games": games, "_debug": debug})
         else:
             self._send_json(400, {"error": "Unknown sport"})
 
     def _fetch_nba(self, requests):
         games = []
+        debug = []
         today = datetime.utcnow()
         for i in range(4):
             day = today + timedelta(days=i)
@@ -110,6 +109,7 @@ class handler(BaseHTTPRequestHandler):
                    f"?api_key={SR_KEY}")
             try:
                 resp = requests.get(url, timeout=8)
+                debug.append({"date": day.strftime("%Y-%m-%d"), "status": resp.status_code, "body_preview": resp.text[:120]})
                 if resp.status_code == 200:
                     for g in resp.json().get('games', []):
                         if g.get('status') in ('scheduled', 'created', 'inprogress', 'halftime'):
@@ -118,20 +118,22 @@ class handler(BaseHTTPRequestHandler):
                                 'status': g.get('status'), 'scheduled': g.get('scheduled'),
                                 'home': {'name': h.get('name',''), 'alias': h.get('alias',''), 'points': g.get('home_points')},
                                 'away': {'name': a.get('name',''), 'alias': a.get('alias',''), 'points': g.get('away_points')}})
-            except Exception:
-                pass
+            except Exception as e:
+                debug.append({"date": day.strftime("%Y-%m-%d"), "error": str(e)})
             if len(games) >= 5:
                 break
-        return games[:8]
+        return games[:8], debug
 
     def _fetch_nfl(self, requests):
         games = []
+        debug = []
         today = datetime.utcnow()
         for season_year, season_type in [('2025', 'REG'), ('2024', 'PST'), ('2024', 'REG')]:
             url = (f"https://api.sportradar.com/nfl/official/trial/v7/en/games"
                    f"/{season_year}/{season_type}/schedule.json?api_key={SR_KEY}")
             try:
                 resp = requests.get(url, timeout=8)
+                debug.append({"season": f"{season_year}/{season_type}", "status": resp.status_code})
                 if resp.status_code != 200:
                     continue
                 for week in resp.json().get('weeks', []):
@@ -151,21 +153,23 @@ class handler(BaseHTTPRequestHandler):
                                 pass
                 if games:
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                debug.append({"error": str(e)})
         games.sort(key=lambda x: x.get('scheduled', ''))
-        return games[:8]
+        return games[:8], debug
 
     def _fetch_mlb(self, requests):
         games = []
+        debug = []
         today = datetime.utcnow()
-        for i in range(10):
+        for i in range(3):
             day = today + timedelta(days=i)
             url = (f"https://api.sportradar.com/mlb/trial/v7/en/games"
                    f"/{day.year}/{day.month:02d}/{day.day:02d}/schedule.json"
                    f"?api_key={SR_KEY}")
             try:
                 resp = requests.get(url, timeout=8)
+                debug.append({"date": day.strftime("%Y-%m-%d"), "status": resp.status_code})
                 if resp.status_code == 200:
                     for g in resp.json().get('games', []):
                         if g.get('status') in ('scheduled', 'created', 'inprogress'):
@@ -176,11 +180,11 @@ class handler(BaseHTTPRequestHandler):
                                 'status': g.get('status'), 'scheduled': g.get('scheduled'),
                                 'home': {'name': h.get('name',''), 'alias': h_alias, 'points': g.get('home_runs')},
                                 'away': {'name': a.get('name',''), 'alias': a_alias, 'points': g.get('away_runs')}})
-            except Exception:
-                pass
+            except Exception as e:
+                debug.append({"date": day.strftime("%Y-%m-%d"), "error": str(e)})
             if len(games) >= 5:
                 break
-        return games[:8]
+        return games[:8], debug
 
     def do_POST(self):
         try:
