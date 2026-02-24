@@ -1,5 +1,4 @@
 const API_URL = 'https://stat-prophet.vercel.app/api';
-const GAMES_URL = 'https://stat-prophet.vercel.app/api/games';
 
 const featuredPlayerNames = {
   NBA: ['LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Doncic',
@@ -152,7 +151,7 @@ function Dashboard({ setCurrentPage }) {
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(GAMES_URL + '?sport=ALL');
+        const res = await fetch(`${API_URL}?type=games&sport=ALL`);
         const data = await res.json();
         if (data.success !== false) {
           setGames({ NBA: data.NBA || [], NFL: data.NFL || [], MLB: data.MLB || [] });

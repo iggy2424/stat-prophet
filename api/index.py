@@ -1,23 +1,16 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 
 # Supabase setup
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Sportradar NBA — imported lazily inside the POST handler to avoid cold-start issues
-def _get_sportradar_stats(player_name, sport):
-    """Fetch real stats from Sportradar (NBA only for now). Returns formatted string or ''."""
-    if sport != 'NBA':
-        return ''
-    try:
-        from utils.sportradar_nba import get_player_stats, format_stats_for_prompt
-        stats = get_player_stats(player_name)
-        return format_stats_for_prompt(stats) if stats else ''
-    except Exception:
-        return ''
+# Sportradar (same key used in sync script)
+SR_KEY = os.environ.get("SPORTRADAR_NBA_KEY") or os.environ.get("SPORTRADAR_API_KEY") or ""
+
 
 class handler(BaseHTTPRequestHandler):
     
@@ -35,7 +28,7 @@ class handler(BaseHTTPRequestHandler):
             data_type = query_params.get('type', [None])[0]
             
             if data_type:
-                self._handle_data_request(data_type)
+                self._handle_data_request(data_type, query_params)
             else:
                 response = {
                     "api": "Stat Prophet Prediction API",
@@ -47,15 +40,20 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_json(500, {"error": str(e)})
     
-    def _handle_data_request(self, data_type):
+    def _handle_data_request(self, data_type, query_params=None):
         import requests
-        
+
+        if data_type == 'games':
+            sport = (query_params or {}).get('sport', ['ALL'])[0].upper()
+            self._handle_games(requests, sport)
+            return
+
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Content-Type": "application/json"
         }
-        
+
         if data_type == 'players':
             url = f"{SUPABASE_URL}/rest/v1/players?select=id,name,team_id,position,sport,teams(id,name,city,abbreviation,conference)&order=name"
             response = requests.get(url, headers=headers)
@@ -84,8 +82,106 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(200, {"success": True, "teams": teams, "count": len(teams)})
         
         else:
-            self._send_json(400, {"error": "Invalid type. Use 'players' or 'teams'"})
-    
+            self._send_json(400, {"error": "Invalid type"})
+
+    # ── GAMES (Sportradar) ────────────────────────────────────────────────────
+    def _handle_games(self, requests, sport):
+        if sport == 'ALL':
+            nba = self._fetch_nba(requests)
+            nfl = self._fetch_nfl(requests)
+            mlb = self._fetch_mlb(requests)
+            self._send_json(200, {"success": True, "NBA": nba, "NFL": nfl, "MLB": mlb})
+        elif sport == 'NBA':
+            self._send_json(200, {"success": True, "sport": "NBA", "games": self._fetch_nba(requests)})
+        elif sport == 'NFL':
+            self._send_json(200, {"success": True, "sport": "NFL", "games": self._fetch_nfl(requests)})
+        elif sport == 'MLB':
+            self._send_json(200, {"success": True, "sport": "MLB", "games": self._fetch_mlb(requests)})
+        else:
+            self._send_json(400, {"error": "Unknown sport"})
+
+    def _fetch_nba(self, requests):
+        games = []
+        today = datetime.utcnow()
+        for i in range(4):
+            day = today + timedelta(days=i)
+            url = (f"https://api.sportradar.com/nba/trial/v8/en/games"
+                   f"/{day.year}/{day.month:02d}/{day.day:02d}/schedule.json"
+                   f"?api_key={SR_KEY}")
+            try:
+                resp = requests.get(url, timeout=8)
+                if resp.status_code == 200:
+                    for g in resp.json().get('games', []):
+                        if g.get('status') in ('scheduled', 'created', 'inprogress', 'halftime'):
+                            h, a = g.get('home', {}), g.get('away', {})
+                            games.append({'id': g.get('id'), 'sport': 'NBA',
+                                'status': g.get('status'), 'scheduled': g.get('scheduled'),
+                                'home': {'name': h.get('name',''), 'alias': h.get('alias',''), 'points': g.get('home_points')},
+                                'away': {'name': a.get('name',''), 'alias': a.get('alias',''), 'points': g.get('away_points')}})
+            except Exception:
+                pass
+            if len(games) >= 5:
+                break
+        return games[:8]
+
+    def _fetch_nfl(self, requests):
+        games = []
+        today = datetime.utcnow()
+        for season_year, season_type in [('2025', 'REG'), ('2024', 'PST'), ('2024', 'REG')]:
+            url = (f"https://api.sportradar.com/nfl/official/trial/v7/en/games"
+                   f"/{season_year}/{season_type}/schedule.json?api_key={SR_KEY}")
+            try:
+                resp = requests.get(url, timeout=8)
+                if resp.status_code != 200:
+                    continue
+                for week in resp.json().get('weeks', []):
+                    for g in week.get('games', []):
+                        if g.get('status') in ('scheduled', 'created', 'inprogress'):
+                            sched = g.get('scheduled', '')
+                            try:
+                                dt = datetime.fromisoformat(sched.replace('Z', '+00:00')).replace(tzinfo=None)
+                                if dt >= today - timedelta(hours=4):
+                                    h, a = g.get('home', {}), g.get('away', {})
+                                    sc = g.get('scoring') or {}
+                                    games.append({'id': g.get('id'), 'sport': 'NFL',
+                                        'status': g.get('status'), 'scheduled': sched,
+                                        'home': {'name': h.get('name',''), 'alias': h.get('alias',''), 'points': sc.get('home_points')},
+                                        'away': {'name': a.get('name',''), 'alias': a.get('alias',''), 'points': sc.get('away_points')}})
+                            except Exception:
+                                pass
+                if games:
+                    break
+            except Exception:
+                pass
+        games.sort(key=lambda x: x.get('scheduled', ''))
+        return games[:8]
+
+    def _fetch_mlb(self, requests):
+        games = []
+        today = datetime.utcnow()
+        for i in range(10):
+            day = today + timedelta(days=i)
+            url = (f"https://api.sportradar.com/mlb/trial/v7/en/games"
+                   f"/{day.year}/{day.month:02d}/{day.day:02d}/schedule.json"
+                   f"?api_key={SR_KEY}")
+            try:
+                resp = requests.get(url, timeout=8)
+                if resp.status_code == 200:
+                    for g in resp.json().get('games', []):
+                        if g.get('status') in ('scheduled', 'created', 'inprogress'):
+                            h, a = g.get('home', {}), g.get('away', {})
+                            h_alias = h.get('abbr_name') or (h.get('market','')[:3].upper() if h.get('market') else '')
+                            a_alias = a.get('abbr_name') or (a.get('market','')[:3].upper() if a.get('market') else '')
+                            games.append({'id': g.get('id'), 'sport': 'MLB',
+                                'status': g.get('status'), 'scheduled': g.get('scheduled'),
+                                'home': {'name': h.get('name',''), 'alias': h_alias, 'points': g.get('home_runs')},
+                                'away': {'name': a.get('name',''), 'alias': a_alias, 'points': g.get('away_runs')}})
+            except Exception:
+                pass
+            if len(games) >= 5:
+                break
+        return games[:8]
+
     def do_POST(self):
         try:
             import anthropic
@@ -113,11 +209,6 @@ class handler(BaseHTTPRequestHandler):
                 'MLB': 'MLB baseball'
             }.get(sport, 'NBA basketball')
 
-            # Fetch real player stats from Sportradar (NBA only, fails silently)
-            real_stats = _get_sportradar_stats(player_name, sport)
-            real_stats_block = f"\n\n{real_stats}" if real_stats else ""
-            data_source_note = "You have REAL current season data above — use it as the primary basis for your probability." if real_stats else "Use your training knowledge of this player's stats and tendencies."
-
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
             prompt = f"""You are a professional {sport_context} statistics expert. A user wants to know the probability of a specific prop bet outcome.
@@ -126,11 +217,11 @@ SPORT: {sport}
 PLAYER: {player_name}
 STAT: {stat_type}
 OPPONENT: {opponent}
-BET: {direction} {line}{real_stats_block}
+BET: {direction} {line}
 
 The user is asking: "What is the percentage chance that {player_name} goes {direction} {line} {stat_type} against {opponent}?"
 
-{data_source_note}
+Use your training knowledge of this player's stats and tendencies.
 
 Think about:
 - How the player's season average compares to the prop line
@@ -169,7 +260,7 @@ Respond ONLY with this JSON format:
                 "line": line,
                 "direction": direction,
                 "opponent": opponent,
-                "data_source": "sportradar" if real_stats else "claude_knowledge",
+                "data_source": "claude_knowledge",
                 "prediction": prediction
             })
             
