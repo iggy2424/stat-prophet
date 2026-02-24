@@ -358,6 +358,12 @@ function HomePage({ setCurrentPage }) {
 function App() {
   const [currentPage, setCurrentPage] = React.useState('home');
   const [showPlayerDropdown, setShowPlayerDropdown] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [sport, setSport] = React.useState('');
   const [player, setPlayer] = React.useState(null);
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -517,7 +523,7 @@ function App() {
   );
 
   const styles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '100px 20px 40px', paddingBottom: parlayLegs.length > 0 ? '140px' : '40px' },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)', fontFamily: "'Oswald', sans-serif", color: '#fff', padding: '100px 20px 40px', paddingBottom: parlayLegs.length > 0 ? '140px' : '40px', overflowX: 'hidden' },
     header: { textAlign: 'center', marginBottom: '60px' },
     badge: { display: 'inline-block', padding: '8px 24px', background: 'linear-gradient(90deg, #00ff88, #00cc6a)', color: '#0a0a0f', fontSize: '12px', fontFamily: "'Space Mono', monospace", fontWeight: '700', letterSpacing: '3px', marginBottom: '20px' },
     title: { fontSize: 'clamp(48px, 10vw, 80px)', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
@@ -637,7 +643,7 @@ function App() {
           <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', letterSpacing: '4px', color: '#fff', margin: '0 0 8px' }}>PROP ANALYZER</h1>
           <div style={{ height: '2px', width: '50px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '32px' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '28px', alignItems: 'start' }}>
 
             {/* LEFT — Form Card */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -670,7 +676,7 @@ function App() {
                     style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', background: sport ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${player ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: player ? '#00ff88' : '#fff', fontFamily: "'Space Mono', monospace", fontSize: '11px', outline: 'none' }}
                   />
                   {showPlayerDropdown && filteredPlayers.length > 0 && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
+                    <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '200px', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
                       {filteredPlayers.map(p => (
                         <div key={p.id}
                           onMouseDown={() => { setPlayer(p); setSearchQuery(''); setShowPlayerDropdown(false); }}
@@ -678,8 +684,8 @@ function App() {
                           onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; }}
                           onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <div style={{ fontSize: '12px', color: '#fff' }}>{p.name}</div>
-                          <div style={{ fontSize: '10px', color: '#555', fontFamily: "'Space Mono', monospace", marginTop: '2px' }}>{p.team_city} {p.team_name}</div>
+                          <div style={{ fontSize: '12px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                          <div style={{ fontSize: '10px', color: '#555', fontFamily: "'Space Mono', monospace", marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.team_city} {p.team_name}</div>
                         </div>
                       ))}
                     </div>
