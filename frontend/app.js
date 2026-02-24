@@ -366,6 +366,7 @@ function App() {
   const [direction, setDirection] = React.useState('');
   const [line, setLine] = React.useState('');
   const [prediction, setPrediction] = React.useState(null);
+  const [dataSource, setDataSource] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   
@@ -427,8 +428,8 @@ function App() {
   const handleDirectionSelect = (d) => { setDirection(d); setStep(6); };
 
   const reset = () => {
-    setStep(1); setSport(''); setPlayer(null); setSearchQuery(''); setStat(''); 
-    setOpponent(null); setDirection(''); setLine(''); setPrediction(null); setError(null);
+    setStep(1); setSport(''); setPlayer(null); setSearchQuery(''); setStat('');
+    setOpponent(null); setDirection(''); setLine(''); setPrediction(null); setDataSource(null); setError(null);
   };
 
   const goBack = () => {
@@ -456,7 +457,7 @@ function App() {
         })
       });
       const data = await res.json();
-      if (data.success) setPrediction(data.prediction);
+      if (data.success) { setPrediction(data.prediction); setDataSource(data.data_source || null); }
       else setError(data.error || 'Prediction failed');
     } catch (e) {
       setError('Failed to connect to API');
@@ -914,6 +915,17 @@ function App() {
                 
                 <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '14px', color: '#888', marginTop: '16px' }}>
                   CONFIDENCE: <span style={{ color: prediction.confidence === 'high' ? '#00ff88' : prediction.confidence === 'medium' ? '#ffd700' : '#ff4444', textTransform: 'uppercase' }}>{prediction.confidence}</span>
+                </div>
+
+                <div style={{ marginTop: '14px' }}>
+                  {dataSource === 'sportradar'
+                    ? <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', letterSpacing: '1px', background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', borderRadius: '4px', padding: '4px 10px' }}>
+                        ● LIVE DATA · SPORTRADAR
+                      </span>
+                    : <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', letterSpacing: '1px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#555', borderRadius: '4px', padding: '4px 10px' }}>
+                        ● AI KNOWLEDGE ONLY
+                      </span>
+                  }
                 </div>
               </div>
 
