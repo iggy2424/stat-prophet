@@ -7,6 +7,18 @@ from urllib.parse import urlparse, parse_qs
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
+# Sportradar NBA — imported lazily inside the POST handler to avoid cold-start issues
+def _get_sportradar_stats(player_name, sport):
+    """Fetch real stats from Sportradar (NBA only for now). Returns formatted string or ''."""
+    if sport != 'NBA':
+        return ''
+    try:
+        from utils.sportradar_nba import get_player_stats, format_stats_for_prompt
+        stats = get_player_stats(player_name)
+        return format_stats_for_prompt(stats) if stats else ''
+    except Exception:
+        return ''
+
 class handler(BaseHTTPRequestHandler):
     
     def do_OPTIONS(self):
@@ -101,6 +113,11 @@ class handler(BaseHTTPRequestHandler):
                 'MLB': 'MLB baseball'
             }.get(sport, 'NBA basketball')
 
+            # Fetch real player stats from Sportradar (NBA only, fails silently)
+            real_stats = _get_sportradar_stats(player_name, sport)
+            real_stats_block = f"\n\n{real_stats}" if real_stats else ""
+            data_source_note = "You have REAL current season data above — use it as the primary basis for your probability." if real_stats else "Use your training knowledge of this player's stats and tendencies."
+
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
             prompt = f"""You are a professional {sport_context} statistics expert. A user wants to know the probability of a specific prop bet outcome.
@@ -109,21 +126,22 @@ SPORT: {sport}
 PLAYER: {player_name}
 STAT: {stat_type}
 OPPONENT: {opponent}
-BET: {direction} {line}
+BET: {direction} {line}{real_stats_block}
 
 The user is asking: "What is the percentage chance that {player_name} goes {direction} {line} {stat_type} against {opponent}?"
 
+{data_source_note}
+
 Think about:
-- This player's typical season average for this stat
-- Their recent performance trends (last 5-10 games)
-- How often they hit this type of line historically
-- The opponent's defensive/pitching strength for this specific stat
+- How the player's season average compares to the prop line
+- Their recent performance trends
+- The opponent's defensive strength for this specific stat
 - Home/away factors if relevant
 
 IMPORTANT:
 - Give the probability that THIS SPECIFIC BET WINS
 - Be realistic: if the line is far from the player's average, the probability should reflect that strongly
-- Factor in matchup quality (e.g., tough CB coverage for WRs, elite pitcher for batting stats)
+- Factor in matchup quality
 
 Respond ONLY with this JSON format:
 {{"probability": <number 0-100 representing chance this exact bet wins>, "confidence": "high"/"medium"/"low", "factors": ["reason1", "reason2"], "risks": ["risk1"], "summary": "one sentence explanation"}}"""
@@ -143,14 +161,15 @@ Respond ONLY with this JSON format:
                 prediction = {"probability": 50, "confidence": "low", "summary": response_text[:200]}
             
             prediction['direction'] = direction
-            
+
             self._send_json(200, {
-                "success": True, 
-                "player": player_name, 
-                "stat": stat_type, 
-                "line": line, 
+                "success": True,
+                "player": player_name,
+                "stat": stat_type,
+                "line": line,
                 "direction": direction,
                 "opponent": opponent,
+                "data_source": "sportradar" if real_stats else "claude_knowledge",
                 "prediction": prediction
             })
             
