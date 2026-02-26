@@ -1,16 +1,5 @@
 const API_URL = 'https://stat-prophet.vercel.app/api';
 
-const featuredPlayerNames = {
-  NBA: ['LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Doncic',
-        'Kevin Durant', 'Jayson Tatum', 'Joel Embiid', 'Nikola Jokic',
-        'Anthony Edwards', 'Shai Gilgeous-Alexander', 'Ja Morant', 'Victor Wembanyama'],
-  NFL: ['Patrick Mahomes', 'Josh Allen', 'Lamar Jackson', 'Joe Burrow',
-        'Jalen Hurts', 'Saquon Barkley', 'CeeDee Lamb', 'Tyreek Hill',
-        'Justin Jefferson', 'Travis Kelce', 'Christian McCaffrey', "Ja'Marr Chase"],
-  MLB: ['Shohei Ohtani', 'Aaron Judge', 'Freddie Freeman', 'Yordan Alvarez',
-        'Ronald Acuna Jr.', 'Manny Machado', 'Vladimir Guerrero Jr.', 'Juan Soto',
-        'Corey Seager', 'Bobby Witt Jr.', 'Mookie Betts', 'Bryce Harper']
-};
 
 const statCategoriesBySport = {
   NBA: ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'],
@@ -31,6 +20,10 @@ const GlobalStyles = () => (
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
     select option { background: #111118; color: #fff; }
+    .game-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .game-scroll::-webkit-scrollbar { display: none; }
+    .scroll-arrow { transition: opacity 0.2s, background 0.2s; }
+    .scroll-arrow:hover { opacity: 1 !important; }
   `}</style>
 );
 
@@ -79,7 +72,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: '220px',
         background: '#0c0c13',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
         display: 'flex', flexDirection: 'column',
         zIndex: 1001,
         transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-220px)') : 'translateX(0)',
@@ -89,7 +82,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
         {/* Logo */}
         <div
           onClick={() => navigate('home')}
-          style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}
+          style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}
         >
           <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #00ff88, #00cc6a)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏀</div>
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>TRENDBET</span>
@@ -99,7 +92,8 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
           {navSections.map(({ section, items }) => (
             <div key={section} style={{ marginBottom: '4px' }}>
-              <div style={{ padding: '10px 18px 4px', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#262630', textTransform: 'uppercase' }}>
+              {/* Section label — subtle but visible */}
+              <div style={{ padding: '10px 18px 4px', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#44445e', textTransform: 'uppercase' }}>
                 {section}
               </div>
               {items.map(item => {
@@ -119,9 +113,12 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
                     onMouseOver={e => { if (!item.soon && !isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseOut={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <span style={{ fontSize: '12px', color: isActive ? '#00ff88' : '#2a2a36', flexShrink: 0 }}>{item.icon}</span>
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: item.soon ? '#2a2a36' : (isActive ? '#00ff88' : '#777'), flex: 1 }}>{item.label}</span>
-                    {item.soon && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#1e1e26', letterSpacing: '1px' }}>SOON</span>}
+                    {/* Icon */}
+                    <span style={{ fontSize: '12px', color: isActive ? '#00ff88' : (item.soon ? '#363655' : '#606080'), flexShrink: 0 }}>{item.icon}</span>
+                    {/* Label */}
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: item.soon ? '#4a4a68' : (isActive ? '#00ff88' : '#aaaacc'), flex: 1 }}>{item.label}</span>
+                    {/* Soon badge */}
+                    {item.soon && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#3a3a55', letterSpacing: '1px', background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: '3px' }}>SOON</span>}
                   </div>
                 );
               })}
@@ -130,12 +127,12 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
         </div>
 
         {/* Live Data indicator */}
-        <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#00ff88' }}>LIVE DATA</span>
           </div>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#262630', letterSpacing: '1px' }}>Sportradar</div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#44445e', letterSpacing: '1px' }}>API-SPORTS</div>
         </div>
       </div>
     </>
@@ -143,7 +140,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ setCurrentPage }) {
+function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
   const [games, setGames] = React.useState({ NBA: [], NFL: [], MLB: [] });
   const [gamesLoading, setGamesLoading] = React.useState(true);
   const [activeTabs, setActiveTabs] = React.useState({ NBA: 'upcoming', NFL: 'upcoming', MLB: 'upcoming' });
@@ -179,47 +176,51 @@ function Dashboard({ setCurrentPage }) {
     } catch { return 'TBD'; }
   };
 
-  const GameCard = ({ game, sport }) => {
+  // ── Game Card ──────────────────────────────────────────────────────────────
+  const GameCard = ({ game }) => {
     const isLive = game.status === 'inprogress' || game.status === 'halftime';
     const timeLabel = formatTime(game.scheduled, game.status);
     return (
       <div
         style={{
           background: 'rgba(255,255,255,0.025)',
-          border: `1px solid ${isLive ? 'rgba(255,68,68,0.28)' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: '8px', padding: '18px 16px',
-          minWidth: '205px', maxWidth: '205px', flexShrink: 0,
-          cursor: 'pointer', transition: 'all 0.2s', position: 'relative'
+          border: `1px solid ${isLive ? 'rgba(255,68,68,0.3)' : 'rgba(255,255,255,0.09)'}`,
+          borderRadius: '10px', padding: '16px',
+          minWidth: '200px', maxWidth: '200px', flexShrink: 0,
+          cursor: 'pointer', transition: 'all 0.2s', position: 'relative',
+          userSelect: 'none',
         }}
         onMouseOver={e => {
-          e.currentTarget.style.borderColor = 'rgba(0,255,136,0.35)';
-          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+          e.currentTarget.style.borderColor = 'rgba(0,255,136,0.4)';
+          e.currentTarget.style.background = 'rgba(255,255,255,0.045)';
           e.currentTarget.style.transform = 'translateY(-2px)';
         }}
         onMouseOut={e => {
-          e.currentTarget.style.borderColor = isLive ? 'rgba(255,68,68,0.28)' : 'rgba(255,255,255,0.08)';
+          e.currentTarget.style.borderColor = isLive ? 'rgba(255,68,68,0.3)' : 'rgba(255,255,255,0.09)';
           e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
           e.currentTarget.style.transform = 'translateY(0)';
         }}
       >
+        {/* Live badge */}
         {isLive && (
-          <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ff4444', animation: 'tbPulse 1s infinite' }} />
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#ff4444', letterSpacing: '1px' }}>LIVE</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#ff5555', letterSpacing: '1px' }}>LIVE</span>
           </div>
         )}
 
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#3a3a4a', letterSpacing: '1px', marginBottom: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {/* Time */}
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#7788aa', letterSpacing: '0.5px', marginBottom: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {isLive ? '● IN PROGRESS' : (timeLabel || 'TBD')}
         </div>
 
         {/* Away team */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', overflow: 'hidden', flex: 1, marginRight: '8px' }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '1px', color: '#e8e8e8', lineHeight: 1, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
               {game.away.alias || (game.away.name || '').slice(0, 3).toUpperCase()}
             </span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#3a3a4a', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {game.away.name}
             </span>
           </div>
@@ -228,19 +229,20 @@ function Dashboard({ setCurrentPage }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '5px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
-          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#252530' }}>@</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0' }}>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555570' }}>@</span>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
         </div>
 
         {/* Home team */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', overflow: 'hidden', flex: 1, marginRight: '8px' }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '24px', letterSpacing: '1px', color: '#e8e8e8', lineHeight: 1, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
               {game.home.alias || (game.home.name || '').slice(0, 3).toUpperCase()}
             </span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#3a3a4a', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
               {game.home.name}
             </span>
           </div>
@@ -250,10 +252,10 @@ function Dashboard({ setCurrentPage }) {
         </div>
 
         <button
-          onClick={() => setCurrentPage('analyzer')}
-          style={{ width: '100%', padding: '7px', background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.18)', borderRadius: '4px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#00ff88', transition: 'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.12)'; }}
-          onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.05)'; }}
+          onClick={() => navigateToAnalyzer ? navigateToAnalyzer(game) : setCurrentPage('analyzer')}
+          style={{ width: '100%', padding: '7px', background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '5px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#00ff88', transition: 'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.14)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.06)'; }}
         >
           ANALYSE PROP →
         </button>
@@ -261,24 +263,57 @@ function Dashboard({ setCurrentPage }) {
     );
   };
 
+  // ── Empty State ────────────────────────────────────────────────────────────
   const EmptyState = ({ sport }) => (
-    <div style={{ height: '165px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+    <div style={{ height: '165px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '26px', opacity: 0.12, marginBottom: '10px' }}>{sportEmojis[sport]}</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '2px', color: '#222' }}>NO GAMES SCHEDULED</div>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#1a1a22', marginTop: '4px' }}>Check back soon</div>
+        <div style={{ fontSize: '28px', opacity: 0.2, marginBottom: '10px' }}>{sportEmojis[sport]}</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', letterSpacing: '2px', color: '#555' }}>NO GAMES SCHEDULED</div>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#44445e', marginTop: '5px' }}>Check back soon</div>
       </div>
     </div>
   );
 
+  // ── Sport Row with scroll arrows ────────────────────────────────────────────
   const SportRow = ({ sport }) => {
     const sportGames = games[sport] || [];
+    const scrollRef = React.useRef(null);
+    const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+    const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+    const checkScroll = React.useCallback(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, []);
+
+    // Recalculate on games change, resize
+    React.useEffect(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const timer = setTimeout(checkScroll, 150);
+      el.addEventListener('scroll', checkScroll, { passive: true });
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        clearTimeout(timer);
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }, [sportGames, checkScroll]);
+
+    const scrollCards = (dir) => {
+      scrollRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' });
+    };
+
     return (
-      <div style={{ marginBottom: '44px' }}>
+      <div style={{ marginBottom: '40px' }}>
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
           <span style={{ fontSize: '18px', flexShrink: 0 }}>{sportEmojis[sport]}</span>
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', letterSpacing: '3px', color: '#fff', flexShrink: 0 }}>{sport}</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)', marginLeft: '4px' }} />
+          <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)', marginLeft: '4px' }} />
+          {/* Scroll counter dots + tab buttons on right */}
           <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
             {['UPCOMING', 'RECENT'].map(tab => {
               const isActive = activeTabs[sport] === tab.toLowerCase();
@@ -286,7 +321,7 @@ function Dashboard({ setCurrentPage }) {
                 <button
                   key={tab}
                   onClick={() => setActiveTabs(prev => ({ ...prev, [sport]: tab.toLowerCase() }))}
-                  style={{ padding: '4px 10px', background: isActive ? 'rgba(255,255,255,0.07)' : 'transparent', border: `1px solid ${isActive ? 'rgba(255,255,255,0.12)' : 'transparent'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', color: isActive ? '#888' : '#333', transition: 'all 0.15s' }}
+                  style={{ padding: '4px 10px', background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent', border: `1px solid ${isActive ? 'rgba(255,255,255,0.14)' : 'transparent'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', color: isActive ? '#ccc' : '#555', transition: 'all 0.15s' }}
                 >
                   {tab}
                 </button>
@@ -296,16 +331,70 @@ function Dashboard({ setCurrentPage }) {
         </div>
 
         {gamesLoading ? (
-          <div style={{ height: '165px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ height: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '28px', height: '28px', border: '2px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
           </div>
         ) : sportGames.length === 0 ? (
           <EmptyState sport={sport} />
         ) : (
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-            {sportGames.map(game => (
-              <GameCard key={game.id || (game.scheduled + game.home.alias)} game={game} sport={sport} />
-            ))}
+          /* Scroll container with overlay arrows */
+          <div style={{ position: 'relative' }}>
+
+            {/* ← LEFT ARROW */}
+            {canScrollLeft && (
+              <button
+                className="scroll-arrow"
+                onClick={() => scrollCards(-1)}
+                style={{
+                  position: 'absolute', left: 0, top: 0, bottom: '12px',
+                  width: '52px', border: 'none', cursor: 'pointer', zIndex: 5,
+                  background: 'linear-gradient(to right, #0a0a0f 35%, rgba(10,10,15,0.7) 70%, transparent)',
+                  display: 'flex', alignItems: 'center', paddingLeft: '6px',
+                  color: '#fff', fontSize: '26px', lineHeight: 1, opacity: 0.85,
+                  padding: '0 0 12px 6px',
+                }}
+                aria-label="Scroll left"
+              >‹</button>
+            )}
+
+            {/* → RIGHT ARROW */}
+            {canScrollRight && (
+              <button
+                className="scroll-arrow"
+                onClick={() => scrollCards(1)}
+                style={{
+                  position: 'absolute', right: 0, top: 0, bottom: '12px',
+                  width: '52px', border: 'none', cursor: 'pointer', zIndex: 5,
+                  background: 'linear-gradient(to left, #0a0a0f 35%, rgba(10,10,15,0.7) 70%, transparent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '6px',
+                  color: '#fff', fontSize: '26px', lineHeight: 1, opacity: 0.85,
+                  padding: '0 6px 12px 0',
+                }}
+                aria-label="Scroll right"
+              >›</button>
+            )}
+
+            {/* Scrollable row — no scrollbar shown, arrows instead */}
+            <div
+              ref={scrollRef}
+              className="game-scroll"
+              style={{
+                display: 'flex', gap: '12px',
+                overflowX: 'auto',
+                paddingBottom: '12px',
+                /* Prevent this scroll from bubbling to the page on mobile */
+                overscrollBehaviorX: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                /* Snap to cards on mobile for smoother swipe */
+                scrollSnapType: 'x proximity',
+              }}
+            >
+              {sportGames.map(game => (
+                <div key={game.id || (game.scheduled + game.home.alias)} style={{ scrollSnapAlign: 'start' }}>
+                  <GameCard game={game} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -317,7 +406,7 @@ function Dashboard({ setCurrentPage }) {
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>DASHBOARD</h1>
         <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '10px' }} />
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#2e2e3a', letterSpacing: '2px', margin: 0 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#55557a', letterSpacing: '2px', margin: 0 }}>
           UPCOMING GAMES  ·  LIVE SCORES  ·  AI ANALYSIS
         </p>
       </div>
@@ -340,6 +429,120 @@ function ComingSoon({ title, icon, description }) {
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#555', marginBottom: '24px', textAlign: 'center' }}>{description}</p>
       <div style={{ padding: '10px 28px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px' }}>
         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#00ff88' }}>COMING SOON</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── ALT LINES PICKER ────────────────────────────────────────────────────────
+function AltLinesPicker({ altLines, line, setLine, setDirection }) {
+  const scrollRef = React.useRef(null);
+  const [canScrollLeft,  setCanScrollLeft]  = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const checkScroll = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Scroll best value pill to center
+    const bestIdx = altLines.findIndex(al => al.best_value);
+    if (bestIdx !== -1) {
+      setTimeout(() => {
+        const pill = el.children[0]?.children[bestIdx];
+        if (pill) {
+          const pillCenter = pill.offsetLeft + pill.offsetWidth / 2;
+          el.scrollLeft = pillCenter - el.clientWidth / 2;
+        }
+        checkScroll();
+      }, 160);
+    } else {
+      setTimeout(checkScroll, 150);
+    }
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll);
+    return () => { el.removeEventListener('scroll', checkScroll); window.removeEventListener('resize', checkScroll); };
+  }, [altLines, checkScroll]);
+
+  const arrowBase = {
+    position: 'absolute', top: 0, bottom: 0, width: '38px',
+    border: 'none', cursor: 'pointer', zIndex: 5,
+    display: 'flex', alignItems: 'center',
+    color: '#ccc', fontSize: '24px', lineHeight: 1,
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {canScrollLeft && (
+        <button className="scroll-arrow" onClick={() => scrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+          style={{ ...arrowBase, left: 0, justifyContent: 'flex-start', paddingLeft: '4px',
+            background: 'linear-gradient(to right, rgba(13,13,20,0.97) 40%, transparent)' }}>‹</button>
+      )}
+      {canScrollRight && (
+        <button className="scroll-arrow" onClick={() => scrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+          style={{ ...arrowBase, right: 0, justifyContent: 'flex-end', paddingRight: '4px',
+            background: 'linear-gradient(to left, rgba(13,13,20,0.97) 40%, transparent)' }}>›</button>
+      )}
+      <div ref={scrollRef} className="game-scroll" style={{ overflowX: 'auto', paddingTop: '12px', paddingBottom: '4px', width: '100%' }}>
+        <div style={{ display: 'flex', gap: '8px', minWidth: 'max-content' }}>
+          {altLines.map(al => {
+            const isSelected = String(line) === String(al.line);
+            const hitPct   = al.hit_rate       != null ? Math.round(al.hit_rate * 100)       : null;
+            const edgePct  = al.edge            != null ? Math.round(al.edge * 100)           : null;
+            const vsOppPct = al.vs_opp_hit_rate != null ? Math.round(al.vs_opp_hit_rate * 100): null;
+            const barColor = al.edge != null
+              ? (al.edge > 0.05 ? '#00ff88' : al.edge < -0.05 ? '#ff4444' : '#777')
+              : (al.hit_rate != null ? (al.hit_rate > 0.5 ? '#00ff88' : al.hit_rate < 0.5 ? '#ff4444' : '#777') : '#777');
+            return (
+              <div key={al.line} onClick={() => { setLine(String(al.line)); setDirection('OVER'); }}
+                style={{ position: 'relative', minWidth: '76px', cursor: 'pointer',
+                  padding: al.best_value ? '14px 8px 10px' : '10px 8px 10px',
+                  borderRadius: '6px', textAlign: 'center',
+                  border: `2px solid ${isSelected ? '#00ff88' : al.best_value ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                  background: isSelected ? 'rgba(0,255,136,0.08)' : al.best_value ? 'rgba(255,215,0,0.04)' : 'rgba(255,255,255,0.02)',
+                  transition: 'all 0.15s' }}>
+                {al.best_value && (
+                  <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)',
+                    background: '#ffd700', color: '#000', fontFamily: "'Space Mono', monospace",
+                    fontSize: '7px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px',
+                    whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>★ BEST VALUE</div>
+                )}
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', lineHeight: 1,
+                  color: isSelected ? '#00ff88' : al.best_value ? '#ffd700' : '#ccc' }}>{al.line}</div>
+                {al.over_odds != null && (
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', marginTop: '2px',
+                    color: isSelected ? '#00ff88' : '#666' }}>
+                    {al.over_odds > 0 ? '+' : ''}{al.over_odds}
+                  </div>
+                )}
+                {hitPct != null && (
+                  <>
+                    <div style={{ marginTop: '6px', height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${hitPct}%`, background: barColor, borderRadius: '2px', transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', marginTop: '3px',
+                      color: barColor === '#777' ? '#555' : barColor }}>{hitPct}% overall</div>
+                    {edgePct != null && (
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', marginTop: '1px',
+                        color: edgePct > 0 ? '#00ff88' : '#ff4444' }}>{edgePct > 0 ? '+' : ''}{edgePct}%</div>
+                    )}
+                  </>
+                )}
+                {vsOppPct != null && (
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', marginTop: '3px',
+                    color: '#ffd700', borderTop: '1px solid rgba(255,215,0,0.15)', paddingTop: '3px' }}>
+                    {vsOppPct}% vs opp
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -370,6 +573,12 @@ function App() {
   const [dataSource, setDataSource] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [oddsData, setOddsData] = React.useState(null);
+  const [oddsLoading, setOddsLoading] = React.useState(false);
+  const [playerStats, setPlayerStats] = React.useState(null);
+  const [playerStatsLoading, setPlayerStatsLoading] = React.useState(false);
+  const [legendOpen, setLegendOpen] = React.useState(true);
+  const [gameContext, setGameContext] = React.useState(null); // { homeAlias, awayAlias, homeName, awayName, sport }
 
   // Player/team data from Supabase
   const [allPlayers, setAllPlayers] = React.useState([]);
@@ -398,24 +607,107 @@ function App() {
     })();
   }, []);
 
+  // Auto-fetch real Vegas line when player + opponent + stat are all set (NBA only)
+  React.useEffect(() => {
+    if (!player || !opponent || !stat || sport !== 'NBA') {
+      setOddsData(null);
+      return;
+    }
+    setOddsLoading(true);
+    const teamName = (player.team_name || '').toLowerCase();
+    const oppName  = (opponent.name   || '').toLowerCase();
+    fetch(`${API_URL}?type=odds&player_name=${encodeURIComponent(player.name)}&team_name=${encodeURIComponent(teamName)}&opponent_name=${encodeURIComponent(oppName)}&stat=${encodeURIComponent(stat.toLowerCase())}`)
+      .then(r => r.json())
+      .then(data => {
+        setOddsLoading(false);
+        if (data.found) {
+          setOddsData(data);
+          setLine(String(data.line));
+        } else if (data.has_live_odds === false && data.alternate_lines && data.alternate_lines.length > 0) {
+          setOddsData(data); // synthetic lines from player game log
+        } else {
+          setOddsData(null);
+        }
+      })
+      .catch(() => { setOddsLoading(false); setOddsData(null); });
+  }, [player, opponent, stat, sport]);
+
+  // When coming from a game card, auto-set the opponent to the other team in the matchup
+  React.useEffect(() => {
+    if (!player || !gameContext || !sportTeams.length) return;
+    const teams = sportTeams.filter(t => t.abbreviation === gameContext.homeAlias || t.abbreviation === gameContext.awayAlias);
+    if (teams.length < 2) return;
+    const opp = teams.find(t => String(t.id) !== String(player.team_id));
+    if (opp) setOpponent(opp);
+  }, [player, gameContext]);
+
+  // Fetch player stats (overall + vs opponent) independently of odds — works for any player
+  React.useEffect(() => {
+    if (!player || !stat || !opponent) {
+      setPlayerStats(null);
+      return;
+    }
+    setPlayerStatsLoading(true);
+    const oppName = (opponent.name || '').toLowerCase();
+    fetch(`${API_URL}?type=player_stats&player_name=${encodeURIComponent(player.name)}&stat=${encodeURIComponent(stat.toLowerCase())}&opponent_name=${encodeURIComponent(oppName)}&sport=${sport}`)
+      .then(r => r.json())
+      .then(data => { setPlayerStatsLoading(false); if (data.success) setPlayerStats(data); else setPlayerStats(null); })
+      .catch(() => { setPlayerStatsLoading(false); setPlayerStats(null); });
+  }, [player, stat, opponent, sport]);
+
   // Derived data
   const currentStatCategories = statCategoriesBySport[sport] || statCategoriesBySport.NBA;
   const sportPlayers = sport ? allPlayers.filter(p => p.sport === sport || (!p.sport && sport === 'NBA')) : allPlayers;
   const sportTeams = sport ? allTeams.filter(t => t.sport === sport || (!t.sport && sport === 'NBA')) : allTeams;
-  const currentFeaturedNames = featuredPlayerNames[sport] || featuredPlayerNames.NBA;
-  const featuredPlayers = sportPlayers.filter(p => currentFeaturedNames.includes(p.name));
+  // When navigated from a game card, restrict players to those two teams only
+  const gameTeams = gameContext
+    ? sportTeams.filter(t => t.abbreviation === gameContext.homeAlias || t.abbreviation === gameContext.awayAlias)
+    : null;
+  const gameTeamPlayerIds = gameTeams && gameTeams.length > 0
+    ? new Set(gameTeams.map(t => String(t.id)))
+    : null;
+  const gameTeamPlayers = gameTeamPlayerIds
+    ? sportPlayers.filter(p => gameTeamPlayerIds.has(String(p.team_id)))
+    : null;
+
+  // Group players by team for default dropdown display
+  const playersByTeam = React.useMemo(() => {
+    const pool = gameTeamPlayers || sportPlayers;
+    const groups = {};
+    pool.forEach(p => {
+      const key = `${p.team_city || ''} ${p.team_name || ''}`.trim() || 'Unknown';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [gameTeamPlayers, sportPlayers]);
+
   const filteredPlayers = searchQuery.length > 0
-    ? sportPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
-    : featuredPlayers.slice(0, 8);
+    ? (gameTeamPlayers || sportPlayers).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 15)
+    : null; // null = use playersByTeam grouped view
   const availableOpponents = player
     ? sportTeams.filter(t => String(t.id) !== String(player.team_id))
     : sportTeams;
   const canSubmit = sport && player && stat && opponent && direction && line;
 
+  const navigateToAnalyzer = (game) => {
+    const sp = (game.sport || 'NBA').toUpperCase();
+    setSport(sp); setPlayer(null); setSearchQuery(''); setStat('');
+    setOpponent(null); setDirection(''); setLine(''); setPrediction(null);
+    setDataSource(null); setError(null); setShowPlayerDropdown(false);
+    setOddsData(null); setOddsLoading(false);
+    setPlayerStats(null); setPlayerStatsLoading(false);
+    setGameContext({ homeAlias: game.home.alias, awayAlias: game.away.alias, homeName: game.home.name, awayName: game.away.name, sport: sp });
+    setCurrentPage('analyzer');
+  };
+
   const reset = () => {
     setSport(''); setPlayer(null); setSearchQuery(''); setStat('');
     setOpponent(null); setDirection(''); setLine(''); setPrediction(null);
     setDataSource(null); setError(null); setShowPlayerDropdown(false);
+    setOddsData(null); setOddsLoading(false);
+    setPlayerStats(null); setPlayerStatsLoading(false);
+    setGameContext(null);
   };
 
   const getPrediction = async () => {
@@ -426,7 +718,9 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           player_name: player.name, stat_type: stat.toLowerCase(), sport,
-          line: parseFloat(line), direction, opponent: `${opponent.city} ${opponent.name}`
+          line: parseFloat(line), direction, opponent: `${opponent.city} ${opponent.name}`,
+          player_stats: playerStats ? playerStats.player_stats : null,
+          player_stats_vs_opp: playerStats ? playerStats.player_stats_vs_opp : null
         })
       });
       const data = await res.json();
@@ -486,7 +780,7 @@ function App() {
       );
     }
 
-    if (currentPage === 'home')       return <Dashboard setCurrentPage={setCurrentPage} />;
+    if (currentPage === 'home')       return <Dashboard setCurrentPage={setCurrentPage} navigateToAnalyzer={navigateToAnalyzer} />;
     if (currentPage === 'datalab')    return <ComingSoon title="DATA LAB"      icon="📊" description="Player charts and advanced analytics" />;
     if (currentPage === 'ai-picks')   return <ComingSoon title="AI PICKS"      icon="✦" description="AI-powered daily picks" />;
     if (currentPage === 'arbitrage')  return <ComingSoon title="ARBITRAGE"     icon="⚖️" description="Find value across sportsbooks" />;
@@ -501,7 +795,23 @@ function App() {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px', alignItems: 'start' }}>
 
           {/* LEFT — Form */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+
+            {/* GAME CONTEXT BANNER */}
+            {gameContext && (
+              <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#00ff88', letterSpacing: '2px', marginBottom: '4px' }}>GAME CONTEXT</div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px', color: '#fff' }}>
+                    {gameContext.awayName} <span style={{ color: '#444' }}>@</span> {gameContext.homeName}
+                  </div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', marginTop: '3px' }}>
+                    Showing players from these teams only
+                  </div>
+                </div>
+                <button onClick={() => setGameContext(null)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', cursor: 'pointer', fontSize: '14px', padding: '4px 8px', lineHeight: 1 }}>×</button>
+              </div>
+            )}
 
             {/* SPORT */}
             <div>
@@ -509,7 +819,7 @@ function App() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 {['NBA', 'NFL', 'MLB'].map(s => (
                   <button key={s}
-                    onClick={() => { setSport(s); setPlayer(null); setSearchQuery(''); setStat(''); setOpponent(null); setPrediction(null); setError(null); setShowPlayerDropdown(false); }}
+                    onClick={() => { setSport(s); setPlayer(null); setSearchQuery(''); setStat(''); setOpponent(null); setPrediction(null); setError(null); setShowPlayerDropdown(false); setGameContext(null); }}
                     style={{ flex: 1, padding: '10px 6px', background: sport === s ? 'rgba(0,255,136,0.1)' : 'transparent', border: `1px solid ${sport === s ? '#00ff88' : 'rgba(255,255,255,0.12)'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '2px', color: sport === s ? '#00ff88' : '#666', transition: 'all 0.2s' }}>
                     {s}
                   </button>
@@ -518,7 +828,7 @@ function App() {
             </div>
 
             {/* PLAYER + TEAM */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div style={{ position: 'relative' }}>
                 <span style={fieldLabel}>PLAYER</span>
                 <input
@@ -531,9 +841,9 @@ function App() {
                   onBlur={() => setTimeout(() => setShowPlayerDropdown(false), 150)}
                   style={{ width: '100%', padding: '10px 12px', background: sport ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${player ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: player ? '#00ff88' : '#fff', fontFamily: "'Space Mono', monospace", fontSize: '11px', outline: 'none' }}
                 />
-                {showPlayerDropdown && filteredPlayers.length > 0 && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '200px', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
-                    {filteredPlayers.map(p => (
+                {showPlayerDropdown && (filteredPlayers ? filteredPlayers.length > 0 : playersByTeam.length > 0) && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '260px', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
+                    {filteredPlayers ? filteredPlayers.map(p => (
                       <div key={p.id}
                         onMouseDown={() => { setPlayer(p); setSearchQuery(''); setShowPlayerDropdown(false); }}
                         style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
@@ -541,12 +851,26 @@ function App() {
                         onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
                       >
                         <div style={{ fontSize: '12px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                        <div style={{ fontSize: '10px', color: '#555', fontFamily: "'Space Mono', monospace", marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.team_city} {p.team_name}</div>
+                        <div style={{ fontSize: '10px', color: '#555', fontFamily: "'Space Mono', monospace", marginTop: '2px' }}>{p.team_city} {p.team_name}</div>
+                      </div>
+                    )) : playersByTeam.map(([teamName, players]) => (
+                      <div key={teamName}>
+                        <div style={{ padding: '5px 12px 3px', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1.5px', color: '#444', textTransform: 'uppercase', background: '#0d0d14', borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>{teamName}</div>
+                        {players.map(p => (
+                          <div key={p.id}
+                            onMouseDown={() => { setPlayer(p); setSearchQuery(''); setShowPlayerDropdown(false); }}
+                            style={{ padding: '8px 12px 8px 16px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                            onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; e.currentTarget.style.color = '#00ff88'; }}
+                            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
+                          >
+                            <div style={{ fontSize: '12px', color: '#ddd' }}>{p.name}</div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
                 )}
-                {showPlayerDropdown && sport && filteredPlayers.length === 0 && searchQuery && (
+                {showPlayerDropdown && sport && filteredPlayers && filteredPlayers.length === 0 && searchQuery && (
                   <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', zIndex: 200, padding: '10px 12px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '10px' }}>
                     No players found
                   </div>
@@ -563,7 +887,7 @@ function App() {
             </div>
 
             {/* OPP TEAM + PROP */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <span style={fieldLabel}>OPPOSING TEAM</span>
                 <select value={opponent ? String(opponent.id) : ''}
@@ -589,10 +913,109 @@ function App() {
 
             {/* LINE */}
             <div>
-              <span style={fieldLabel}>LINE</span>
-              <input type="number" step="0.5" value={line} onChange={e => setLine(e.target.value)} placeholder="e.g. 25.5"
-                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${line ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '14px', outline: 'none' }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                <span style={fieldLabel}>LINE</span>
+                {oddsLoading && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>FETCHING ODDS...</span>}
+                {oddsData && !oddsLoading && oddsData.has_live_odds !== false && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#00ff88', letterSpacing: '1px', background: 'rgba(0,255,136,0.08)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(0,255,136,0.2)' }}>
+                    LIVE • {oddsData.bookmaker}
+                  </span>
+                )}
+                {oddsData && !oddsLoading && oddsData.has_live_odds === false && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px', background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    NO LIVE ODDS
+                  </span>
+                )}
+                {playerStatsLoading && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#444', letterSpacing: '1px' }}>LOADING STATS...</span>}
+                {playerStats && playerStats.player_stats && !playerStatsLoading && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>
+                    {playerStats.player_stats.games} games · avg {playerStats.player_stats.avg}
+                  </span>
+                )}
+                {playerStats && playerStats.player_stats && playerStats.player_stats.last_5_avg != null && !playerStatsLoading && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#aaa', letterSpacing: '1px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    last 5 · avg {playerStats.player_stats.last_5_avg}
+                  </span>
+                )}
+                {playerStats && playerStats.player_stats_vs_opp && !playerStatsLoading && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#ffd700', letterSpacing: '1px', background: 'rgba(255,215,0,0.07)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(255,215,0,0.2)' }}>
+                    vs {opponent ? `${opponent.city} ${opponent.name}` : 'opponent'} · {playerStats.player_stats_vs_opp.games} games · avg {playerStats.player_stats_vs_opp.avg}
+                  </span>
+                )}
+              </div>
+
+              {/* Alternate lines picker */}
+              {oddsData && oddsData.alternate_lines && oddsData.alternate_lines.length > 0 ? (
+                <>
+                  <AltLinesPicker altLines={oddsData.alternate_lines} line={line} setLine={setLine} setDirection={setDirection} />
+                  <div style={{ marginTop: '8px' }}>
+                    <button onClick={() => setLegendOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>HOW TO READ</span>
+                      <span style={{ color: '#555', fontSize: '10px', lineHeight: 1 }}>{legendOpen ? '▲' : '▼'}</span>
+                    </button>
+                    {legendOpen && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px', paddingLeft: '2px' }}>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span style={{ display: 'inline-block', width: '18px', height: '3px', background: '#00ff88', borderRadius: '2px' }} />
+                          bar = how often player hits OVER this line
+                        </span>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
+                          <span style={{ color: '#ccc' }}>54% overall</span> = season hit rate
+                        </span>
+                        {oddsData && oddsData.has_live_odds !== false && (
+                          <>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
+                              <span style={{ color: '#00ff88' }}>+8%</span> = better odds than real probability (good value)
+                            </span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
+                              <span style={{ color: '#ff4444' }}>-8%</span> = book overprices this line (bad value)
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <input type="number" step="0.5" value={line} onChange={e => setLine(e.target.value)} placeholder="e.g. 25.5"
+                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${oddsData ? 'rgba(0,255,136,0.3)' : line ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '14px', outline: 'none' }}
+                />
+              )}
+
+              {/* Main line odds + market signal — only when live bookmaker data exists */}
+              {oddsData && oddsData.has_live_odds !== false && (() => {
+                const toProb = o => o < 0 ? (-o) / (-o + 100) : 100 / (o + 100);
+                const overProb  = Math.round(toProb(oddsData.over_odds)  * 100);
+                const underProb = oddsData.under_odds ? Math.round(toProb(oddsData.under_odds) * 100) : null;
+                const bookLeans = underProb && underProb > overProb ? 'UNDER' : 'OVER';
+                const valueOn   = underProb && underProb > overProb ? 'OVER'  : 'UNDER';
+                const leanProb  = bookLeans === 'UNDER' ? underProb : overProb;
+                return (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '6px' }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#00ff88' }}>
+                        OVER {oddsData.over_odds > 0 ? '+' : ''}{oddsData.over_odds}
+                      </span>
+                      {oddsData.under_odds && (
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ff6666' }}>
+                          UNDER {oddsData.under_odds > 0 ? '+' : ''}{oddsData.under_odds}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '4px' }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>MARKET SIGNAL  </span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: bookLeans === 'OVER' ? '#00ff88' : '#ff6666', letterSpacing: '1px' }}>
+                        Book leans {bookLeans} ({leanProb}% implied)
+                      </span>
+                      {underProb && (
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginLeft: '8px' }}>
+                          · value side: <span style={{ color: valueOn === 'OVER' ? '#00ff88' : '#ff6666' }}>{valueOn}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* DIRECTION */}
@@ -635,8 +1058,8 @@ function App() {
             {!prediction && !loading && (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '44px', marginBottom: '14px', opacity: 0.1 }}>🎯</div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', letterSpacing: '4px', color: '#202028', marginBottom: '6px' }}>AWAITING ANALYSIS</div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#1a1a22', letterSpacing: '1px' }}>Fill in the form and click Analyze</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', letterSpacing: '4px', color: '#333344', marginBottom: '6px' }}>AWAITING ANALYSIS</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#2a2a40', letterSpacing: '1px' }}>Fill in the form and click Analyze</div>
               </div>
             )}
 
@@ -712,7 +1135,7 @@ function App() {
           </div>
         </div>
 
-        <div style={{ marginTop: '40px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#1e1e26', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ marginTop: '40px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#33334a', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
           POWERED BY CLAUDE AI · FOR ENTERTAINMENT PURPOSES ONLY
         </div>
       </div>
@@ -738,7 +1161,7 @@ function App() {
       {isMobile && (
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          style={{ position: 'fixed', top: '14px', left: '14px', zIndex: 1002, background: 'rgba(12,12,19,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', width: '38px', height: '38px', cursor: 'pointer', color: '#777', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', flexShrink: 0 }}
+          style={{ position: 'fixed', top: '14px', left: '14px', zIndex: 1002, background: 'rgba(12,12,19,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', width: '38px', height: '38px', cursor: 'pointer', color: '#aaa', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', flexShrink: 0 }}
         >
           ☰
         </button>
@@ -750,7 +1173,9 @@ function App() {
         marginLeft: isMobile ? 0 : `${SIDEBAR_W}px`,
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)',
-        transition: 'margin-left 0.28s ease'
+        transition: 'margin-left 0.28s ease',
+        /* Prevents game card rows from overflowing the main column */
+        minWidth: 0,
       }}>
         <div style={{ padding: isMobile ? '62px 16px 40px' : '36px 36px 40px', paddingBottom: mainPaddingBottom }}>
           {renderPage()}
