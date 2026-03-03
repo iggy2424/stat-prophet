@@ -37,7 +37,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
     {
       section: 'PREDICTIONS',
       items: [
-        { id: 'ai-picks',    label: 'AI Picks',       icon: '◈', soon: true },
+        { id: 'ai-picks',    label: 'AI Picks',       icon: '◈' },
         { id: 'parlay-page', label: 'Parlay Builder',  icon: '◉', soon: true }
       ]
     },
@@ -216,13 +216,16 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
 
         {/* Away team */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
-              {game.away.alias || (game.away.name || '').slice(0, 3).toUpperCase()}
-            </span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              {game.away.name}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            {game.away.logo && <img src={game.away.logo} alt="" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
+                {game.away.alias || (game.away.name || '').slice(0, 3).toUpperCase()}
+              </span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {game.away.name}
+              </span>
+            </div>
           </div>
           {game.away.points != null && (
             <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#fff', letterSpacing: '1px', flexShrink: 0 }}>{game.away.points}</span>
@@ -238,13 +241,16 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
 
         {/* Home team */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
-              {game.home.alias || (game.home.name || '').slice(0, 3).toUpperCase()}
-            </span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              {game.home.name}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            {game.home.logo && <img src={game.home.logo} alt="" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#e8e8f0', lineHeight: 1, flexShrink: 0 }}>
+                {game.home.alias || (game.home.name || '').slice(0, 3).toUpperCase()}
+              </span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#7788aa', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {game.home.name}
+              </span>
+            </div>
           </div>
           {game.home.points != null && (
             <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#fff', letterSpacing: '1px', flexShrink: 0 }}>{game.home.points}</span>
@@ -501,19 +507,25 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
             return (
               <div key={al.line} onClick={() => { setLine(String(al.line)); setDirection('OVER'); }}
                 style={{ position: 'relative', minWidth: '76px', cursor: 'pointer',
-                  padding: al.best_value ? '14px 8px 10px' : '10px 8px 10px',
+                  padding: al.best_value || al.highest_safe ? '14px 8px 10px' : '10px 8px 10px',
                   borderRadius: '6px', textAlign: 'center',
-                  border: `2px solid ${isSelected ? '#00ff88' : al.best_value ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                  background: isSelected ? 'rgba(0,255,136,0.08)' : al.best_value ? 'rgba(255,215,0,0.04)' : 'rgba(255,255,255,0.02)',
+                  border: `2px solid ${isSelected ? '#00ff88' : al.highest_safe ? 'rgba(0,150,255,0.55)' : al.best_value ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                  background: isSelected ? 'rgba(0,255,136,0.08)' : al.highest_safe ? 'rgba(0,150,255,0.06)' : al.best_value ? 'rgba(255,215,0,0.04)' : 'rgba(255,255,255,0.02)',
                   transition: 'all 0.15s' }}>
+                {al.highest_safe && (
+                  <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)',
+                    background: '#0096ff', color: '#fff', fontFamily: "'Space Mono', monospace",
+                    fontSize: '7px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px',
+                    whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>★ HIGHEST SAFE BET</div>
+                )}
                 {al.best_value && (
                   <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)',
-                    background: '#ffd700', color: '#000', fontFamily: "'Space Mono', monospace",
+                    background: '#00ff88', color: '#000', fontFamily: "'Space Mono', monospace",
                     fontSize: '7px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px',
-                    whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>★ BEST VALUE</div>
+                    whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>★ HIGHEST +EV</div>
                 )}
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', lineHeight: 1,
-                  color: isSelected ? '#00ff88' : al.best_value ? '#ffd700' : '#ccc' }}>{al.line}</div>
+                  color: isSelected ? '#00ff88' : al.highest_safe ? '#0096ff' : al.best_value ? '#ffd700' : '#ccc' }}>{al.line}</div>
                 {al.over_odds != null && (
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', marginTop: '2px',
                     color: isSelected ? '#00ff88' : '#666' }}>
@@ -543,6 +555,157 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AI PICKS PAGE ────────────────────────────────────────────────────────────
+function AiPicksPage({ openInAnalyzer, isMobile }) {
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [games, setGames] = React.useState([]);
+
+  React.useEffect(() => {
+    fetch(`${API_URL}?type=ai_picks`)
+      .then(r => r.json())
+      .then(data => {
+        setLoading(false);
+        if (data.success) setGames(data.games || []);
+        else setError(data.error || 'Failed to load picks');
+      })
+      .catch(() => { setLoading(false); setError('Failed to connect to API'); });
+  }, []);
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <div style={{ width: '44px', height: '44px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '18px' }} />
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#444', letterSpacing: '1px' }}>Computing picks...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div>
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '28px' }} />
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', color: '#ff4444', letterSpacing: '3px', marginBottom: '10px' }}>LOAD FAILED</div>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#555' }}>{error}</p>
+      </div>
+    </div>
+  );
+
+  const headerBlock = (
+    <div>
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
+        {today} · Highest-confidence props · Click Analyze → to run full prediction
+      </p>
+    </div>
+  );
+
+  if (!games.length) return (
+    <div>
+      {headerBlock}
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏀</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#444', letterSpacing: '3px' }}>NO GAMES TODAY</div>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#333', marginTop: '8px' }}>Check back on a game day</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      {headerBlock}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px' }}>
+        {games.map(game => (
+          <div key={game.game_id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', overflow: 'hidden' }}>
+
+            {/* Game header */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.015)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>
+                {game.away.logo && <img src={game.away.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
+                {game.away.name}
+                <span style={{ color: '#333', fontSize: '14px' }}>@</span>
+                {game.home.logo && <img src={game.home.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
+                {game.home.name}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {game.status === 'inprogress' && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#00ff88', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: '3px', padding: '2px 8px', letterSpacing: '1px' }}>LIVE</span>
+                )}
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' }}>
+                  {new Date(game.scheduled).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </span>
+              </div>
+            </div>
+
+            {/* Pick rows */}
+            {game.picks.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#333' }}>
+                {game.has_odds_event === false
+                  ? 'No player prop markets posted yet for this game'
+                  : 'No qualifying picks found for this game'}
+              </div>
+            ) : (
+              <div>
+                {game.picks.map((pick, idx) => {
+                  const hitPct = Math.round(pick.hit_rate * 100);
+                  const barColor = hitPct >= 75 ? '#00ff88' : hitPct >= 60 ? '#ffd700' : '#ff9944';
+                  const statLabel = pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1);
+                  return (
+                    <div key={pick.name + pick.stat} style={{
+                      display: 'flex', alignItems: 'center', gap: '16px',
+                      padding: '14px 20px',
+                      borderBottom: idx < game.picks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      flexWrap: isMobile ? 'wrap' : 'nowrap'
+                    }}>
+                      {/* Player + team */}
+                      <div style={{ flex: isMobile ? '0 0 100%' : '0 0 180px' }}>
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '15px', color: '#fff', fontWeight: 500 }}>{pick.name}</div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginTop: '2px' }}>{pick.team_abbrev} · {statLabel}</div>
+                      </div>
+
+                      {/* Safe bet line */}
+                      <div style={{ textAlign: 'center', flex: '0 0 72px' }}>
+                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', color: '#0096ff', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#0096ff', opacity: 0.6, letterSpacing: '1px', marginTop: '2px' }}>SAFE LINE</div>
+                      </div>
+
+                      {/* Hit rate bar */}
+                      <div style={{ flex: 1, minWidth: '100px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>HIT RATE</span>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: barColor, fontWeight: 700 }}>{hitPct}%</span>
+                        </div>
+                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${hitPct}%`, background: barColor, borderRadius: '2px' }} />
+                        </div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444', marginTop: '4px' }}>
+                          avg {pick.avg.toFixed(1)} · L5 {pick.last_5_avg.toFixed(1)} · {pick.games}g
+                        </div>
+                      </div>
+
+                      {/* Analyze button */}
+                      <button
+                        onClick={() => openInAnalyzer(pick)}
+                        style={{ flexShrink: 0, padding: '8px 16px', background: 'transparent', border: '1px solid rgba(0,255,136,0.3)', borderRadius: '4px', color: '#00ff88', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; e.currentTarget.style.borderColor = '#00ff88'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'; }}
+                      >
+                        Analyze →
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -616,7 +779,7 @@ function App() {
     setOddsLoading(true);
     const teamName = (player.team_name || '').toLowerCase();
     const oppName  = (opponent.name   || '').toLowerCase();
-    fetch(`${API_URL}?type=odds&player_name=${encodeURIComponent(player.name)}&team_name=${encodeURIComponent(teamName)}&opponent_name=${encodeURIComponent(oppName)}&stat=${encodeURIComponent(stat.toLowerCase())}`)
+    fetch(`${API_URL}?type=odds&player_name=${encodeURIComponent(player.name)}&player_id=${player.id || ''}&team_name=${encodeURIComponent(teamName)}&opponent_name=${encodeURIComponent(oppName)}&stat=${encodeURIComponent(stat.toLowerCase())}`)
       .then(r => r.json())
       .then(data => {
         setOddsLoading(false);
@@ -649,7 +812,7 @@ function App() {
     }
     setPlayerStatsLoading(true);
     const oppName = (opponent.name || '').toLowerCase();
-    fetch(`${API_URL}?type=player_stats&player_name=${encodeURIComponent(player.name)}&stat=${encodeURIComponent(stat.toLowerCase())}&opponent_name=${encodeURIComponent(oppName)}&sport=${sport}`)
+    fetch(`${API_URL}?type=player_stats&player_name=${encodeURIComponent(player.name)}&player_id=${player.id || ''}&stat=${encodeURIComponent(stat.toLowerCase())}&opponent_name=${encodeURIComponent(oppName)}&sport=${sport}`)
       .then(r => r.json())
       .then(data => { setPlayerStatsLoading(false); if (data.success) setPlayerStats(data); else setPlayerStats(null); })
       .catch(() => { setPlayerStatsLoading(false); setPlayerStats(null); });
@@ -698,6 +861,28 @@ function App() {
     setOddsData(null); setOddsLoading(false);
     setPlayerStats(null); setPlayerStatsLoading(false);
     setGameContext({ homeAlias: game.home.alias, awayAlias: game.away.alias, homeName: game.home.name, awayName: game.away.name, sport: sp });
+    setCurrentPage('analyzer');
+  };
+
+  const openInAnalyzer = (pick) => {
+    const sp = 'NBA';
+    const foundPlayer = allPlayers.find(p => p.name.toLowerCase() === pick.name.toLowerCase());
+    setSport(sp);
+    setPlayer(foundPlayer || null);
+    setSearchQuery(foundPlayer ? '' : pick.name);
+    setStat(pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1));
+    setLine(String(pick.line));
+    setDirection('OVER');
+    setOpponent(null);
+    setPrediction(null);
+    setDataSource(null);
+    setError(null);
+    setShowPlayerDropdown(false);
+    setOddsData(null);
+    setOddsLoading(false);
+    setPlayerStats(null);
+    setPlayerStatsLoading(false);
+    setGameContext({ homeAlias: pick.home.alias, awayAlias: pick.away.alias, homeName: pick.home.name, awayName: pick.away.name, sport: sp });
     setCurrentPage('analyzer');
   };
 
@@ -782,7 +967,7 @@ function App() {
 
     if (currentPage === 'home')       return <Dashboard setCurrentPage={setCurrentPage} navigateToAnalyzer={navigateToAnalyzer} />;
     if (currentPage === 'datalab')    return <ComingSoon title="DATA LAB"      icon="📊" description="Player charts and advanced analytics" />;
-    if (currentPage === 'ai-picks')   return <ComingSoon title="AI PICKS"      icon="✦" description="AI-powered daily picks" />;
+    if (currentPage === 'ai-picks')   return <AiPicksPage openInAnalyzer={openInAnalyzer} isMobile={isMobile} />;
     if (currentPage === 'arbitrage')  return <ComingSoon title="ARBITRAGE"     icon="⚖️" description="Find value across sportsbooks" />;
     if (currentPage === 'gpt')        return <ComingSoon title="TRENDBET GPT"  icon="🤖" description="AI sports betting assistant" />;
 
@@ -945,9 +1130,19 @@ function App() {
               </div>
 
               {/* Alternate lines picker */}
-              {oddsData && oddsData.alternate_lines && oddsData.alternate_lines.length > 0 ? (
+              {oddsData && oddsData.alternate_lines && oddsData.alternate_lines.length > 0 ? (() => {
+                // Enrich alt lines with hit rates computed from playerStats.values when backend didn't provide them
+                const statsVals = playerStats?.player_stats?.values;
+                const enrichedLines = oddsData.alternate_lines.map(al => {
+                  if (al.hit_rate != null || !statsVals?.length) return al;
+                  const hr = statsVals.filter(v => v > al.line).length / statsVals.length;
+                  return { ...al, hit_rate: Math.round(hr * 1000) / 1000 };
+                });
+                const selLine = enrichedLines.find(al => String(al.line) === String(line));
+                const selHitPct = selLine?.hit_rate != null ? Math.round(selLine.hit_rate * 100) : null;
+                return (
                 <>
-                  <AltLinesPicker altLines={oddsData.alternate_lines} line={line} setLine={setLine} setDirection={setDirection} />
+                  <AltLinesPicker altLines={enrichedLines} line={line} setLine={setLine} setDirection={setDirection} />
                   <div style={{ marginTop: '8px' }}>
                     <button onClick={() => setLegendOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>HOW TO READ</span>
@@ -960,7 +1155,7 @@ function App() {
                           bar = how often player hits OVER this line
                         </span>
                         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
-                          <span style={{ color: '#ccc' }}>54% overall</span> = season hit rate
+                          <span style={{ color: '#ccc' }}>{selHitPct != null ? `${selHitPct}%` : '—'} overall</span> = season hit rate
                         </span>
                         {oddsData && oddsData.has_live_odds !== false && (
                           <>
@@ -976,7 +1171,8 @@ function App() {
                     )}
                   </div>
                 </>
-              ) : (
+                );
+              })() : (
                 <input type="number" step="0.5" value={line} onChange={e => setLine(e.target.value)} placeholder="e.g. 25.5"
                   style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${oddsData ? 'rgba(0,255,136,0.3)' : line ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '14px', outline: 'none' }}
                 />
@@ -990,31 +1186,7 @@ function App() {
                 const bookLeans = underProb && underProb > overProb ? 'UNDER' : 'OVER';
                 const valueOn   = underProb && underProb > overProb ? 'OVER'  : 'UNDER';
                 const leanProb  = bookLeans === 'UNDER' ? underProb : overProb;
-                return (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '6px' }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#00ff88' }}>
-                        OVER {oddsData.over_odds > 0 ? '+' : ''}{oddsData.over_odds}
-                      </span>
-                      {oddsData.under_odds && (
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ff6666' }}>
-                          UNDER {oddsData.under_odds > 0 ? '+' : ''}{oddsData.under_odds}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '4px' }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>MARKET SIGNAL  </span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: bookLeans === 'OVER' ? '#00ff88' : '#ff6666', letterSpacing: '1px' }}>
-                        Book leans {bookLeans} ({leanProb}% implied)
-                      </span>
-                      {underProb && (
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginLeft: '8px' }}>
-                          · value side: <span style={{ color: valueOn === 'OVER' ? '#00ff88' : '#ff6666' }}>{valueOn}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
+                return null;
               })()}
             </div>
 

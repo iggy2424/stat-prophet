@@ -1,1 +1,8 @@
 .vercel
+.env
+.env.local
+.env*.local
+__pycache__/
+*.pyc
+.claude/
+nul
