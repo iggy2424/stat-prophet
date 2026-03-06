@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — TrendBet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; background: #1a1d23; color: #e5e5e5;
+      font-family: 'Oswald', sans-serif;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .card {
+      background: #2f3436; border: 1px solid rgba(68,68,68,0.8);
+      border-radius: 16px; padding: 48px 40px;
+      width: 100%; max-width: 400px;
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px; letter-spacing: 3px;
+      color: #33cc33; margin-bottom: 8px;
+    }
+
+    .tagline {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(255,255,255,0.35); margin-bottom: 40px;
+    }
+
+    .title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px; letter-spacing: 2px;
+      color: #fff; margin-bottom: 8px; text-align: center;
+    }
+
+    .subtitle {
+      font-weight: 300; font-size: 14px;
+      color: rgba(255,255,255,0.5); margin-bottom: 36px; text-align: center;
+    }
+
+    .btn-whop {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      width: 100%; padding: 16px 24px;
+      background: #33cc33; color: #000;
+      font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      border: none; border-radius: 8px; cursor: pointer;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .btn-whop:hover { background: #2db82d; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(51,204,51,0.3); }
+
+    .divider {
+      width: 100%; border: none; border-top: 1px solid rgba(68,68,68,0.6);
+      margin: 32px 0;
+    }
+
+    .no-access {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      color: rgba(255,255,255,0.35); text-align: center; line-height: 1.8;
+    }
+    .no-access a {
+      color: #33cc33; text-decoration: none;
+    }
+    .no-access a:hover { text-decoration: underline; }
+
+    .error-msg {
+      display: none; width: 100%;
+      background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3);
+      border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;
+      font-family: 'Space Mono', monospace; font-size: 11px;
+      color: #ff6b6b; text-align: center;
+    }
+    .error-msg.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">TRENDBET</div>
+    <div class="tagline">AI-Powered Sports Intelligence</div>
+
+    <div class="title">WELCOME BACK</div>
+    <div class="subtitle">Sign in with your Whop account to access the platform.</div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <a class="btn-whop" href="/api/login">
+      <svg width="18" height="18" viewBox="0 0 1000 515" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M158.881 0C93.2014 0 47.9251 28.989 13.6619 61.775L143.897 220.129L287.766 75.367C260.521 37.631 209.152 0 158.881 0Z"/>
+        <path d="M514.191 0C448.513 0 403.236 28.989 368.971 61.775L177.903 254.322L321.574 398.857L643.078 75.367C615.831 37.631 564.488 0 514.191 0Z"/>
+        <path d="M870.479 0C804.798 0 759.524 28.989 725.259 61.775L355.806 433.351L393.466 471.237C451.73 529.852 547.1 529.852 605.364 471.237L998.914 75.367C972.119 37.631 920.773 0 870.479 0Z"/>
+      </svg>
+      Login with Whop
+    </a>
+
+    <hr class="divider">
+
+    <div class="no-access">
+      Don't have access yet?<br>
+      <a href="https://stat-prophet-landing.vercel.app/#pricing">Get a plan →</a>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const error  = params.get('error');
+    const msg    = document.getElementById('errorMsg');
+    if (error) {
+      const detail = params.get('detail') || '';
+      const map = {
+        no_code:        'Login failed — no authorisation code received.',
+        token_exchange: `Login failed — could not verify your account. ${detail}`,
+        no_membership:  'No active TrendBet membership found. Please purchase a plan to continue.',
+      };
+      msg.textContent = map[error] || 'Something went wrong. Please try again.';
+      msg.classList.add('visible');
+    }
+  </script>
+</body>
+</html>

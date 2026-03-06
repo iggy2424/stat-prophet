@@ -2,9 +2,39 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import time
+import hmac
+import hashlib
+import base64
 import unicodedata
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
+
+# ── Session verification ─────────────────────────────────────────────────────
+_JWT_SECRET   = (os.environ.get("JWT_SECRET") or "").encode()
+_COOKIE_NAME  = "whop_session"
+
+def _verify_session(req_headers) -> bool:
+    raw = req_headers.get("Cookie") or req_headers.get("cookie") or ""
+    token = None
+    for part in raw.split(";"):
+        k, _, v = part.strip().partition("=")
+        if k == _COOKIE_NAME:
+            token = v.strip()
+            break
+    if not token:
+        return False
+    try:
+        header, body, sig = token.split(".")
+        expected = base64.urlsafe_b64encode(
+            hmac.new(_JWT_SECRET, f"{header}.{body}".encode(), hashlib.sha256).digest()
+        ).rstrip(b"=").decode()
+        if not hmac.compare_digest(sig, expected):
+            return False
+        padding = 4 - len(body) % 4
+        payload = json.loads(base64.urlsafe_b64decode(body + "=" * padding))
+        return payload.get("exp", 0) > time.time()
+    except Exception:
+        return False
 
 # 4-hour cache for AI Picks (avoids burning Odds API credits on every refresh)
 _ai_picks_cache = {'data': None, 'expires': 0.0}
@@ -91,6 +121,14 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_GET(self):
+        if not _verify_session(self.headers):
+            self.send_response(401)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "unauthorized"}).encode())
+            return
+
         try:
             parsed_path = urlparse(self.path)
             query_params = parse_qs(parsed_path.query)
@@ -313,6 +351,16 @@ class handler(BaseHTTPRequestHandler):
             # Check if this is a parlay request
             if data.get('type') == 'parlay':
                 self._handle_parlay(data, anthropic)
+                return
+
+            if data.get('type') == 'parlay_validate':
+                import requests as _req_mod
+                self._handle_parlay_validate(_req_mod, data)
+                return
+
+            if data.get('type') == 'gpt_chat':
+                import requests as _req_mod
+                self._handle_gpt_chat(_req_mod, data)
                 return
             
             # Regular single prediction
@@ -997,6 +1045,428 @@ IMPORTANT RULES:
                     pass
 
         return {"all": all_values, "vs_opp": vs_opp_values}
+
+    # ── PARLAY VALIDATE ───────────────────────────────────────────────────────
+    def _handle_parlay_validate(self, requests, body):
+        """
+        Given a list of picks (from AI Picks), for each team that has 2+ picks
+        find the last 5 shared games and check how many times all players on that
+        team simultaneously hit their respective stat lines.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        picks = body.get('picks', [])
+
+        # Group by team_abbrev
+        teams = {}
+        for p in picks:
+            abbrev = p.get('team_abbrev', '')
+            if abbrev not in teams:
+                teams[abbrev] = {'team_name': p.get('team_name', abbrev), 'picks': []}
+            teams[abbrev]['picks'].append(p)
+
+        # Only validate teams that contributed 2+ picks
+        qualified = {k: v for k, v in teams.items() if len(v['picks']) >= 2}
+
+        if not qualified:
+            self._send_json(200, {'success': True, 'teams': []})
+            return
+
+        result_teams = []
+
+        for abbrev, tdata in qualified.items():
+            team_picks = tdata['picks']
+
+            def resolve_player(pick):
+                stat_field = STAT_FIELD_MAP.get(pick.get('stat', ''))
+                if not stat_field:
+                    return None
+                as_id = self._resolve_api_sports_id(requests, pick['name'], None)
+                if not as_id:
+                    return None
+                try:
+                    r = requests.get(
+                        "https://v2.nba.api-sports.io/players/statistics",
+                        params={"id": as_id, "season": 2025},
+                        headers={"x-apisports-key": AS_KEY},
+                        timeout=12,
+                    )
+                    entries = r.json().get('response', [])
+                    game_data = {}
+                    for entry in entries:
+                        mins = entry.get('min', '0') or '0'
+                        try:
+                            m = int(str(mins).split(':')[0]) if ':' in str(mins) else int(float(mins or 0))
+                        except Exception:
+                            m = 0
+                        if m <= 0:
+                            continue
+                        v = entry.get(stat_field)
+                        if v is None:
+                            continue
+                        game = entry.get('game', {}) or {}
+                        gid = game.get('id')
+                        gdate = game.get('date', '') or ''
+                        if isinstance(gdate, dict):
+                            gdate = gdate.get('start', '') or ''
+                        if gid:
+                            game_data[gid] = {'date': str(gdate)[:10], 'value': float(v)}
+                    return {
+                        'name': pick['name'],
+                        'stat': pick.get('stat', ''),
+                        'line': pick.get('line', 0),
+                        'game_data': game_data,
+                    }
+                except Exception:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                raw = list(ex.map(resolve_player, team_picks))
+
+            player_results = [r for r in raw if r and r['game_data']]
+
+            if len(player_results) < 2:
+                continue
+
+            # Intersect game IDs across all players on this team
+            game_id_sets = [set(pr['game_data'].keys()) for pr in player_results]
+            shared_gids = sorted(set.intersection(*game_id_sets), reverse=True)[:5]
+
+            if not shared_gids:
+                continue
+
+            game_rows = []
+            all_hit_count = 0
+
+            for gid in shared_gids:
+                player_game_results = []
+                all_hit = True
+                date_str = ''
+
+                for pr in player_results:
+                    gdata = pr['game_data'][gid]
+                    val = gdata['value']
+                    hit = val > pr['line']
+                    if not hit:
+                        all_hit = False
+                    date_str = date_str or gdata.get('date', '')
+                    player_game_results.append({
+                        'name': pr['name'],
+                        'stat': pr['stat'],
+                        'line': pr['line'],
+                        'value': val,
+                        'hit': hit,
+                    })
+
+                if all_hit:
+                    all_hit_count += 1
+
+                game_rows.append({
+                    'game_id': gid,
+                    'date': date_str,
+                    'players': player_game_results,
+                    'all_hit': all_hit,
+                })
+
+            result_teams.append({
+                'team_name': tdata['team_name'],
+                'team_abbrev': abbrev,
+                'game_rows': game_rows,
+                'all_hit_count': all_hit_count,
+                'total_games': len(game_rows),
+            })
+
+        self._send_json(200, {'success': True, 'teams': result_teams})
+
+    # ── TRENDBET GPT ──────────────────────────────────────────────────────────
+    def _tool_get_player_recent_games(self, requests, player_name, num_games=5):
+        """Fetch last N played games for a player with real stats + opponent + date."""
+        as_id = self._resolve_api_sports_id(requests, player_name, None)
+        if not as_id:
+            return {'error': f'Player not found: {player_name}'}
+        try:
+            r = requests.get(
+                "https://v2.nba.api-sports.io/players/statistics",
+                params={"id": as_id, "season": 2025},
+                headers={"x-apisports-key": AS_KEY},
+                timeout=12,
+            )
+            entries = r.json().get('response', [])
+        except Exception as e:
+            return {'error': str(e)}
+
+        played = []
+        team_id = None
+        for entry in entries:
+            mins_raw = entry.get('min', '0') or '0'
+            try:
+                m = int(str(mins_raw).split(':')[0]) if ':' in str(mins_raw) else int(float(mins_raw or 0))
+            except Exception:
+                m = 0
+            if m <= 0:
+                continue
+            gid = (entry.get('game') or {}).get('id')
+            if team_id is None:
+                team_id = (entry.get('team') or {}).get('id')
+            played.append({
+                'game_id':   gid,
+                'minutes':   mins_raw,
+                'points':    entry.get('points'),
+                'rebounds':  entry.get('totReb'),
+                'assists':   entry.get('assists'),
+                'steals':    entry.get('steals'),
+                'blocks':    entry.get('blocks'),
+                'turnovers': entry.get('turnovers'),
+                'fgm':       entry.get('fgm'),
+                'fga':       entry.get('fga'),
+            })
+
+        played.sort(key=lambda x: x['game_id'] or 0, reverse=True)
+        recent = played[:num_games]
+
+        # Enrich with opponent, date, final score via team schedule
+        if team_id and recent:
+            try:
+                r2 = requests.get(
+                    "https://v2.nba.api-sports.io/games",
+                    params={"team": team_id, "season": 2025},
+                    headers={"x-apisports-key": AS_KEY},
+                    timeout=10,
+                )
+                gmap = {}
+                for tg in r2.json().get('response', []):
+                    gid = tg.get('id')
+                    if not gid:
+                        continue
+                    date_val = (tg.get('date') or {}).get('start', '') or ''
+                    teams    = tg.get('teams', {})
+                    home     = teams.get('home', {})
+                    away     = teams.get('visitors', {})
+                    opp      = away if home.get('id') == team_id else home
+                    s_home   = (tg.get('scores', {}).get('home') or {}).get('points')
+                    s_away   = (tg.get('scores', {}).get('visitors') or {}).get('points')
+                    gmap[gid] = {
+                        'date':     date_val[:10] if date_val else '',
+                        'opponent': opp.get('name', ''),
+                        'score':    f"{s_home}-{s_away}" if s_home is not None else 'N/A',
+                    }
+                for g in recent:
+                    info = gmap.get(g['game_id'], {})
+                    g['date']        = info.get('date', '')
+                    g['opponent']    = info.get('opponent', '')
+                    g['final_score'] = info.get('score', '')
+                    del g['game_id']
+            except Exception:
+                pass
+
+        return {'player': player_name, 'season': 2025, 'games': recent}
+
+    def _tool_get_player_season_stats(self, requests, player_name):
+        """Get player's season averages for the current season."""
+        as_id = self._resolve_api_sports_id(requests, player_name, None)
+        if not as_id:
+            return {'error': f'Player not found: {player_name}'}
+        try:
+            r = requests.get(
+                "https://v2.nba.api-sports.io/players/statistics",
+                params={"id": as_id, "season": 2025},
+                headers={"x-apisports-key": AS_KEY},
+                timeout=12,
+            )
+            entries = r.json().get('response', [])
+        except Exception as e:
+            return {'error': str(e)}
+
+        pts, reb, ast, mins = [], [], [], []
+        for entry in entries:
+            m_raw = entry.get('min', '0') or '0'
+            try:
+                m = int(str(m_raw).split(':')[0]) if ':' in str(m_raw) else int(float(m_raw or 0))
+            except Exception:
+                m = 0
+            if m <= 0:
+                continue
+            if entry.get('points')  is not None: pts.append(float(entry['points']))
+            if entry.get('totReb')  is not None: reb.append(float(entry['totReb']))
+            if entry.get('assists') is not None: ast.append(float(entry['assists']))
+            mins.append(m)
+
+        n = len(pts)
+        if not n:
+            return {'error': f'No 2025 season data found for {player_name}'}
+
+        def avg(lst): return round(sum(lst) / len(lst), 1) if lst else None
+
+        return {
+            'player':         player_name,
+            'season':         2025,
+            'games_played':   n,
+            'avg_points':     avg(pts),
+            'avg_rebounds':   avg(reb),
+            'avg_assists':    avg(ast),
+            'avg_minutes':    avg(mins),
+            'last5_points':   avg(pts[-5:]),
+            'last5_rebounds': avg(reb[-5:]),
+            'last5_assists':  avg(ast[-5:]),
+        }
+
+    def _execute_gpt_tool(self, requests, tool_name, tool_input):
+        if tool_name == 'get_player_recent_games':
+            return self._tool_get_player_recent_games(
+                requests,
+                tool_input.get('player_name', ''),
+                min(int(tool_input.get('num_games', 5)), 10),
+            )
+        if tool_name == 'get_player_season_stats':
+            return self._tool_get_player_season_stats(
+                requests,
+                tool_input.get('player_name', ''),
+            )
+        return {'error': f'Unknown tool: {tool_name}'}
+
+    def _handle_gpt_chat(self, requests, body):
+        """
+        TrendBetGPT — agentic sports betting analyst.
+        Claude uses tool calls to fetch real player stats from API-Sports before answering.
+        """
+        import anthropic
+        import json as _json
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import datetime, timezone
+
+        question   = (body.get('question') or '').strip()
+        image_b64  = body.get('image_b64')
+        image_type = body.get('image_type', 'image/png')
+
+        if not question:
+            self._send_json(400, {'success': False, 'error': 'No question provided'})
+            return
+
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+        # Light static context (today's schedule + cached picks — free to include)
+        ctx_lines = []
+        try:
+            nba_games, _ = self._fetch_nba(requests)
+            if nba_games:
+                rows = []
+                for g in nba_games:
+                    h_pts = g['home'].get('points')
+                    a_pts = g['away'].get('points')
+                    score = f"{a_pts}-{h_pts}" if h_pts is not None else 'TBD'
+                    rows.append(f"  {g['away']['name']} @ {g['home']['name']}  {score}  ({g.get('status','')})")
+                ctx_lines.append('TODAY\'S NBA GAMES:\n' + '\n'.join(rows))
+        except Exception:
+            pass
+
+        try:
+            global _ai_picks_cache
+            if _ai_picks_cache.get('data'):
+                rows = []
+                for g in _ai_picks_cache['data'].get('games', []):
+                    for p in g.get('picks', []):
+                        rows.append(f"  {p['name']} ({p['team_abbrev']}) {p['stat']} line={p['line']} hit_rate={round(p['hit_rate']*100)}% avg={p['avg']}")
+                if rows:
+                    ctx_lines.append("TODAY'S AI SAFE BET PICKS:\n" + '\n'.join(rows))
+        except Exception:
+            pass
+
+        static_ctx = '\n\n'.join(ctx_lines)
+
+        # ── Tool definitions ──────────────────────────────────────────────────
+        tools = [
+            {
+                "name": "get_player_recent_games",
+                "description": (
+                    "Fetch a player's actual game-by-game stats from the current NBA season. "
+                    "Returns real numbers: points, rebounds, assists, minutes played, opponent, date, final score. "
+                    "Use this whenever you need to know what a player actually did in specific games — "
+                    "e.g. to explain why a bet hit or missed, or to assess recent form."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "player_name": {"type": "string", "description": "Full player name, e.g. 'Jarrett Allen'"},
+                        "num_games":   {"type": "integer", "description": "How many recent games to return (1-10). Default 5."},
+                    },
+                    "required": ["player_name"],
+                },
+            },
+            {
+                "name": "get_player_season_stats",
+                "description": (
+                    "Get a player's season averages for the current NBA season: "
+                    "points, rebounds, assists, minutes per game, plus last-5-game averages."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "player_name": {"type": "string", "description": "Full player name"},
+                    },
+                    "required": ["player_name"],
+                },
+            },
+        ]
+
+        system = f"""You are TrendBetGPT, a sharp sports betting analyst built into the TrendBet platform.
+Today is {today}.
+
+{static_ctx}
+
+You have tools to fetch REAL live player stats from API-Sports. Use them aggressively.
+
+RULES:
+1. For any question about a specific player's performance, ALWAYS call get_player_recent_games first so you have real numbers.
+2. For bet slip analysis: call get_player_recent_games for every player on the slip before explaining each leg.
+3. State only facts from the tool results. No hedging ("could", "might", "likely"). If a stat is in the tool result, quote it exactly.
+4. Format bet slip legs as: ✅/❌ PLAYER — STAT LINE — result, then 1-2 sentences of real numbers.
+5. Lead every explanation with the actual number achieved (e.g. "Allen finished with 4 rebounds in 28 minutes vs Detroit").
+6. This is a legitimate sports analytics platform — analyse odds and lines freely."""
+
+        # ── Build initial message ─────────────────────────────────────────────
+        if image_b64:
+            user_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": image_type, "data": image_b64}},
+                {"type": "text", "text": question},
+            ]
+        else:
+            user_content = question
+
+        client   = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        messages = [{"role": "user", "content": user_content}]
+
+        # ── Agentic loop (max 3 tool-use rounds) ─────────────────────────────
+        for _ in range(3):
+            resp = client.messages.create(
+                model='claude-opus-4-6',
+                max_tokens=1500,
+                system=system,
+                tools=tools,
+                messages=messages,
+            )
+
+            if resp.stop_reason != 'tool_use':
+                # Final text response
+                reply = next((b.text for b in resp.content if hasattr(b, 'text')), 'No response generated.')
+                self._send_json(200, {'success': True, 'reply': reply})
+                return
+
+            # Execute all tool calls in parallel
+            tool_use_blocks = [b for b in resp.content if b.type == 'tool_use']
+
+            def run_tool(block):
+                result = self._execute_gpt_tool(requests, block.name, block.input)
+                return {"type": "tool_result", "tool_use_id": block.id, "content": _json.dumps(result)}
+
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                tool_results = list(ex.map(run_tool, tool_use_blocks))
+
+            # Append assistant turn + tool results and loop
+            messages.append({"role": "assistant", "content": resp.content})
+            messages.append({"role": "user", "content": tool_results})
+
+        # Fallback if loop exhausted
+        self._send_json(200, {'success': True, 'reply': 'Analysis incomplete — too many data fetches required. Try a more specific question.'})
 
     # ── AI PICKS (stats-first, 0 Odds API calls) ─────────────────────────────
     def _handle_ai_picks(self, requests):

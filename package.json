@@ -1,0 +1,10 @@
+{
+  "name": "stat-prophet",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cookie": "^0.6.0",
+    "jsonwebtoken": "^9.0.0"
+  }
+}

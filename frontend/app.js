@@ -1,5 +1,17 @@
 const API_URL = 'https://stat-prophet.vercel.app/api';
 
+// Auth check — redirect to login if session invalid
+(async () => {
+  try {
+    const res = await fetch(`${API_URL}?type=ping`);
+    if (res.status === 401) {
+      window.location.href = '/login';
+    }
+  } catch (e) {
+    // network error — let the app continue
+  }
+})();
+
 
 const statCategoriesBySport = {
   NBA: ['Points', 'Rebounds', 'Assists', 'Three-Pointers', 'Steals', 'Blocks'],
@@ -51,7 +63,10 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
     },
     {
       section: 'ASSISTANT',
-      items: [{ id: 'gpt', label: 'TrendBetGPT', icon: '⬡', soon: true }]
+      items: [
+        { id: 'bet-validate', label: 'Validate Bet Slip', icon: '⬡' },
+        { id: 'gpt',          label: 'TrendBetGPT',       icon: '⊛', testing: true },
+      ]
     }
   ];
 
@@ -101,24 +116,26 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
                 return (
                   <div
                     key={item.id}
-                    onClick={() => !item.soon && navigate(item.id)}
+                    onClick={() => !item.soon && !item.testing && navigate(item.id)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '9px 18px',
-                      cursor: item.soon ? 'default' : 'pointer',
+                      cursor: (item.soon || item.testing) ? 'default' : 'pointer',
                       background: isActive ? 'rgba(0,255,136,0.07)' : 'transparent',
                       borderLeft: isActive ? '2px solid #00ff88' : '2px solid transparent',
                       transition: 'all 0.15s'
                     }}
-                    onMouseOver={e => { if (!item.soon && !isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseOver={e => { if (!item.soon && !item.testing && !isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseOut={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                   >
                     {/* Icon */}
-                    <span style={{ fontSize: '12px', color: isActive ? '#00ff88' : (item.soon ? '#363655' : '#606080'), flexShrink: 0 }}>{item.icon}</span>
+                    <span style={{ fontSize: '12px', color: isActive ? '#00ff88' : ((item.soon || item.testing) ? '#363655' : '#606080'), flexShrink: 0 }}>{item.icon}</span>
                     {/* Label */}
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: item.soon ? '#4a4a68' : (isActive ? '#00ff88' : '#aaaacc'), flex: 1 }}>{item.label}</span>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: (item.soon || item.testing) ? '#4a4a68' : (isActive ? '#00ff88' : '#aaaacc'), flex: 1 }}>{item.label}</span>
                     {/* Soon badge */}
                     {item.soon && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#3a3a55', letterSpacing: '1px', background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: '3px' }}>SOON</span>}
+                    {/* Testing badge */}
+                    {item.testing && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#7a5c00', letterSpacing: '1px', background: 'rgba(255,160,0,0.08)', border: '1px solid rgba(255,160,0,0.15)', padding: '2px 5px', borderRadius: '3px' }}>TESTING</span>}
                   </div>
                 );
               })}
@@ -560,11 +577,94 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
   );
 }
 
+// ─── PARLAY VALIDATION RESULT PANEL ──────────────────────────────────────────
+function ValidationResultPanel({ result, onBack, isMobile }) {
+  const noTeams = !result.success || !result.teams || result.teams.length === 0;
+
+  return (
+    <div style={{ padding: isMobile ? '16px' : '20px' }}>
+      {/* Back button */}
+      <button
+        onClick={onBack}
+        style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', color: '#888', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', padding: '6px 12px', cursor: 'pointer', marginBottom: '20px' }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+        onMouseLeave={e => { e.currentTarget.style.color = '#888'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+      >← BACK TO PICKS</button>
+
+      {noTeams ? (
+        <div style={{ textAlign: 'center', padding: '20px', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' }}>
+          {result.error || 'Not enough picks from the same team to validate'}
+        </div>
+      ) : (
+        result.teams.map(team => {
+          const scoreColor = team.all_hit_count >= Math.ceil(team.total_games * 0.6)
+            ? '#00ff88' : team.all_hit_count >= Math.ceil(team.total_games * 0.4) ? '#ffd700' : '#ff4444';
+
+          return (
+            <div key={team.team_abbrev} style={{ marginBottom: '28px' }}>
+              {/* Team header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', color: '#fff', letterSpacing: '2px' }}>
+                  {team.team_name}
+                </div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: scoreColor, background: `${scoreColor}18`, border: `1px solid ${scoreColor}44`, borderRadius: '4px', padding: '3px 10px', letterSpacing: '1px' }}>
+                  ALL HIT {team.all_hit_count}/{team.total_games}
+                </div>
+              </div>
+
+              {team.game_rows.length === 0 ? (
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', padding: '12px 0' }}>No shared games found</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  {/* Column headers */}
+                  {(() => {
+                    const colCount = team.game_rows[0].players.length;
+                    const gridCols = `${Array(colCount).fill('1fr').join(' ')} 60px`;
+                    return (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '8px', marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          {team.game_rows[0].players.map(p => (
+                            <span key={p.name} style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#888', textAlign: 'center', letterSpacing: '1px' }}>
+                              {p.name.split(' ').slice(-1)[0].toUpperCase()} {p.stat.slice(0,3).toUpperCase()} {`>`}{p.line}
+                            </span>
+                          ))}
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#888', textAlign: 'center', letterSpacing: '1px' }}>PARLAY</span>
+                        </div>
+
+                        {team.game_rows.map((row, idx) => (
+                          <div key={row.game_id} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '8px', padding: '10px 0', borderBottom: idx < team.game_rows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', alignItems: 'center' }}>
+                            {row.players.map(p => (
+                              <div key={p.name} style={{ textAlign: 'center' }}>
+                                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: p.hit ? '#00ff88' : '#ff4444', lineHeight: 1 }}>{p.value}</span>
+                                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: p.hit ? '#00ff88' : '#ff4444', marginLeft: '3px' }}>{p.hit ? '✓' : '✗'}</span>
+                              </div>
+                            ))}
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', letterSpacing: '1px', color: row.all_hit ? '#00ff88' : '#ff4444' }}>
+                                {row.all_hit ? 'HIT' : 'MISS'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 // ─── AI PICKS PAGE ────────────────────────────────────────────────────────────
 function AiPicksPage({ openInAnalyzer, isMobile }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [games, setGames] = React.useState([]);
+  const [validationState, setValidationState] = React.useState({}); // game_id -> {loading, result}
 
   React.useEffect(() => {
     fetch(`${API_URL}?type=ai_picks`)
@@ -576,6 +676,29 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
       })
       .catch(() => { setLoading(false); setError('Failed to connect to API'); });
   }, []);
+
+  const canValidate = (picks) => {
+    const counts = {};
+    picks.forEach(p => { counts[p.team_abbrev] = (counts[p.team_abbrev] || 0) + 1; });
+    return Object.values(counts).some(c => c >= 2);
+  };
+
+  const validateParlay = (game) => {
+    const gid = game.game_id;
+    setValidationState(prev => ({ ...prev, [gid]: { loading: true, result: null } }));
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'parlay_validate', picks: game.picks }),
+    })
+      .then(r => r.json())
+      .then(data => setValidationState(prev => ({ ...prev, [gid]: { loading: false, result: data } })))
+      .catch(() => setValidationState(prev => ({ ...prev, [gid]: { loading: false, result: { success: false, error: 'Request failed' } } })));
+  };
+
+  const clearValidation = (gid) => {
+    setValidationState(prev => { const n = { ...prev }; delete n[gid]; return n; });
+  };
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
@@ -644,8 +767,19 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
               </div>
             </div>
 
-            {/* Pick rows */}
-            {game.picks.length === 0 ? (
+            {/* Content: validation panel OR normal picks */}
+            {validationState[game.game_id]?.loading ? (
+              <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                <div style={{ width: '36px', height: '36px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: 0 }}>Validating parlay combinations...</p>
+              </div>
+            ) : validationState[game.game_id]?.result ? (
+              <ValidationResultPanel
+                result={validationState[game.game_id].result}
+                onBack={() => clearValidation(game.game_id)}
+                isMobile={isMobile}
+              />
+            ) : game.picks.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#333' }}>
                 {game.has_odds_event === false
                   ? 'No player prop markets posted yet for this game'
@@ -702,10 +836,443 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                     </div>
                   );
                 })}
+
+                {/* Validate as Parlay button — only when 2+ picks from same team exist */}
+                {canValidate(game.picks) && (
+                  <div style={{ padding: isMobile ? '12px 20px' : '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end' }}>
+                    <button
+                      onClick={() => validateParlay(game)}
+                      style={{ padding: '9px 20px', background: 'rgba(0,150,255,0.08)', border: '1px solid rgba(0,150,255,0.35)', borderRadius: '4px', color: '#0096ff', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.15)'; e.currentTarget.style.borderColor = '#0096ff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(0,150,255,0.35)'; }}
+                    >
+                      VALIDATE AS PARLAY →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── TRENDBET GPT PAGE ────────────────────────────────────────────────────────
+function TrendBetGPTPage({ isMobile }) {
+  const [question, setQuestion]     = React.useState('');
+  const [image, setImage]           = React.useState(null);   // { b64, type, preview }
+  const [loading, setLoading]       = React.useState(false);
+  const [reply, setReply]           = React.useState(null);
+  const [error, setError]           = React.useState(null);
+  const fileInputRef                = React.useRef(null);
+  const textareaRef                 = React.useRef(null);
+
+  // Paste image anywhere on this page
+  React.useEffect(() => {
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          readImageFile(file, item.type);
+          break;
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, []);
+
+  const readImageFile = (file, mimeType) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const b64 = dataUrl.split(',')[1];
+      setImage({ b64, type: mimeType || file.type || 'image/png', preview: dataUrl });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) readImageFile(file, file.type);
+    e.target.value = '';
+  };
+
+  const removeImage = () => setImage(null);
+
+  const submit = () => {
+    if (!question.trim() || loading) return;
+    setLoading(true);
+    setReply(null);
+    setError(null);
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type:       'gpt_chat',
+        question:   question.trim(),
+        image_b64:  image?.b64  || null,
+        image_type: image?.type || 'image/png',
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setLoading(false);
+        if (data.success) setReply(data.reply);
+        else setError(data.error || 'Analysis failed');
+      })
+      .catch(() => { setLoading(false); setError('Failed to connect'); });
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
+  };
+
+  const examples = [
+    'Why didn\'t my parlay hit last night?',
+    'Who are the safest NBA props for tonight?',
+    'Is LeBron a good pick for 25+ points today?',
+    'Explain the injury situation for tonight\'s games',
+  ];
+
+  // Render reply with basic formatting (lines starting with ✅/❌/bold)
+  const renderReply = (text) => {
+    return text.split('\n').map((line, i) => {
+      const isHit  = line.startsWith('✅');
+      const isMiss = line.startsWith('❌') || line.startsWith('❌');
+      const isHead = line.startsWith('**') && line.endsWith('**');
+      const color  = isHit ? '#00ff88' : isMiss ? '#ff4444' : '#ccc';
+      const cleaned = isHead ? line.replace(/\*\*/g, '') : line;
+      return (
+        <div key={i} style={{
+          fontFamily: isHead ? "'Bebas Neue', sans-serif" : "'Space Mono', monospace",
+          fontSize:   isHead ? '14px' : '11px',
+          color:      isHead ? '#fff' : color,
+          letterSpacing: isHead ? '1px' : '0px',
+          marginBottom: line === '' ? '8px' : '4px',
+          lineHeight: 1.6,
+        }}>
+          {cleaned || '\u00a0'}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>TRENDBET GPT</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
+        AI sports analyst · paste a bet slip or ask anything
+      </p>
+
+      <div style={{ maxWidth: '760px' }}>
+
+        {/* Input card */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
+
+          {/* Image preview */}
+          {image && (
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '14px' }}>
+              <img src={image.preview} alt="Bet slip" style={{ maxHeight: '180px', maxWidth: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.12)', display: 'block' }} />
+              <button
+                onClick={removeImage}
+                style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', color: '#fff', width: '22px', height: '22px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+              >×</button>
+            </div>
+          )}
+
+          {/* Paste hint (only when no image) */}
+          {!image && (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '6px', padding: '14px', textAlign: 'center', marginBottom: '14px', cursor: 'pointer', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+            >
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>
+                📎 PASTE or CLICK to attach a bet slip screenshot
+              </div>
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange} />
+
+          {/* Question textarea */}
+          <textarea
+            ref={textareaRef}
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Ask anything — e.g. 'Why didn't my parlay hit?' or 'Best picks for tonight?'"
+            style={{
+              width: '100%', minHeight: '90px', background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px',
+              color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '11px',
+              padding: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              lineHeight: 1.6,
+            }}
+            onFocus={e => { e.target.style.borderColor = 'rgba(0,255,136,0.35)'; }}
+            onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+          />
+
+          {/* Actions row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '1px' }}>
+              {isMobile ? 'TAP ANALYZE' : 'CTRL+ENTER to analyze'}
+            </div>
+            <button
+              onClick={submit}
+              disabled={!question.trim() || loading}
+              style={{
+                padding: '10px 24px', borderRadius: '4px', border: 'none', cursor: question.trim() && !loading ? 'pointer' : 'not-allowed',
+                background: question.trim() && !loading ? '#00ff88' : 'rgba(255,255,255,0.06)',
+                color: question.trim() && !loading ? '#000' : '#444',
+                fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', letterSpacing: '2px',
+              }}
+            >
+              {loading ? 'ANALYZING...' : 'ANALYZE →'}
+            </button>
+          </div>
+        </div>
+
+        {/* Example prompts */}
+        {!reply && !loading && (
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '2px', marginBottom: '10px' }}>TRY ASKING</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {examples.map(ex => (
+                <button
+                  key={ex}
+                  onClick={() => setQuestion(ex)}
+                  style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', color: '#666', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '0.5px' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#00ff88'; e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '28px 0' }}>
+            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px' }}>Analyzing with live sports data...</div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: 'rgba(255,68,68,0.07)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: '6px', padding: '16px', marginBottom: '16px', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ff4444' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Reply */}
+        {reply && (
+          <div style={{ background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#00ff88', letterSpacing: '2px' }}>TRENDBET GPT ANALYSIS</div>
+              <button
+                onClick={() => { setReply(null); setQuestion(''); setImage(null); }}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', padding: '4px 10px', cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#555'; }}
+              >NEW QUESTION</button>
+            </div>
+            <div>{renderReply(reply)}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── VALIDATE BET SLIP PAGE ───────────────────────────────────────────────────
+function BetValidatePage({ isMobile }) {
+  const [image, setImage]     = React.useState(null);  // { b64, type, preview }
+  const [loading, setLoading] = React.useState(false);
+  const [reply, setReply]     = React.useState(null);
+  const [error, setError]     = React.useState(null);
+  const fileInputRef          = React.useRef(null);
+
+  // Paste image anywhere on this page
+  React.useEffect(() => {
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          readImageFile(item.getAsFile(), item.type);
+          break;
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, []);
+
+  const readImageFile = (file, mimeType) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      setImage({ b64: dataUrl.split(',')[1], type: mimeType || file.type || 'image/png', preview: dataUrl });
+      setReply(null);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) readImageFile(file, file.type);
+    e.target.value = '';
+  };
+
+  const analyze = () => {
+    if (!image || loading) return;
+    setLoading(true);
+    setReply(null);
+    setError(null);
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type:       'gpt_chat',
+        question:   'Analyze every leg of this bet slip. For each player, fetch their actual game stats from that game and explain whether the leg hit or missed with real numbers — points/rebounds/assists achieved, minutes played, opponent, and final score.',
+        image_b64:  image.b64,
+        image_type: image.type,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setLoading(false);
+        if (data.success) setReply(data.reply);
+        else setError(data.error || 'Analysis failed');
+      })
+      .catch(() => { setLoading(false); setError('Failed to connect'); });
+  };
+
+  const reset = () => { setImage(null); setReply(null); setError(null); };
+
+  const renderReply = (text) => text.split('\n').map((line, i) => {
+    const isHead = line.startsWith('**') && line.endsWith('**');
+    const cleaned = isHead ? line.replace(/\*\*/g, '') : line;
+    const isHit  = line.startsWith('✅');
+    const isMiss = line.startsWith('❌');
+    return (
+      <div key={i} style={{
+        fontFamily:    isHead ? "'Bebas Neue', sans-serif" : "'Space Mono', monospace",
+        fontSize:      isHead ? '14px' : '11px',
+        color:         isHead ? '#fff' : isHit ? '#00ff88' : isMiss ? '#ff4444' : '#ccc',
+        letterSpacing: isHead ? '1px' : '0px',
+        marginBottom:  line === '' ? '10px' : '4px',
+        lineHeight:    1.65,
+      }}>
+        {cleaned || '\u00a0'}
+      </div>
+    );
+  });
+
+  return (
+    <div>
+      {/* Header */}
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>VALIDATE YOUR BET SLIP</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
+        Paste or attach your bet slip screenshot — we'll pull real stats for every leg
+      </p>
+
+      <div style={{ maxWidth: '720px' }}>
+
+        {/* Upload zone — hidden once result is shown */}
+        {!reply && (
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '24px', marginBottom: '20px' }}>
+
+            {image ? (
+              /* Image preview */
+              <div>
+                <img src={image.preview} alt="Bet slip" style={{ maxWidth: '100%', maxHeight: '340px', display: 'block', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '16px' }} />
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={analyze}
+                    disabled={loading}
+                    style={{ flex: 1, padding: '12px 0', background: loading ? 'rgba(255,255,255,0.05)' : '#00ff88', color: loading ? '#444' : '#000', fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer' }}
+                  >
+                    {loading ? 'ANALYZING...' : 'ANALYZE SLIP →'}
+                  </button>
+                  <button
+                    onClick={reset}
+                    disabled={loading}
+                    style={{ padding: '12px 20px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#555'}
+                  >
+                    REMOVE
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Drop zone */
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '8px', padding: isMobile ? '48px 24px' : '72px 40px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,255,136,0.4)'; e.currentTarget.style.background = 'rgba(0,255,136,0.03)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <div style={{ fontSize: '32px', marginBottom: '14px', opacity: 0.4 }}>📋</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: '#fff', letterSpacing: '3px', marginBottom: '8px' }}>PASTE YOUR BET SLIP</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#444', letterSpacing: '1px', marginBottom: '16px' }}>Ctrl+V to paste · or click to upload</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '1px' }}>PNG · JPG · WEBP accepted</div>
+              </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange} />
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '28px 0' }}>
+            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px' }}>Fetching real stats for each leg...</div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: 'rgba(255,68,68,0.07)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: '6px', padding: '16px', marginBottom: '16px', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ff4444' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Result */}
+        {reply && (
+          <div>
+            <div style={{ background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: '8px', padding: '22px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#00ff88', letterSpacing: '2px' }}>BET SLIP ANALYSIS</div>
+                <button
+                  onClick={reset}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', padding: '5px 12px', cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#555'}
+                >
+                  VALIDATE ANOTHER →
+                </button>
+              </div>
+              {/* Slip thumbnail */}
+              {image && <img src={image.preview} alt="" style={{ maxHeight: '100px', maxWidth: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)', display: 'block', marginBottom: '18px', opacity: 0.7 }} />}
+              <div>{renderReply(reply)}</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -969,7 +1536,8 @@ function App() {
     if (currentPage === 'datalab')    return <ComingSoon title="DATA LAB"      icon="📊" description="Player charts and advanced analytics" />;
     if (currentPage === 'ai-picks')   return <AiPicksPage openInAnalyzer={openInAnalyzer} isMobile={isMobile} />;
     if (currentPage === 'arbitrage')  return <ComingSoon title="ARBITRAGE"     icon="⚖️" description="Find value across sportsbooks" />;
-    if (currentPage === 'gpt')        return <ComingSoon title="TRENDBET GPT"  icon="🤖" description="AI sports betting assistant" />;
+    if (currentPage === 'bet-validate') return <BetValidatePage isMobile={isMobile} />;
+    if (currentPage === 'gpt')          return <ComingSoon title="TRENDBET GPT" icon="⊛" description="AI sports betting analyst — currently in testing phase" />;
 
     // ── PROP ANALYZER ────────────────────────────────────────────────────────
     return (
