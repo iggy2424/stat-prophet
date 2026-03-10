@@ -13,6 +13,7 @@ const PRODUCT_IDS    = new Set([
   'prod_sjZuDJVjBjx67',
   'prod_M1dvuYwoKXS3p',
   'prod_XQt15k4DIescc',
+  'prod_AGqdHQTNUD8Ep',
 ])
 
 async function exchangeCode(code, codeVerifier) {
@@ -35,12 +36,12 @@ async function getUserId(accessToken) {
 }
 
 async function checkMembership(userId) {
-  const res = await axios.get('https://api.whop.com/api/v1/memberships', {
+  const res = await axios.get('https://api.whop.com/api/v2/memberships', {
     headers: { Authorization: `Bearer ${COMPANY_KEY}` },
-    params: { user_ids: userId, valid: true },
+    params: { user_id: userId, valid: true },
   })
   const memberships = res.data?.data || []
-  return memberships.some(m => PRODUCT_IDS.has(m.product?.id))
+  return memberships.some(m => PRODUCT_IDS.has(m.product) || PRODUCT_IDS.has(m.product?.id))
 }
 
 export default async function handler(req, res) {
@@ -79,12 +80,14 @@ export default async function handler(req, res) {
   try {
     const userId = await getUserId(access_token)
     if (!userId) throw new Error('no user id from userinfo')
+    if (!COMPANY_KEY) throw new Error('WHOP_COMPANY_KEY env var is not set')
     hasAccess = await checkMembership(userId)
   } catch (err) {
     const detail = err?.response?.data
       ? JSON.stringify(err.response.data).slice(0, 200)
       : err.message?.slice(0, 200)
-    console.error('Membership check failed:', detail)
+    const status = err?.response?.status
+    console.error('Membership check failed status:', status, 'detail:', detail)
     return res.redirect(`/login?error=membership_check&detail=${encodeURIComponent(detail)}`)
   }
 
