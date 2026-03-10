@@ -27,11 +27,11 @@ const GlobalStyles = () => (
     @keyframes tbPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     @keyframes tbSpin  { to { transform: rotate(360deg); } }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 0; background: #0a0a0f; }
+    body { margin: 0; padding: 0; background: #1a1d23; }
     ::-webkit-scrollbar { height: 4px; width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-    select option { background: #111118; color: #fff; }
+    select option { background: #1a1d23; color: #fff; }
     .game-scroll { scrollbar-width: none; -ms-overflow-style: none; }
     .game-scroll::-webkit-scrollbar { display: none; }
     .scroll-arrow { transition: opacity 0.2s, background 0.2s; }
@@ -86,7 +86,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
 
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: '220px',
-        background: '#0c0c13',
+        background: '#1a1d23',
         borderRight: '1px solid rgba(255,255,255,0.07)',
         display: 'flex', flexDirection: 'column',
         zIndex: 1001,
@@ -99,7 +99,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
           onClick={() => navigate('home')}
           style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}
         >
-          <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #00ff88, #00cc6a)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏀</div>
+          <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #33cc33, #00cc6a)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏀</div>
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>TRENDBET</span>
         </div>
 
@@ -121,17 +121,17 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
                       display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '9px 18px',
                       cursor: (item.soon || item.testing) ? 'default' : 'pointer',
-                      background: isActive ? 'rgba(0,255,136,0.07)' : 'transparent',
-                      borderLeft: isActive ? '2px solid #00ff88' : '2px solid transparent',
+                      background: isActive ? 'rgba(51,204,51,0.07)' : 'transparent',
+                      borderLeft: isActive ? '2px solid #33cc33' : '2px solid transparent',
                       transition: 'all 0.15s'
                     }}
                     onMouseOver={e => { if (!item.soon && !item.testing && !isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseOut={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                   >
                     {/* Icon */}
-                    <span style={{ fontSize: '12px', color: isActive ? '#00ff88' : ((item.soon || item.testing) ? '#363655' : '#606080'), flexShrink: 0 }}>{item.icon}</span>
+                    <span style={{ fontSize: '12px', color: isActive ? '#33cc33' : ((item.soon || item.testing) ? '#363655' : '#606080'), flexShrink: 0 }}>{item.icon}</span>
                     {/* Label */}
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: (item.soon || item.testing) ? '#4a4a68' : (isActive ? '#00ff88' : '#aaaacc'), flex: 1 }}>{item.label}</span>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: (item.soon || item.testing) ? '#4a4a68' : (isActive ? '#33cc33' : '#aaaacc'), flex: 1 }}>{item.label}</span>
                     {/* Soon badge */}
                     {item.soon && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#3a3a55', letterSpacing: '1px', background: 'rgba(255,255,255,0.04)', padding: '2px 5px', borderRadius: '3px' }}>SOON</span>}
                     {/* Testing badge */}
@@ -146,8 +146,8 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
         {/* Live Data indicator */}
         <div style={{ padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#00ff88' }}>LIVE DATA</span>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#33cc33', boxShadow: '0 0 8px #33cc33', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#33cc33' }}>LIVE DATA</span>
           </div>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#44445e', letterSpacing: '1px' }}>API-SPORTS</div>
         </div>
@@ -208,7 +208,7 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
           userSelect: 'none',
         }}
         onMouseOver={e => {
-          e.currentTarget.style.borderColor = 'rgba(0,255,136,0.4)';
+          e.currentTarget.style.borderColor = 'rgba(51,204,51,0.4)';
           e.currentTarget.style.background = 'rgba(255,255,255,0.045)';
           e.currentTarget.style.transform = 'translateY(-2px)';
         }}
@@ -276,9 +276,9 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
 
         <button
           onClick={() => navigateToAnalyzer ? navigateToAnalyzer(game) : setCurrentPage('analyzer')}
-          style={{ width: '100%', padding: '7px', background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '5px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#00ff88', transition: 'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.14)'; }}
-          onMouseOut={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.06)'; }}
+          style={{ width: '100%', padding: '7px', background: 'rgba(51,204,51,0.06)', border: '1px solid rgba(51,204,51,0.2)', borderRadius: '5px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '1px', color: '#33cc33', transition: 'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.14)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.06)'; }}
         >
           ANALYSE PROP →
         </button>
@@ -355,7 +355,7 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
 
         {gamesLoading ? (
           <div style={{ height: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '28px', height: '28px', border: '2px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
+            <div style={{ width: '28px', height: '28px', border: '2px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
           </div>
         ) : sportGames.length === 0 ? (
           <EmptyState sport={sport} />
@@ -371,7 +371,7 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
                 style={{
                   position: 'absolute', left: 0, top: 0, bottom: '12px',
                   width: '52px', border: 'none', cursor: 'pointer', zIndex: 5,
-                  background: 'linear-gradient(to right, #0a0a0f 35%, rgba(10,10,15,0.7) 70%, transparent)',
+                  background: 'linear-gradient(to right, #1a1d23 35%, rgba(26,29,35,0.7) 70%, transparent)',
                   display: 'flex', alignItems: 'center', paddingLeft: '6px',
                   color: '#fff', fontSize: '26px', lineHeight: 1, opacity: 0.85,
                   padding: '0 0 12px 6px',
@@ -388,7 +388,7 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
                 style={{
                   position: 'absolute', right: 0, top: 0, bottom: '12px',
                   width: '52px', border: 'none', cursor: 'pointer', zIndex: 5,
-                  background: 'linear-gradient(to left, #0a0a0f 35%, rgba(10,10,15,0.7) 70%, transparent)',
+                  background: 'linear-gradient(to left, #1a1d23 35%, rgba(26,29,35,0.7) 70%, transparent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '6px',
                   color: '#fff', fontSize: '26px', lineHeight: 1, opacity: 0.85,
                   padding: '0 6px 12px 0',
@@ -428,7 +428,7 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
     <div>
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>DASHBOARD</h1>
-        <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '10px' }} />
+        <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '10px' }} />
         <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#55557a', letterSpacing: '2px', margin: 0 }}>
           UPCOMING GAMES  ·  LIVE SCORES  ·  AI ANALYSIS
         </p>
@@ -445,13 +445,13 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
 function ComingSoon({ title, icon, description }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-      <div style={{ width: '72px', height: '72px', background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.15)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '22px' }}>
+      <div style={{ width: '72px', height: '72px', background: 'rgba(51,204,51,0.07)', border: '1px solid rgba(51,204,51,0.15)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '22px' }}>
         {icon}
       </div>
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '40px', letterSpacing: '4px', color: '#fff', marginBottom: '10px', textAlign: 'center' }}>{title}</h1>
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#555', marginBottom: '24px', textAlign: 'center' }}>{description}</p>
       <div style={{ padding: '10px 28px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px' }}>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#00ff88' }}>COMING SOON</span>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#33cc33' }}>COMING SOON</span>
       </div>
     </div>
   );
@@ -519,15 +519,15 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
             const edgePct  = al.edge            != null ? Math.round(al.edge * 100)           : null;
             const vsOppPct = al.vs_opp_hit_rate != null ? Math.round(al.vs_opp_hit_rate * 100): null;
             const barColor = al.edge != null
-              ? (al.edge > 0.05 ? '#00ff88' : al.edge < -0.05 ? '#ff4444' : '#777')
-              : (al.hit_rate != null ? (al.hit_rate > 0.5 ? '#00ff88' : al.hit_rate < 0.5 ? '#ff4444' : '#777') : '#777');
+              ? (al.edge > 0.05 ? '#33cc33' : al.edge < -0.05 ? '#ff4444' : '#777')
+              : (al.hit_rate != null ? (al.hit_rate > 0.5 ? '#33cc33' : al.hit_rate < 0.5 ? '#ff4444' : '#777') : '#777');
             return (
               <div key={al.line} onClick={() => { setLine(String(al.line)); setDirection('OVER'); }}
                 style={{ position: 'relative', minWidth: '76px', cursor: 'pointer',
                   padding: al.best_value || al.highest_safe ? '14px 8px 10px' : '10px 8px 10px',
                   borderRadius: '6px', textAlign: 'center',
-                  border: `2px solid ${isSelected ? '#00ff88' : al.highest_safe ? 'rgba(0,150,255,0.55)' : al.best_value ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                  background: isSelected ? 'rgba(0,255,136,0.08)' : al.highest_safe ? 'rgba(0,150,255,0.06)' : al.best_value ? 'rgba(255,215,0,0.04)' : 'rgba(255,255,255,0.02)',
+                  border: `2px solid ${isSelected ? '#33cc33' : al.highest_safe ? 'rgba(0,150,255,0.55)' : al.best_value ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                  background: isSelected ? 'rgba(51,204,51,0.08)' : al.highest_safe ? 'rgba(0,150,255,0.06)' : al.best_value ? 'rgba(255,215,0,0.04)' : 'rgba(255,255,255,0.02)',
                   transition: 'all 0.15s' }}>
                 {al.highest_safe && (
                   <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)',
@@ -537,15 +537,15 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
                 )}
                 {al.best_value && (
                   <div style={{ position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)',
-                    background: '#00ff88', color: '#000', fontFamily: "'Space Mono', monospace",
+                    background: '#33cc33', color: '#000', fontFamily: "'Space Mono', monospace",
                     fontSize: '7px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px',
                     whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>★ HIGHEST +EV</div>
                 )}
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', lineHeight: 1,
-                  color: isSelected ? '#00ff88' : al.highest_safe ? '#0096ff' : al.best_value ? '#ffd700' : '#ccc' }}>{al.line}</div>
+                  color: isSelected ? '#33cc33' : al.highest_safe ? '#0096ff' : al.best_value ? '#ffd700' : '#ccc' }}>{al.line}</div>
                 {al.over_odds != null && (
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', marginTop: '2px',
-                    color: isSelected ? '#00ff88' : '#666' }}>
+                    color: isSelected ? '#33cc33' : '#666' }}>
                     {al.over_odds > 0 ? '+' : ''}{al.over_odds}
                   </div>
                 )}
@@ -558,7 +558,7 @@ function AltLinesPicker({ altLines, line, setLine, setDirection }) {
                       color: barColor === '#777' ? '#555' : barColor }}>{hitPct}% overall</div>
                     {edgePct != null && (
                       <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', marginTop: '1px',
-                        color: edgePct > 0 ? '#00ff88' : '#ff4444' }}>{edgePct > 0 ? '+' : ''}{edgePct}%</div>
+                        color: edgePct > 0 ? '#33cc33' : '#ff4444' }}>{edgePct > 0 ? '+' : ''}{edgePct}%</div>
                     )}
                   </>
                 )}
@@ -598,7 +598,7 @@ function ValidationResultPanel({ result, onBack, isMobile }) {
       ) : (
         result.teams.map(team => {
           const scoreColor = team.all_hit_count >= Math.ceil(team.total_games * 0.6)
-            ? '#00ff88' : team.all_hit_count >= Math.ceil(team.total_games * 0.4) ? '#ffd700' : '#ff4444';
+            ? '#33cc33' : team.all_hit_count >= Math.ceil(team.total_games * 0.4) ? '#ffd700' : '#ff4444';
 
           return (
             <div key={team.team_abbrev} style={{ marginBottom: '28px' }}>
@@ -635,12 +635,12 @@ function ValidationResultPanel({ result, onBack, isMobile }) {
                           <div key={row.game_id} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '8px', padding: '10px 0', borderBottom: idx < team.game_rows.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', alignItems: 'center' }}>
                             {row.players.map(p => (
                               <div key={p.name} style={{ textAlign: 'center' }}>
-                                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: p.hit ? '#00ff88' : '#ff4444', lineHeight: 1 }}>{p.value}</span>
-                                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: p.hit ? '#00ff88' : '#ff4444', marginLeft: '3px' }}>{p.hit ? '✓' : '✗'}</span>
+                                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: p.hit ? '#33cc33' : '#ff4444', lineHeight: 1 }}>{p.value}</span>
+                                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: p.hit ? '#33cc33' : '#ff4444', marginLeft: '3px' }}>{p.hit ? '✓' : '✗'}</span>
                               </div>
                             ))}
                             <div style={{ textAlign: 'center' }}>
-                              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', letterSpacing: '1px', color: row.all_hit ? '#00ff88' : '#ff4444' }}>
+                              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', letterSpacing: '1px', color: row.all_hit ? '#33cc33' : '#ff4444' }}>
                                 {row.all_hit ? 'HIT' : 'MISS'}
                               </span>
                             </div>
@@ -704,7 +704,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <div style={{ width: '44px', height: '44px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '18px' }} />
+      <div style={{ width: '44px', height: '44px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '18px' }} />
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#444', letterSpacing: '1px' }}>Computing picks...</p>
     </div>
   );
@@ -712,7 +712,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
   if (error) return (
     <div>
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
-      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '28px' }} />
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '28px' }} />
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', color: '#ff4444', letterSpacing: '3px', marginBottom: '10px' }}>LOAD FAILED</div>
         <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#555' }}>{error}</p>
@@ -726,17 +726,17 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
   const headerBlock = (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }}>
-        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#00ff88' }}>LIVE DATA</span>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#33cc33', boxShadow: '0 0 8px #33cc33', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#33cc33' }}>LIVE DATA</span>
       </div>
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
-      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '6px' }} />
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 4px' }}>
         {today} · Highest-confidence props · Click Analyze → to run full prediction
       </p>
       {totalPicks > 0 && (
         <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', letterSpacing: '0.5px', margin: '0 0 24px' }}>
-          <span style={{ color: '#00ff88' }}>{totalPicks}</span> qualifying prop{totalPicks !== 1 ? 's' : ''} across <span style={{ color: '#00ff88' }}>{gamesWithPicks}</span> game{gamesWithPicks !== 1 ? 's' : ''} today
+          <span style={{ color: '#33cc33' }}>{totalPicks}</span> qualifying prop{totalPicks !== 1 ? 's' : ''} across <span style={{ color: '#33cc33' }}>{gamesWithPicks}</span> game{gamesWithPicks !== 1 ? 's' : ''} today
         </p>
       )}
       {totalPicks === 0 && <div style={{ marginBottom: '24px' }} />}
@@ -749,7 +749,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏀</div>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#444', letterSpacing: '3px' }}>NO GAMES TODAY</div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#333', marginTop: '8px' }}>Check back on a game day</p>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#a3a3a3', marginTop: '8px' }}>Check back on a game day</p>
       </div>
     </div>
   );
@@ -766,13 +766,13 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>
                 {game.away.logo && <img src={game.away.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
                 {game.away.name}
-                <span style={{ color: '#333', fontSize: '14px' }}>@</span>
+                <span style={{ color: '#a3a3a3', fontSize: '14px' }}>@</span>
                 {game.home.logo && <img src={game.home.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
                 {game.home.name}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {game.status === 'inprogress' && (
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#00ff88', background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: '3px', padding: '2px 8px', letterSpacing: '1px' }}>LIVE</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', background: 'rgba(51,204,51,0.1)', border: '1px solid rgba(51,204,51,0.25)', borderRadius: '3px', padding: '2px 8px', letterSpacing: '1px' }}>LIVE</span>
                 )}
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' }}>
                   {new Date(game.scheduled).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -783,7 +783,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
             {/* Content: validation panel OR normal picks */}
             {validationState[game.game_id]?.loading ? (
               <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '36px', height: '36px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
+                <div style={{ width: '36px', height: '36px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
                 <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: 0 }}>Validating parlay combinations...</p>
               </div>
             ) : validationState[game.game_id]?.result ? (
@@ -793,7 +793,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                 isMobile={isMobile}
               />
             ) : game.picks.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#333' }}>
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#a3a3a3' }}>
                 {game.has_odds_event === false
                   ? 'No player prop markets posted yet for this game'
                   : 'No qualifying picks found for this game'}
@@ -806,16 +806,16 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                   const trendDown  = pick.trend === 'down';
                   const trendArrow = trendUp ? '↑' : trendDown ? '↓' : '→';
                   const trendLabel = trendUp ? 'TRENDING UP' : trendDown ? 'TRENDING DOWN' : 'STABLE';
-                  const trendColor = trendUp ? '#00ff88' : trendDown ? '#ff4444' : '#666';
-                  const trendGlow  = trendUp ? '0 0 8px rgba(0,255,136,0.4)' : trendDown ? '0 0 8px rgba(255,68,68,0.35)' : 'none';
+                  const trendColor = trendUp ? '#33cc33' : trendDown ? '#ff4444' : '#666';
+                  const trendGlow  = trendUp ? '0 0 8px rgba(51,204,51,0.4)' : trendDown ? '0 0 8px rgba(255,68,68,0.35)' : 'none';
                   const tierColor  = pick.tier === 'ELITE LOCK' ? '#ffd700'
-                                   : pick.tier === 'STRONG PICK' ? '#00ff88'
+                                   : pick.tier === 'STRONG PICK' ? '#33cc33'
                                    : '#0096ff';
                   const tierBg     = pick.tier === 'ELITE LOCK' ? 'rgba(255,215,0,0.10)'
-                                   : pick.tier === 'STRONG PICK' ? 'rgba(0,255,136,0.08)'
+                                   : pick.tier === 'STRONG PICK' ? 'rgba(51,204,51,0.08)'
                                    : 'rgba(0,150,255,0.08)';
                   const tierGlow   = pick.tier === 'ELITE LOCK' ? '0 0 10px rgba(255,215,0,0.3)'
-                                   : pick.tier === 'STRONG PICK' ? '0 0 10px rgba(0,255,136,0.25)'
+                                   : pick.tier === 'STRONG PICK' ? '0 0 10px rgba(51,204,51,0.25)'
                                    : '0 0 10px rgba(0,150,255,0.25)';
                   return (
                     <div key={pick.name + pick.stat} style={{
@@ -854,9 +854,9 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                       {/* Analyze button */}
                       <button
                         onClick={() => openInAnalyzer(pick)}
-                        style={{ flexShrink: 0, padding: '8px 16px', background: 'transparent', border: '1px solid rgba(0,255,136,0.3)', borderRadius: '4px', color: '#00ff88', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; e.currentTarget.style.borderColor = '#00ff88'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'; }}
+                        style={{ flexShrink: 0, padding: '8px 16px', background: 'transparent', border: '1px solid rgba(51,204,51,0.3)', borderRadius: '4px', color: '#33cc33', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; e.currentTarget.style.borderColor = '#33cc33'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(51,204,51,0.3)'; }}
                       >
                         Analyze →
                       </button>
@@ -972,7 +972,7 @@ function TrendBetGPTPage({ isMobile }) {
       const isHit  = line.startsWith('✅');
       const isMiss = line.startsWith('❌') || line.startsWith('❌');
       const isHead = line.startsWith('**') && line.endsWith('**');
-      const color  = isHit ? '#00ff88' : isMiss ? '#ff4444' : '#ccc';
+      const color  = isHit ? '#33cc33' : isMiss ? '#ff4444' : '#ccc';
       const cleaned = isHead ? line.replace(/\*\*/g, '') : line;
       return (
         <div key={i} style={{
@@ -993,7 +993,7 @@ function TrendBetGPTPage({ isMobile }) {
     <div>
       {/* Header */}
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>TRENDBET GPT</h1>
-      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '6px' }} />
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
         AI sports analyst · paste a bet slip or ask anything
       </p>
@@ -1019,7 +1019,7 @@ function TrendBetGPTPage({ isMobile }) {
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '6px', padding: '14px', textAlign: 'center', marginBottom: '14px', cursor: 'pointer', transition: 'border-color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(51,204,51,0.3)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
             >
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>
@@ -1043,13 +1043,13 @@ function TrendBetGPTPage({ isMobile }) {
               padding: '12px', resize: 'vertical', outline: 'none', boxSizing: 'border-box',
               lineHeight: 1.6,
             }}
-            onFocus={e => { e.target.style.borderColor = 'rgba(0,255,136,0.35)'; }}
+            onFocus={e => { e.target.style.borderColor = 'rgba(51,204,51,0.35)'; }}
             onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
           />
 
           {/* Actions row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '1px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#a3a3a3', letterSpacing: '1px' }}>
               {isMobile ? 'TAP ANALYZE' : 'CTRL+ENTER to analyze'}
             </div>
             <button
@@ -1057,7 +1057,7 @@ function TrendBetGPTPage({ isMobile }) {
               disabled={!question.trim() || loading}
               style={{
                 padding: '10px 24px', borderRadius: '4px', border: 'none', cursor: question.trim() && !loading ? 'pointer' : 'not-allowed',
-                background: question.trim() && !loading ? '#00ff88' : 'rgba(255,255,255,0.06)',
+                background: question.trim() && !loading ? '#33cc33' : 'rgba(255,255,255,0.06)',
                 color: question.trim() && !loading ? '#000' : '#444',
                 fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', letterSpacing: '2px',
               }}
@@ -1070,14 +1070,14 @@ function TrendBetGPTPage({ isMobile }) {
         {/* Example prompts */}
         {!reply && !loading && (
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '2px', marginBottom: '10px' }}>TRY ASKING</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#a3a3a3', letterSpacing: '2px', marginBottom: '10px' }}>TRY ASKING</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {examples.map(ex => (
                 <button
                   key={ex}
                   onClick={() => setQuestion(ex)}
                   style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', color: '#666', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '0.5px' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#00ff88'; e.currentTarget.style.borderColor = 'rgba(0,255,136,0.3)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#33cc33'; e.currentTarget.style.borderColor = 'rgba(51,204,51,0.3)'; }}
                   onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                 >
                   {ex}
@@ -1090,7 +1090,7 @@ function TrendBetGPTPage({ isMobile }) {
         {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '28px 0' }}>
-            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
+            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px' }}>Analyzing with live sports data...</div>
           </div>
         )}
@@ -1104,9 +1104,9 @@ function TrendBetGPTPage({ isMobile }) {
 
         {/* Reply */}
         {reply && (
-          <div style={{ background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
+          <div style={{ background: 'rgba(51,204,51,0.03)', border: '1px solid rgba(51,204,51,0.12)', borderRadius: '8px', padding: '20px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#00ff88', letterSpacing: '2px' }}>TRENDBET GPT ANALYSIS</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#33cc33', letterSpacing: '2px' }}>TRENDBET GPT ANALYSIS</div>
               <button
                 onClick={() => { setReply(null); setQuestion(''); setImage(null); }}
                 style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', padding: '4px 10px', cursor: 'pointer' }}
@@ -1198,7 +1198,7 @@ function BetValidatePage({ isMobile }) {
       <div key={i} style={{
         fontFamily:    isHead ? "'Bebas Neue', sans-serif" : "'Space Mono', monospace",
         fontSize:      isHead ? '14px' : '11px',
-        color:         isHead ? '#fff' : isHit ? '#00ff88' : isMiss ? '#ff4444' : '#ccc',
+        color:         isHead ? '#fff' : isHit ? '#33cc33' : isMiss ? '#ff4444' : '#ccc',
         letterSpacing: isHead ? '1px' : '0px',
         marginBottom:  line === '' ? '10px' : '4px',
         lineHeight:    1.65,
@@ -1212,7 +1212,7 @@ function BetValidatePage({ isMobile }) {
     <div>
       {/* Header */}
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>VALIDATE YOUR BET SLIP</h1>
-      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '6px' }} />
       <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
         Paste or attach your bet slip screenshot — we'll pull real stats for every leg
       </p>
@@ -1231,7 +1231,7 @@ function BetValidatePage({ isMobile }) {
                   <button
                     onClick={analyze}
                     disabled={loading}
-                    style={{ flex: 1, padding: '12px 0', background: loading ? 'rgba(255,255,255,0.05)' : '#00ff88', color: loading ? '#444' : '#000', fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer' }}
+                    style={{ flex: 1, padding: '12px 0', background: loading ? 'rgba(255,255,255,0.05)' : '#33cc33', color: loading ? '#444' : '#000', fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer' }}
                   >
                     {loading ? 'ANALYZING...' : 'ANALYZE SLIP →'}
                   </button>
@@ -1251,13 +1251,13 @@ function BetValidatePage({ isMobile }) {
               <div
                 onClick={() => fileInputRef.current?.click()}
                 style={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '8px', padding: isMobile ? '48px 24px' : '72px 40px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,255,136,0.4)'; e.currentTarget.style.background = 'rgba(0,255,136,0.03)'; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(51,204,51,0.4)'; e.currentTarget.style.background = 'rgba(51,204,51,0.03)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ fontSize: '32px', marginBottom: '14px', opacity: 0.4 }}>📋</div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: '#fff', letterSpacing: '3px', marginBottom: '8px' }}>PASTE YOUR BET SLIP</div>
                 <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#444', letterSpacing: '1px', marginBottom: '16px' }}>Ctrl+V to paste · or click to upload</div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#333', letterSpacing: '1px' }}>PNG · JPG · WEBP accepted</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#a3a3a3', letterSpacing: '1px' }}>PNG · JPG · WEBP accepted</div>
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange} />
@@ -1267,7 +1267,7 @@ function BetValidatePage({ isMobile }) {
         {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '28px 0' }}>
-            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
+            <div style={{ width: '32px', height: '32px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', flexShrink: 0 }} />
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px' }}>Fetching real stats for each leg...</div>
           </div>
         )}
@@ -1282,9 +1282,9 @@ function BetValidatePage({ isMobile }) {
         {/* Result */}
         {reply && (
           <div>
-            <div style={{ background: 'rgba(0,255,136,0.03)', border: '1px solid rgba(0,255,136,0.12)', borderRadius: '8px', padding: '22px', marginBottom: '16px' }}>
+            <div style={{ background: 'rgba(51,204,51,0.03)', border: '1px solid rgba(51,204,51,0.12)', borderRadius: '8px', padding: '22px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#00ff88', letterSpacing: '2px' }}>BET SLIP ANALYSIS</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '13px', color: '#33cc33', letterSpacing: '2px' }}>BET SLIP ANALYSIS</div>
                 <button
                   onClick={reset}
                   style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', padding: '5px 12px', cursor: 'pointer' }}
@@ -1553,7 +1553,7 @@ function App() {
     if (dataLoading) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
-          <div style={{ width: '44px', height: '44px', border: '3px solid rgba(0,255,136,0.15)', borderTopColor: '#00ff88', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '18px' }} />
+          <div style={{ width: '44px', height: '44px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '18px' }} />
           <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#444', letterSpacing: '1px' }}>Loading...</p>
         </div>
       );
@@ -1570,7 +1570,7 @@ function App() {
     return (
       <div>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>PROP ANALYZER</h1>
-        <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '28px' }} />
+        <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '28px' }} />
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px', alignItems: 'start' }}>
 
@@ -1579,9 +1579,9 @@ function App() {
 
             {/* GAME CONTEXT BANNER */}
             {gameContext && (
-              <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'rgba(51,204,51,0.05)', border: '1px solid rgba(51,204,51,0.2)', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#00ff88', letterSpacing: '2px', marginBottom: '4px' }}>GAME CONTEXT</div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#33cc33', letterSpacing: '2px', marginBottom: '4px' }}>GAME CONTEXT</div>
                   <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', letterSpacing: '2px', color: '#fff' }}>
                     {gameContext.awayName} <span style={{ color: '#444' }}>@</span> {gameContext.homeName}
                   </div>
@@ -1600,7 +1600,7 @@ function App() {
                 {['NBA', 'NFL', 'MLB'].map(s => (
                   <button key={s}
                     onClick={() => { setSport(s); setPlayer(null); setSearchQuery(''); setStat(''); setOpponent(null); setPrediction(null); setError(null); setShowPlayerDropdown(false); setGameContext(null); }}
-                    style={{ flex: 1, padding: '10px 6px', background: sport === s ? 'rgba(0,255,136,0.1)' : 'transparent', border: `1px solid ${sport === s ? '#00ff88' : 'rgba(255,255,255,0.12)'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '2px', color: sport === s ? '#00ff88' : '#666', transition: 'all 0.2s' }}>
+                    style={{ flex: 1, padding: '10px 6px', background: sport === s ? 'rgba(51,204,51,0.1)' : 'transparent', border: `1px solid ${sport === s ? '#33cc33' : 'rgba(255,255,255,0.12)'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '17px', letterSpacing: '2px', color: sport === s ? '#33cc33' : '#666', transition: 'all 0.2s' }}>
                     {s}
                   </button>
                 ))}
@@ -1619,15 +1619,15 @@ function App() {
                   onChange={e => { setSearchQuery(e.target.value); setPlayer(null); setShowPlayerDropdown(true); }}
                   onFocus={() => { if (sport) setShowPlayerDropdown(true); }}
                   onBlur={() => setTimeout(() => setShowPlayerDropdown(false), 150)}
-                  style={{ width: '100%', padding: '10px 12px', background: sport ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${player ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: player ? '#00ff88' : '#fff', fontFamily: "'Space Mono', monospace", fontSize: '11px', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px', background: sport ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${player ? 'rgba(51,204,51,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: player ? '#33cc33' : '#fff', fontFamily: "'Space Mono', monospace", fontSize: '11px', outline: 'none' }}
                 />
                 {showPlayerDropdown && (filteredPlayers ? filteredPlayers.length > 0 : playersByTeam.length > 0) && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '260px', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
+                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#1a1d23', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', zIndex: 200, maxHeight: '260px', overflowY: 'auto', overflowX: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
                     {filteredPlayers ? filteredPlayers.map(p => (
                       <div key={p.id}
                         onMouseDown={() => { setPlayer(p); setSearchQuery(''); setShowPlayerDropdown(false); }}
                         style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                        onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; }}
                         onMouseOut={e => { e.currentTarget.style.background = 'transparent'; }}
                       >
                         <div style={{ fontSize: '12px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
@@ -1635,12 +1635,12 @@ function App() {
                       </div>
                     )) : playersByTeam.map(([teamName, players]) => (
                       <div key={teamName}>
-                        <div style={{ padding: '5px 12px 3px', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1.5px', color: '#444', textTransform: 'uppercase', background: '#0d0d14', borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>{teamName}</div>
+                        <div style={{ padding: '5px 12px 3px', fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1.5px', color: '#444', textTransform: 'uppercase', background: '#1a1d23', borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>{teamName}</div>
                         {players.map(p => (
                           <div key={p.id}
                             onMouseDown={() => { setPlayer(p); setSearchQuery(''); setShowPlayerDropdown(false); }}
                             style={{ padding: '8px 12px 8px 16px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.03)' }}
-                            onMouseOver={e => { e.currentTarget.style.background = 'rgba(0,255,136,0.08)'; e.currentTarget.style.color = '#00ff88'; }}
+                            onMouseOver={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; e.currentTarget.style.color = '#33cc33'; }}
                             onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
                           >
                             <div style={{ fontSize: '12px', color: '#ddd' }}>{p.name}</div>
@@ -1651,7 +1651,7 @@ function App() {
                   </div>
                 )}
                 {showPlayerDropdown && sport && filteredPlayers && filteredPlayers.length === 0 && searchQuery && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#111118', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', zIndex: 200, padding: '10px 12px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '10px' }}>
+                  <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: '#1a1d23', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', zIndex: 200, padding: '10px 12px', color: '#555', fontFamily: "'Space Mono', monospace", fontSize: '10px' }}>
                     No players found
                   </div>
                 )}
@@ -1697,7 +1697,7 @@ function App() {
                 <span style={fieldLabel}>LINE</span>
                 {oddsLoading && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>FETCHING ODDS...</span>}
                 {oddsData && !oddsLoading && oddsData.has_live_odds !== false && (
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#00ff88', letterSpacing: '1px', background: 'rgba(0,255,136,0.08)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(0,255,136,0.2)' }}>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', letterSpacing: '1px', background: 'rgba(51,204,51,0.08)', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(51,204,51,0.2)' }}>
                     LIVE • {oddsData.bookmaker}
                   </span>
                 )}
@@ -1746,7 +1746,7 @@ function App() {
                     {legendOpen && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px', paddingLeft: '2px' }}>
                         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <span style={{ display: 'inline-block', width: '18px', height: '3px', background: '#00ff88', borderRadius: '2px' }} />
+                          <span style={{ display: 'inline-block', width: '18px', height: '3px', background: '#33cc33', borderRadius: '2px' }} />
                           bar = how often player hits OVER this line
                         </span>
                         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
@@ -1755,7 +1755,7 @@ function App() {
                         {oddsData && oddsData.has_live_odds !== false && (
                           <>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
-                              <span style={{ color: '#00ff88' }}>+8%</span> = better odds than real probability (good value)
+                              <span style={{ color: '#33cc33' }}>+8%</span> = better odds than real probability (good value)
                             </span>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888', letterSpacing: '0.5px' }}>
                               <span style={{ color: '#ff4444' }}>-8%</span> = book overprices this line (bad value)
@@ -1769,7 +1769,7 @@ function App() {
                 );
               })() : (
                 <input type="number" step="0.5" value={line} onChange={e => setLine(e.target.value)} placeholder="e.g. 25.5"
-                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${oddsData ? 'rgba(0,255,136,0.3)' : line ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '14px', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${oddsData ? 'rgba(51,204,51,0.3)' : line ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: '#fff', fontFamily: "'Space Mono', monospace", fontSize: '14px', outline: 'none' }}
                 />
               )}
 
@@ -1790,7 +1790,7 @@ function App() {
               <span style={fieldLabel}>DIRECTION</span>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <button onClick={() => setDirection('OVER')}
-                  style={{ padding: '13px', background: direction === 'OVER' ? 'rgba(0,255,136,0.1)' : 'transparent', border: `2px solid ${direction === 'OVER' ? '#00ff88' : 'rgba(255,255,255,0.12)'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: direction === 'OVER' ? '#00ff88' : '#555', transition: 'all 0.2s' }}>
+                  style={{ padding: '13px', background: direction === 'OVER' ? 'rgba(51,204,51,0.1)' : 'transparent', border: `2px solid ${direction === 'OVER' ? '#33cc33' : 'rgba(255,255,255,0.12)'}`, borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: direction === 'OVER' ? '#33cc33' : '#555', transition: 'all 0.2s' }}>
                   OVER
                 </button>
                 <button onClick={() => setDirection('UNDER')}
@@ -1807,7 +1807,7 @@ function App() {
             )}
 
             <button onClick={getPrediction} disabled={!canSubmit || loading}
-              style={{ width: '100%', padding: '15px', background: canSubmit && !loading ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '4px', cursor: canSubmit && !loading ? 'pointer' : 'not-allowed', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '3px', color: canSubmit && !loading ? '#0a0a0f' : '#444', transition: 'all 0.3s' }}>
+              style={{ width: '100%', padding: '15px', background: canSubmit && !loading ? 'linear-gradient(90deg, #33cc33, #00cc6a)' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '4px', cursor: canSubmit && !loading ? 'pointer' : 'not-allowed', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '3px', color: canSubmit && !loading ? '#1a1d23' : '#444', transition: 'all 0.3s' }}>
               {loading ? 'ANALYZING...' : 'ANALYZE PROP \u2192'}
             </button>
           </div>
@@ -1817,8 +1817,8 @@ function App() {
 
             {loading && (
               <div style={{ textAlign: 'center', padding: '60px 0', width: '100%' }}>
-                <div style={{ width: '46px', height: '46px', border: '3px solid rgba(0,255,136,0.2)', borderTopColor: '#00ff88', borderRadius: '50%', margin: '0 auto 20px', animation: 'tbSpin 1s linear infinite' }} />
-                <div style={{ fontFamily: "'Space Mono', monospace", color: '#00ff88', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING WITH AI...</div>
+                <div style={{ width: '46px', height: '46px', border: '3px solid rgba(51,204,51,0.2)', borderTopColor: '#33cc33', borderRadius: '50%', margin: '0 auto 20px', animation: 'tbSpin 1s linear infinite' }} />
+                <div style={{ fontFamily: "'Space Mono', monospace", color: '#33cc33', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING WITH AI...</div>
               </div>
             )}
 
@@ -1837,15 +1837,15 @@ function App() {
                     {player.name.toUpperCase()} VS {opponent.name.toUpperCase()}
                   </div>
                   <div style={{ marginBottom: '20px' }}>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '44px', color: direction === 'OVER' ? '#00ff88' : '#ff4444' }}>{direction}</span>
+                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '44px', color: direction === 'OVER' ? '#33cc33' : '#ff4444' }}>{direction}</span>
                     <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '44px', color: '#fff', margin: '0 14px' }}>{line}</span>
                     <span style={{ fontSize: '20px', color: '#777' }}>{stat}</span>
                   </div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '90px', lineHeight: 1, color: prediction.probability >= 60 ? '#00ff88' : prediction.probability >= 45 ? '#ffd700' : '#ff4444', textShadow: '0 0 50px currentColor' }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '90px', lineHeight: 1, color: prediction.probability >= 60 ? '#33cc33' : prediction.probability >= 45 ? '#ffd700' : '#ff4444', textShadow: '0 0 50px currentColor' }}>
                     {prediction.probability}%
                   </div>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#777', marginTop: '14px' }}>
-                    CONFIDENCE: <span style={{ color: prediction.confidence === 'high' ? '#00ff88' : prediction.confidence === 'medium' ? '#ffd700' : '#ff4444', textTransform: 'uppercase' }}>{prediction.confidence}</span>
+                    CONFIDENCE: <span style={{ color: prediction.confidence === 'high' ? '#33cc33' : prediction.confidence === 'medium' ? '#ffd700' : '#ff4444', textTransform: 'uppercase' }}>{prediction.confidence}</span>
                   </div>
                   <div style={{ marginTop: '12px' }}>
                     {dataSource === 'sportradar'
@@ -1863,9 +1863,9 @@ function App() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                   {prediction.factors && prediction.factors.length > 0 && (
-                    <div style={{ background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: '4px', padding: '14px' }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#00ff88', marginBottom: '8px', letterSpacing: '1px' }}>▲ SUPPORTING</div>
-                      {prediction.factors.map((f, i) => <div key={i} style={{ fontSize: '11px', color: '#aaa', marginBottom: '5px', paddingLeft: '8px', borderLeft: '2px solid #00ff88' }}>{f}</div>)}
+                    <div style={{ background: 'rgba(51,204,51,0.05)', border: '1px solid rgba(51,204,51,0.2)', borderRadius: '4px', padding: '14px' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', marginBottom: '8px', letterSpacing: '1px' }}>▲ SUPPORTING</div>
+                      {prediction.factors.map((f, i) => <div key={i} style={{ fontSize: '11px', color: '#aaa', marginBottom: '5px', paddingLeft: '8px', borderLeft: '2px solid #33cc33' }}>{f}</div>)}
                     </div>
                   )}
                   {prediction.risks && prediction.risks.length > 0 && (
@@ -1879,7 +1879,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={reset}
                     style={{ flex: 1, background: 'transparent', border: '2px solid rgba(255,255,255,0.15)', borderRadius: '4px', padding: '12px', cursor: 'pointer', fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#666', transition: 'all 0.2s' }}
-                    onMouseOver={e => { e.currentTarget.style.borderColor = '#00ff88'; e.currentTarget.style.color = '#00ff88'; }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = '#33cc33'; e.currentTarget.style.color = '#33cc33'; }}
                     onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#666'; }}
                   >NEW PREDICTION</button>
 
@@ -1913,7 +1913,7 @@ function App() {
   const mainPaddingBottom = parlayLegs.length > 0 ? '150px' : '40px';
 
   return (
-    <div style={{ display: 'flex', background: '#0a0a0f', minHeight: '100vh', overflowX: 'hidden' }}>
+    <div style={{ display: 'flex', background: '#1a1d23', minHeight: '100vh', overflowX: 'hidden' }}>
       <GlobalStyles />
 
       <Sidebar
@@ -1939,7 +1939,7 @@ function App() {
         flex: 1,
         marginLeft: isMobile ? 0 : `${SIDEBAR_W}px`,
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%)',
+        background: '#1a1d23',
         transition: 'margin-left 0.28s ease',
         /* Prevents game card rows from overflowing the main column */
         minWidth: 0,
@@ -1956,7 +1956,7 @@ function App() {
           left: isMobile ? 0 : `${SIDEBAR_W}px`,
           right: 0,
           background: 'rgba(10,10,15,0.98)',
-          borderTop: '1px solid rgba(0,255,136,0.3)',
+          borderTop: '1px solid rgba(51,204,51,0.3)',
           zIndex: 999,
           backdropFilter: 'blur(20px)',
           transition: 'left 0.28s ease'
@@ -1996,7 +1996,7 @@ function App() {
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#555', width: '18px' }}>#{idx+1}</span>
                   <div>
                     <div style={{ fontSize: '13px', fontFamily: "'Oswald', sans-serif" }}>
-                      {leg.player} <span style={{ color: leg.direction === 'OVER' ? '#00ff88' : '#ff4444' }}>{leg.direction}</span> {leg.line} {leg.stat}
+                      {leg.player} <span style={{ color: leg.direction === 'OVER' ? '#33cc33' : '#ff4444' }}>{leg.direction}</span> {leg.line} {leg.stat}
                     </div>
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>
                       vs {leg.opponent} · {leg.probability}%

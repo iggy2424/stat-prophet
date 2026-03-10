@@ -1,0 +1,77 @@
+Stage 1: The Hard Gates (Before Any Analysis)
+Before a player even enters consideration, they must clear these non-negotiables:
+The stat has to matter. If the line is too small, it gets thrown out immediately. There’s no point analyzing whether a player hits 1.5 rebounds — that tells you nothing meaningful about a game.
+The player has to average more than the line. You never want to bet a player’s ceiling. If the line is set at their average or above it, the math is already against you before you start.
+The player has to be active. If someone only played 6 of the last 10 games, their availability is unreliable. Injury risk, rest days, load management — you can’t trust the pattern.
+Live odds must exist. No odds, no pick. Simple.
+Minutes must be real. Under 20 minutes average in the last 10 games means the player doesn’t have enough court time to consistently produce. They’re out.
+Only players who clear every single one of these gates move forward.
+
+Stage 2: The Three Pillars of Scoring
+Once a player is eligible, you evaluate them across three dimensions. Each one contributes to the final score.
+
+
+
+
+
+
+
+
+
+
+
+
+Pillar 1 — Consistency (How Reliable Is This Player?)
+This is the foundation. You look at the player’s last 10 games, but with one important rule: you only count what happened in the first three quarters.
+The fourth quarter is chaos. Coaches pull starters when games are decided. Garbage time inflates numbers. Close games compress rotations. None of that reflects real, repeatable production. By stripping out the fourth quarter, you’re measuring the player’s true baseline — what they reliably do when the game is being played normally.
+If a player hits this stat in 10 out of 10 first-three-quarter windows, that’s the highest possible consistency score. Nine out of ten is still strong. Eight out of ten gets partial credit. Anything below that and the pick is dead — it doesn’t matter what else looks good.
+
+Pillar 2 — Matchup Context (Does This Opponent Change Anything?)
+This pillar looks at history against the specific team being played.
+If the player has faced this team four or more times, that’s a real sample. You trust it heavily. If they’ve consistently produced against this team, that’s a powerful signal. If they’ve struggled — even if everything else looks great — the pick gets killed. Head-to-head history overrides general consistency when the sample is large enough.
+If the player has only faced this team once, twice, or three times, you treat it as a warning signal rather than a verdict. A bad performance or two raises a yellow flag. A good performance gives a small confidence boost. But you don’t let a tiny sample dominate the decision.
+If the player has never faced this team, you look at how that team defends the relevant stat position. Do they give up a lot of points to shooting guards? Do they allow big rebounding numbers? The team’s defensive ranking for that specific stat type fills in for the missing history. A weak defense in that area adds confidence. A strong defense lowers it.
+
+
+
+
+
+
+
+Pillar 3 — Recency Trend (Is This Player Getting Better or Worse?)
+You split the last 10 games into two windows. Games one through five are the older half. Games six through ten are the recent half.
+You compare the player’s production in both windows for this specific stat.
+If they’re producing more recently than they were before, the player is trending upward. Hot players on an upward trend are exactly who you want to be betting. This earns the highest recency score.
+If production is roughly flat, that’s a stable, reliable player. Consistency matters. This still earns good marks.
+If they’ve dipped slightly, caution is warranted. You reduce confidence.
+If they’ve dropped significantly in recent games, the pick gets killed entirely regardless of how good their older numbers look. You never chase a cooling player. The trend is the truth.
+
+
+
+
+
+
+Stage 3: Reading the Final Score
+Once all three pillars are scored and added together, you land on a number between 0 and 100.
+90 and above is an Elite Lock. Every dimension of the analysis is aligned. Consistent production, favorable or proven matchup, and the player is trending up. This is the highest confidence pick you can make.
+80 to 89 is a Strong Pick. Something is very good and nothing is a red flag. You trust this bet.
+75 to 79 is Solid Value. It cleared the bar but with some uncertainty somewhere. Still a valid pick, just not your top one.
+Below 75 never gets shown to the user. It doesn’t matter why — the conviction just isn’t there
+
+
+
+
+Who is the likely defender on this player?
+Not all defenders on a team are equal. A team might rank 25th in defending point guards overall, but their specific matchup defender against your target player might be elite. If you can pull individual defensive matchup data from your API, you can get far more precise than just team defensive rankings.
+
+Vegas Line Movement Intelligence
+Your API gives you stats. But the betting market gives you something different — collective intelligence from people with money on the line.
+Line Movement Direction.
+If a player prop opened at 18.5 points and has moved to 20.5 points by tip-off, sharp money is telling you something. The market believes this player is going to have a big night. That’s a signal you shouldn’t ignore. Conversely, a line moving down suggests the market knows something — maybe a late injury report, maybe lineup news.
+
+Volatility Rating Per Player
+Right now your logic rewards high hit rates. But two players can both hit a stat 90% of the time while being completely different risk profiles.
+One player scores exactly 18, 19, 17, 20, 18 points every night — low volatility, highly predictable. Another player scores 8, 28, 12, 31, 14 — they hit the over half the time but the variance is enormous.
+You want to measure how consistently a player hits their line, not just how often. A player who barely clears the line every game is actually more valuable than one who crushes it sometimes and misses badly other times. The standard deviation of their stat over the last 10 games tells you this. Low standard deviation plus high hit rate is the most valuable combination in your entire system.
+
+True Shooting and Efficiency Trends. A player can be scoring a lot while shooting terribly — they’re due for regression. A player shooting efficiently is in a sustainable rhythm. Efficiency trends tell you whether current production is real or fluky.
