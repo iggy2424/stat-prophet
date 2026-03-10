@@ -720,13 +720,26 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
     </div>
   );
 
+  const totalPicks     = games.reduce((s, g) => s + g.picks.length, 0);
+  const gamesWithPicks = games.filter(g => g.picks.length > 0).length;
+
   const headerBlock = (
     <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }}>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00ff88', boxShadow: '0 0 8px #00ff88', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#00ff88' }}>LIVE DATA</span>
+      </div>
       <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
       <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #00ff88, transparent)', marginBottom: '6px' }} />
-      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 28px' }}>
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 4px' }}>
         {today} · Highest-confidence props · Click Analyze → to run full prediction
       </p>
+      {totalPicks > 0 && (
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', letterSpacing: '0.5px', margin: '0 0 24px' }}>
+          <span style={{ color: '#00ff88' }}>{totalPicks}</span> qualifying prop{totalPicks !== 1 ? 's' : ''} across <span style={{ color: '#00ff88' }}>{gamesWithPicks}</span> game{gamesWithPicks !== 1 ? 's' : ''} today
+        </p>
+      )}
+      {totalPicks === 0 && <div style={{ marginBottom: '24px' }} />}
     </div>
   );
 
@@ -788,40 +801,54 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
             ) : (
               <div>
                 {game.picks.map((pick, idx) => {
-                  const hitPct = Math.round(pick.hit_rate * 100);
-                  const barColor = hitPct >= 75 ? '#00ff88' : hitPct >= 60 ? '#ffd700' : '#ff9944';
-                  const statLabel = pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1);
+                  const statLabel  = pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1);
+                  const trendUp    = pick.trend === 'up';
+                  const trendDown  = pick.trend === 'down';
+                  const trendArrow = trendUp ? '↑' : trendDown ? '↓' : '→';
+                  const trendLabel = trendUp ? 'TRENDING UP' : trendDown ? 'TRENDING DOWN' : 'STABLE';
+                  const trendColor = trendUp ? '#00ff88' : trendDown ? '#ff4444' : '#666';
+                  const trendGlow  = trendUp ? '0 0 8px rgba(0,255,136,0.4)' : trendDown ? '0 0 8px rgba(255,68,68,0.35)' : 'none';
+                  const tierColor  = pick.tier === 'ELITE LOCK' ? '#ffd700'
+                                   : pick.tier === 'STRONG PICK' ? '#00ff88'
+                                   : '#0096ff';
+                  const tierBg     = pick.tier === 'ELITE LOCK' ? 'rgba(255,215,0,0.10)'
+                                   : pick.tier === 'STRONG PICK' ? 'rgba(0,255,136,0.08)'
+                                   : 'rgba(0,150,255,0.08)';
+                  const tierGlow   = pick.tier === 'ELITE LOCK' ? '0 0 10px rgba(255,215,0,0.3)'
+                                   : pick.tier === 'STRONG PICK' ? '0 0 10px rgba(0,255,136,0.25)'
+                                   : '0 0 10px rgba(0,150,255,0.25)';
                   return (
                     <div key={pick.name + pick.stat} style={{
                       display: 'flex', alignItems: 'center', gap: '16px',
-                      padding: '14px 20px',
+                      padding: '22px 20px',
                       borderBottom: idx < game.picks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                       flexWrap: isMobile ? 'wrap' : 'nowrap'
                     }}>
-                      {/* Player + team */}
-                      <div style={{ flex: isMobile ? '0 0 100%' : '0 0 180px' }}>
-                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '15px', color: '#fff', fontWeight: 500 }}>{pick.name}</div>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginTop: '2px' }}>{pick.team_abbrev} · {statLabel}</div>
+
+                      {/* Tier label badge */}
+                      <div style={{ flex: '0 0 auto', padding: '7px 16px', borderRadius: '6px', border: `1px solid ${tierColor}`, background: tierBg, boxShadow: tierGlow, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: tierColor, letterSpacing: '1.5px', fontWeight: 700 }}>{pick.tier}</div>
                       </div>
 
-                      {/* Safe bet line */}
-                      <div style={{ textAlign: 'center', flex: '0 0 72px' }}>
-                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', color: '#0096ff', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</div>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#0096ff', opacity: 0.6, letterSpacing: '1px', marginTop: '2px' }}>SAFE LINE</div>
+                      {/* Player name + trend + avg */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '16px', color: '#fff', fontWeight: 500, marginBottom: '6px' }}>{pick.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          {/* Trend pill */}
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}`, borderRadius: '20px', padding: '2px 10px', letterSpacing: '1px', boxShadow: trendGlow, whiteSpace: 'nowrap' }}>
+                            {trendArrow} {trendLabel}
+                          </span>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#666' }}>
+                            AVG {pick.avg != null ? pick.avg.toFixed(1) : '—'} — L5 <span style={{ color: tierColor }}>{pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—'}</span>
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Hit rate bar */}
-                      <div style={{ flex: 1, minWidth: '100px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>HIT RATE</span>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: barColor, fontWeight: 700 }}>{hitPct}%</span>
-                        </div>
-                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${hitPct}%`, background: barColor, borderRadius: '2px' }} />
-                        </div>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444', marginTop: '4px' }}>
-                          avg {pick.avg.toFixed(1)} · L5 {pick.last_5_avg.toFixed(1)} · {pick.games}g
-                        </div>
+                      {/* Stat line + team/stat label below */}
+                      <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', letterSpacing: '1px', marginBottom: '2px' }}>OVER</div>
+                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', color: '#fff', lineHeight: 1, letterSpacing: '1px' }}>{pick.line}</div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#888', marginTop: '3px', letterSpacing: '0.5px' }}>{pick.team_abbrev} · {statLabel.toUpperCase()}</div>
                       </div>
 
                       {/* Analyze button */}

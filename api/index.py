@@ -36,10 +36,6 @@ def _verify_session(req_headers) -> bool:
     except Exception:
         return False
 
-# 4-hour cache for AI Picks (avoids burning Odds API credits on every refresh)
-_ai_picks_cache = {'data': None, 'expires': 0.0}
-_AI_PICKS_CACHE_TTL = 4 * 3600
-
 
 def _ascii(s):
     """Strip accents and return ASCII-lowercase (e.g. 'Jokić' → 'jokic')."""
@@ -1376,14 +1372,21 @@ IMPORTANT RULES:
             pass
 
         try:
-            global _ai_picks_cache
-            if _ai_picks_cache.get('data'):
-                rows = []
-                for g in _ai_picks_cache['data'].get('games', []):
-                    for p in g.get('picks', []):
-                        rows.append(f"  {p['name']} ({p['team_abbrev']}) {p['stat']} line={p['line']} hit_rate={round(p['hit_rate']*100)}% avg={p['avg']}")
-                if rows:
-                    ctx_lines.append("TODAY'S AI SAFE BET PICKS:\n" + '\n'.join(rows))
+            if SUPABASE_URL and SUPABASE_KEY:
+                _sb_h = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+                _cr = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache?select=data,cached_at&id=eq.1",
+                    headers=_sb_h, timeout=4,
+                )
+                if _cr.status_code == 200:
+                    _rows = _cr.json()
+                    if _rows:
+                        rows = []
+                        for g in _rows[0]['data'].get('games', []):
+                            for p in g.get('picks', []):
+                                rows.append(f"  {p['name']} ({p['team_abbrev']}) {p['stat']} line={p['line']} score={p.get('score','')} tier={p.get('tier','')} avg={p['avg']}")
+                        if rows:
+                            ctx_lines.append("TODAY'S AI PICKS:\n" + '\n'.join(rows))
         except Exception:
             pass
 
@@ -1486,14 +1489,31 @@ RULES:
 
     # ── AI PICKS (stats-first, 0 Odds API calls) ─────────────────────────────
     def _handle_ai_picks(self, requests):
-        global _ai_picks_cache
         from concurrent.futures import ThreadPoolExecutor
 
-        # ── 4-hour cache ──────────────────────────────────────────────────────
-        now = time.time()
-        if _ai_picks_cache['data'] is not None and now < _ai_picks_cache['expires']:
-            self._send_json(200, _ai_picks_cache['data'])
-            return
+        # ── Supabase shared cache (4 hours) ───────────────────────────────────
+        _AI_PICKS_TTL_HOURS = 4
+        sb_headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        }
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                cr = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache?select=data,cached_at&id=eq.1",
+                    headers=sb_headers, timeout=5,
+                )
+                if cr.status_code == 200:
+                    rows = cr.json()
+                    if rows:
+                        from datetime import timezone
+                        cached_at = datetime.fromisoformat(rows[0]['cached_at'].replace('Z', '+00:00'))
+                        age_hours = (datetime.now(timezone.utc) - cached_at).total_seconds() / 3600
+                        if age_hours < _AI_PICKS_TTL_HOURS:
+                            self._send_json(200, rows[0]['data'])
+                            return
+            except Exception:
+                pass
 
         games, _ = self._fetch_nba(requests)
         if not games:
@@ -1601,17 +1621,53 @@ RULES:
 
         def fetch_team_player_stats(alias):
             api_id = team_info[alias]['api_id']
+            empty  = (alias, {}, [], {})
             try:
-                r = requests.get(
+                # -- Player season stats --
+                stats_r = requests.get(
                     "https://v2.nba.api-sports.io/players/statistics",
                     params={"team": api_id, "season": 2025},
                     headers={"x-apisports-key": AS_KEY},
                     timeout=10,
                 )
-                if r.status_code != 200:
-                    return alias, {}
+                if stats_r.status_code != 200:
+                    return empty
+
+                # -- Team schedule: last-10 completed game IDs + opponent map --
+                last10_gids  = []
+                game_opp_map = {}
+                try:
+                    sched_r = requests.get(
+                        "https://v2.nba.api-sports.io/games",
+                        params={"team": api_id, "season": 2025},
+                        headers={"x-apisports-key": AS_KEY},
+                        timeout=10,
+                    )
+                    if sched_r.status_code == 200:
+                        completed = []
+                        for g in sched_r.json().get('response', []):
+                            status_obj = g.get('status') or {}
+                            short = status_obj.get('short') if isinstance(status_obj, dict) else None
+                            if short == 3:
+                                date_val = (g.get('date') or {}).get('start', '') or ''
+                                completed.append((date_val, g))
+                        completed.sort(key=lambda x: x[0])
+                        last10_gids = [g['id'] for _, g in completed[-10:] if g.get('id')]
+                        for _, g in completed:
+                            gid = g.get('id')
+                            if not gid:
+                                continue
+                            teams = g.get('teams', {})
+                            home  = teams.get('home', {})
+                            away  = teams.get('visitors', {})
+                            opp   = away if home.get('id') == api_id else home
+                            game_opp_map[gid] = (opp.get('name') or '').lower()
+                except Exception:
+                    pass
+
+                # -- Build player_data: stats as (game_id, value) tuples + mins dict --
                 player_data = {}
-                for entry in r.json().get('response', []):
+                for entry in stats_r.json().get('response', []):
                     player = entry.get('player', {})
                     pid    = player.get('id')
                     if not pid:
@@ -1623,118 +1679,144 @@ RULES:
                         m = 0
                     if m <= 0:
                         continue
+                    gid = (entry.get('game') or {}).get('id')
+                    if not gid:
+                        continue
                     if pid not in player_data:
                         name = f"{player.get('firstname', '')} {player.get('lastname', '')}".strip()
-                        player_data[pid] = {'name': name, 'ascii': _ascii(name), 'points': [], 'rebounds': [], 'assists': []}
+                        player_data[pid] = {
+                            'name': name, 'ascii': _ascii(name),
+                            'points': [], 'rebounds': [], 'assists': [],
+                            'mins': {},
+                        }
+                    player_data[pid]['mins'][gid] = m
                     pts = entry.get('points')
                     reb = entry.get('totReb')
                     ast = entry.get('assists')
-                    if pts is not None: player_data[pid]['points'].append(float(pts))
-                    if reb is not None: player_data[pid]['rebounds'].append(float(reb))
-                    if ast is not None: player_data[pid]['assists'].append(float(ast))
-                return alias, player_data
-            except Exception:
-                return alias, {}
+                    if pts is not None: player_data[pid]['points'].append((gid, float(pts)))
+                    if reb is not None: player_data[pid]['rebounds'].append((gid, float(reb)))
+                    if ast is not None: player_data[pid]['assists'].append((gid, float(ast)))
 
-        team_results = {}
+                # Fallback: if schedule fetch failed, derive last10_gids from stats
+                # game IDs (API-Sports IDs are sequential — higher = more recent)
+                if not last10_gids and player_data:
+                    all_gids = set()
+                    for pd in player_data.values():
+                        for gid, _ in pd['points']:
+                            all_gids.add(gid)
+                        for gid, _ in pd['rebounds']:
+                            all_gids.add(gid)
+                        for gid, _ in pd['assists']:
+                            all_gids.add(gid)
+                    last10_gids = sorted(all_gids)[-10:]
+
+                return alias, player_data, last10_gids, game_opp_map
+            except Exception:
+                return empty
+
+        team_results   = {}
+        team_last10    = {}
+        team_schedules = {}
         if team_info and AS_KEY:
             with ThreadPoolExecutor(max_workers=16) as executor:
                 futures = {alias: executor.submit(fetch_team_player_stats, alias) for alias in team_info}
                 for alias, f in futures.items():
-                    _, pd = f.result()
-                    team_results[alias] = pd
+                    _, pd, l10, opp_map = f.result()
+                    team_results[alias]   = pd
+                    team_last10[alias]    = l10
+                    team_schedules[alias] = opp_map
 
-        # ── Step 4: Build picks — only players with live odds ────────────────
-        stat_min_line = {'points': 9.5, 'rebounds': 2.5, 'assists': 2.5}
-
+        # ── Step 4: Build picks using 3-pillar scoring system ────────────────
         output = []
         for g in games:
-            eid          = game_to_event.get(g['id'])
-            event_odds   = odds_by_event.get(eid, {})  # ascii_name -> stat -> line_dict
+            eid            = game_to_event.get(g['id'])
+            event_odds     = odds_by_event.get(eid, {})
             has_odds_event = eid is not None and bool(event_odds)
-            game_picks   = []
+            game_picks     = []
 
             for side in ['home', 'away']:
-                alias       = g[side]['alias']
-                player_data = team_results.get(alias, {})
+                alias        = g[side]['alias']
+                player_data  = team_results.get(alias, {})
+                last10_gids  = team_last10.get(alias, [])
+                game_opp_map = team_schedules.get(alias, {})
+                opponent     = g['away']['name'] if side == 'home' else g['home']['name']
 
-                for _, pdata in player_data.items():
+                for pid, pdata in player_data.items():
                     player_odds = event_odds.get(pdata['ascii'], {})
                     if not player_odds:
-                        continue  # skip — no live odds for this player
+                        continue
 
                     best_pick = None
                     for stat_name in ('points', 'rebounds', 'assists'):
-                        values     = pdata[stat_name]
+                        values_all = pdata[stat_name]   # [(game_id, float), ...]
                         lines_dict = player_odds.get(stat_name, {})
-                        if not lines_dict or not values or len(values) < 8:
+                        if not lines_dict or not values_all:
                             continue
 
-                        min_line = stat_min_line[stat_name]
-                        n        = len(values)
-                        avg      = sum(values) / n
-                        last5    = values[-5:] if n >= 5 else values
-                        last5_avg = sum(last5) / len(last5)
+                        # Quick avg of last-10 to filter qualifying lines
+                        gid_set = set(last10_gids)
+                        last10_q = [
+                            v for gid, v in sorted(
+                                [(gid, v) for gid, v in values_all if gid in gid_set],
+                                key=lambda x: last10_gids.index(x[0])
+                            )
+                        ]
+                        if not last10_q:
+                            continue
+                        avg_q = sum(last10_q) / len(last10_q)
 
-                        # Highest Safe Bet — two conditions, A preferred over B
-                        # Condition A: highest line where season hit_rate >= 75% (no -1, threshold is already conservative)
-                        # Condition B: fallback — highest line <= mean(season_avg, last5_avg) - 1
-                        safe_line = None
-
-                        for line_val in sorted(lines_dict.keys(), reverse=True):
-                            if line_val < min_line:
-                                continue
-                            hr = sum(1 for v in values if v > line_val) / n
-                            if hr >= 0.75:
-                                safe_line = line_val
-                                break
-
-                        if safe_line is None:
-                            target = (avg + last5_avg) / 2 - 1
-                            for line_val in sorted(lines_dict.keys(), reverse=True):
-                                if line_val < min_line:
-                                    continue
-                                if line_val <= target:
-                                    safe_line = line_val
-                                    break
+                        # Try lines from highest to lowest where avg > line
+                        qualifying = sorted(
+                            [l for l in lines_dict if avg_q > l],
+                            reverse=True
+                        )
 
                         stat_pick = None
-                        if safe_line is not None:
-                            # Find the closest available line to safe_line
-                            closest = min(lines_dict.keys(), key=lambda l: abs(l - safe_line))
-                            odds_entry = lines_dict[closest]
-                            hr = sum(1 for v in values if v > closest) / n
-                            stat_pick = {
-                                "stat":       stat_name,
-                                "line":       closest,
-                                "hit_rate":   round(hr, 3),
-                                "avg":        round(avg, 1),
-                                "last_5_avg": round(last5_avg, 1),
-                                "games":      n,
-                                "over_odds":  odds_entry.get('over'),
-                                "under_odds": odds_entry.get('under'),
-                                "bookmaker":  odds_entry.get('bm', ''),
-                            }
+                        for try_line in qualifying:
+                            odds_entry = lines_dict[try_line]
+                            over_odds  = odds_entry.get('over')
+                            # Odds quality gate: reject juice worse than -180
+                            if over_odds is not None and over_odds < -180:
+                                continue
+                            scored = self._score_pick(
+                                values_all, try_line, stat_name,
+                                last10_gids, game_opp_map,
+                                opponent, pdata['mins']
+                            )
+                            if scored:
+                                score, tier, details = scored
+                                stat_pick = {
+                                    'stat':       stat_name,
+                                    'line':       try_line,
+                                    'over_odds':  over_odds,
+                                    'under_odds': odds_entry.get('under'),
+                                    'bookmaker':  odds_entry.get('bm', ''),
+                                    **details,
+                                }
+                                break  # highest qualifying line that clears all gates
 
-                        if stat_pick and (best_pick is None or stat_pick['hit_rate'] > best_pick['hit_rate']):
+                        if not stat_pick:
+                            continue
+
+                        if best_pick is None or stat_pick['score'] > best_pick['score']:
                             best_pick = stat_pick
 
                     if not best_pick:
                         continue
 
                     game_picks.append({
-                        'name':      pdata['name'],
+                        'name':        pdata['name'],
                         'team_abbrev': alias,
-                        'team_name': g[side]['name'],
-                        'game_id':   g['id'],
-                        'home':      g['home'],
-                        'away':      g['away'],
-                        'scheduled': g.get('scheduled', ''),
-                        'status':    g.get('status', 'scheduled'),
+                        'team_name':   g[side]['name'],
+                        'game_id':     g['id'],
+                        'home':        g['home'],
+                        'away':        g['away'],
+                        'scheduled':   g.get('scheduled', ''),
+                        'status':      g.get('status', 'scheduled'),
                         **best_pick,
                     })
 
-            game_picks.sort(key=lambda x: x['hit_rate'], reverse=True)
+            game_picks.sort(key=lambda x: x['score'], reverse=True)
             output.append({
                 'game_id':        g['id'],
                 'home':           g['home'],
@@ -1742,77 +1824,130 @@ RULES:
                 'scheduled':      g.get('scheduled', ''),
                 'status':         g.get('status', 'scheduled'),
                 'has_odds_event': has_odds_event,
-                'picks':          game_picks[:4],
+                'picks':          game_picks[:6],
             })
 
         result = {"success": True, "games": output}
-        _ai_picks_cache = {'data': result, 'expires': now + _AI_PICKS_CACHE_TTL}
+
+        # ── Write to Supabase shared cache ────────────────────────────────────
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                requests.post(
+                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache",
+                    headers={**sb_headers, "Content-Type": "application/json",
+                             "Prefer": "resolution=merge-duplicates"},
+                    json={"id": 1, "data": result,
+                          "cached_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')},
+                    timeout=5,
+                )
+            except Exception:
+                pass
+
         self._send_json(200, result)
 
-    def _get_player_all_game_stats(self, requests, player_name):
-        """Fetch player game log once and return points/rebounds/assists arrays."""
-        if not AS_KEY:
+    def _score_pick(self, values_all, line, stat, last10_gids,
+                    game_opp_map, opponent_name, mins_by_gid):
+        """
+        Run Stage 1 (hard gates) + Stage 2 (3-pillar scoring) for one player/stat/line.
+        values_all  = [(game_id, float), ...] full season entries
+        last10_gids = [game_id, ...] 10 most recent completed games, chronological
+        Returns (score, tier, details_dict) or None if any gate/kill condition fires.
+        """
+        import statistics as _stats
+
+        # ── Prepare last-10 entries (chronological order) ────────────────────
+        gid_set = set(last10_gids)
+        last10_entries = sorted(
+            [(gid, v) for gid, v in values_all if gid in gid_set],
+            key=lambda x: last10_gids.index(x[0])
+        )
+        last10_vals  = [v for _, v in last10_entries]
+        games_played = len(last10_vals)
+        if not games_played:
             return None
 
-        name_parts = player_name.strip().split()
-        last_name = name_parts[-1] if name_parts else player_name
-        pl_lower = player_name.lower().strip()
-        pl_ascii = _ascii(player_name)
-        try:
-            r = requests.get(
-                "https://v2.nba.api-sports.io/players",
-                params={"search": _ascii(last_name)},
-                headers={"x-apisports-key": AS_KEY},
-                timeout=6
-            )
-            player_id = None
-            for p in r.json().get('response', []):
-                full = (p.get('firstname', '') + ' ' + p.get('lastname', '')).lower().strip()
-                if full == pl_lower or _ascii(full) == pl_ascii:
-                    player_id = p['id']
-                    break
-            if not player_id:
-                return None
+        avg_last10  = sum(last10_vals) / games_played
+        mins_last10 = [mins_by_gid.get(gid, 0) for gid, _ in last10_entries]
+        avg_mins    = sum(mins_last10) / len(mins_last10) if mins_last10 else 0
 
-            r = requests.get(
-                "https://v2.nba.api-sports.io/players/statistics",
-                params={"id": player_id, "season": 2025},
-                headers={"x-apisports-key": AS_KEY},
-                timeout=8
-            )
-            pts, reb, ast = [], [], []
-            for g in r.json().get('response', []):
-                mins = g.get('min', '0') or '0'
-                m = int(str(mins).split(':')[0]) if ':' in str(mins) else int(float(mins or 0))
-                if m > 0:
-                    if g.get('points') is not None: pts.append(float(g['points']))
-                    if g.get('totReb') is not None: reb.append(float(g['totReb']))
-                    if g.get('assists') is not None: ast.append(float(g['assists']))
-            if not pts:
-                return None
-            return {"points": pts, "rebounds": reb, "assists": ast}
-        except Exception:
-            return None
+        # ── Stage 1: Hard Gates ───────────────────────────────────────────────
+        if games_played < 6:    return None
+        if avg_last10 <= line:               return None
+        if avg_mins < 20:                    return None
 
-    def _compute_safe_pick(self, stat_values, stat_name):
-        """Condition B: highest .5-line not exceeding mean(season_avg, last_5_avg)."""
-        import math
-        if not stat_values or len(stat_values) < 8:
-            return None
-        n = len(stat_values)
-        avg = sum(stat_values) / n
-        last5_avg = sum(stat_values[-5:]) / 5
-        target = (avg + last5_avg) / 2
-        safe_line = max(0.5, math.floor(target - 0.5) + 0.5)
-        hit_rate = round(sum(1 for v in stat_values if v > safe_line) / n, 3)
-        return {
-            "stat": stat_name,
-            "line": safe_line,
-            "hit_rate": hit_rate,
-            "avg": round(avg, 1),
-            "last_5_avg": round(last5_avg, 1),
-            "games": n,
-        }
+        # ── Pillar 1: Consistency ─────────────────────────────────────────────
+        hit_count = sum(1 for v in last10_vals if v > line)
+        hit_rate  = hit_count / games_played
+
+        if   hit_rate >= 1.0:  p1 = 40
+        elif hit_rate >= 0.9:  p1 = 35
+        elif hit_rate >= 0.8:  p1 = 25
+        else:                  return None  # kill
+
+        # ── Pillar 2: Matchup Context ─────────────────────────────────────────
+        opp_lower  = opponent_name.lower()
+        opp_words  = [w for w in opp_lower.split() if len(w) > 3]
+        vs_opp_vals = [
+            v for gid, v in values_all
+            if opp_lower in game_opp_map.get(gid, '')
+            or any(w in game_opp_map.get(gid, '') for w in opp_words)
+        ]
+        n_opp  = len(vs_opp_vals)
+        opp_hr = sum(1 for v in vs_opp_vals if v > line) / n_opp if n_opp else None
+
+        if n_opp >= 4:
+            if   opp_hr >= 0.75: p2 = 30
+            elif opp_hr >= 0.50: p2 = 20
+            else:                return None  # bad H2H history = kill
+        elif n_opp >= 1:
+            p2 = 18 if opp_hr >= 0.50 else 12
+        else:
+            p2 = 20  # no H2H — true neutral (team def rank: Phase 2)
+
+        # ── Pillar 3: Recency Trend ───────────────────────────────────────────
+        mid      = len(last10_vals) // 2
+        old_half = last10_vals[:mid]  if mid > 0            else last10_vals
+        new_half = last10_vals[mid:]  if mid < games_played else last10_vals
+        old_avg  = sum(old_half) / len(old_half) if old_half else 0.001
+        new_avg  = sum(new_half) / len(new_half) if new_half else 0
+        ratio    = new_avg / max(old_avg, 0.001)
+
+        if   ratio > 1.05:  p3 = 30; trend = 'up'
+        elif ratio >= 0.90: p3 = 20; trend = 'flat'
+        elif ratio >= 0.80: p3 = 10; trend = 'down'
+        else:               return None  # cooling player = kill
+
+        # ── Volatility Bonus ──────────────────────────────────────────────────
+        bonus = 0
+        if games_played >= 5 and avg_last10 > 0:
+            try:
+                sd = _stats.stdev(last10_vals)
+                cv = sd / avg_last10
+                if cv < 0.15 and hit_rate >= 0.9:
+                    bonus = 5
+            except Exception:
+                pass
+
+        # ── Score + Tier ──────────────────────────────────────────────────────
+        total = p1 + p2 + p3 + bonus
+
+        if   total >= 90: tier = 'ELITE LOCK'
+        elif total >= 80: tier = 'STRONG PICK'
+        elif total >= 75: tier = 'SOLID VALUE'
+        else:             return None
+
+        last5 = last10_vals[-5:] if len(last10_vals) >= 5 else last10_vals
+        return (total, tier, {
+            'score':           total,
+            'tier':            tier,
+            'hit_rate':        round(hit_rate, 3),
+            'avg':             round(avg_last10, 1),
+            'last_5_avg':      round(sum(last5) / len(last5), 1),
+            'games':           games_played,
+            'vs_opp_games':    n_opp,
+            'vs_opp_hit_rate': round(opp_hr, 3) if opp_hr is not None else None,
+            'trend':           trend,
+        })
 
     def _send_json(self, status, data):
         self.send_response(status)
