@@ -45,6 +45,15 @@ def _ascii(s):
     """Strip accents and return ASCII-lowercase (e.g. 'Jokić' → 'jokic')."""
     return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('ascii').lower().strip()
 
+_NAME_SUFFIXES = {'jr', 'sr', 'ii', 'iii', 'iv'}
+
+def _strip_suffix(s):
+    """Remove trailing name suffixes: Jr., Sr., II, III, IV (case-insensitive)."""
+    parts = str(s).strip().split()
+    if parts and parts[-1].lower().rstrip('.') in _NAME_SUFFIXES:
+        parts = parts[:-1]
+    return ' '.join(parts)
+
 
 # Supabase setup
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -611,15 +620,18 @@ IMPORTANT RULES:
         # Step 4 — parse main line + alternate lines from outcomes
         player_lower = player_name.lower()
         player_ascii_full = _ascii(player_name)
-        player_last_ascii = player_ascii_full.split()[-1] if player_ascii_full else ''
+        player_norm = _ascii(_strip_suffix(player_name))          # "kelly oubre"
+        player_last_ascii = player_norm.split()[-1] if player_norm else ''  # "oubre"
 
         def name_matches(description):
             desc       = (description or '').lower().rstrip('.')
             desc_ascii = _ascii(description or '').rstrip('.')
+            desc_norm  = _ascii(_strip_suffix(description or ''))  # strip Jr. from desc too
             return (desc == player_lower
                     or desc_ascii == player_ascii_full
+                    or desc_norm  == player_norm
                     or (player_last_ascii and len(player_last_ascii) > 3
-                        and desc_ascii.endswith(player_last_ascii)))
+                        and desc_norm.endswith(player_last_ascii)))
 
         main_result    = {"found": False}
         alt_lines_dict = {}  # {point_value: {over_odds, under_odds, bookmaker}}
@@ -876,13 +888,16 @@ IMPORTANT RULES:
                 pass
 
         # --- Step 2: Live name search ---
-        name_parts  = player_name.strip().split()
-        last_name   = name_parts[-1] if name_parts else player_name
+        # Strip Jr./Sr./II/III before parsing so "Kelly Oubre Jr." → last="Oubre"
+        name_norm   = _strip_suffix(player_name)
+        name_parts  = name_norm.strip().split()
+        last_name   = name_parts[-1] if name_parts else name_norm
         first_name  = name_parts[0] if len(name_parts) > 1 else ''
         last_ascii  = _ascii(last_name)
         first_ascii = _ascii(first_name)
         pl_lower    = player_name.lower().strip()
         pl_ascii    = _ascii(player_name)
+        pl_norm     = _ascii(name_norm)   # suffix-stripped ascii for loose matching
 
         candidate_ids = []
         for search_term in filter(None, [last_ascii, first_ascii]):
@@ -895,7 +910,8 @@ IMPORTANT RULES:
                 )
                 for p in r.json().get('response', []):
                     full = (p.get('firstname', '') + ' ' + p.get('lastname', '')).lower().strip()
-                    if (full == pl_lower or _ascii(full) == pl_ascii) and p['id'] not in candidate_ids:
+                    full_norm = _ascii(_strip_suffix(full))
+                    if (full == pl_lower or _ascii(full) == pl_ascii or full_norm == pl_norm) and p['id'] not in candidate_ids:
                         candidate_ids.append(p['id'])
             except Exception:
                 pass
