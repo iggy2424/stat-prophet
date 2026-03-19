@@ -50,6 +50,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
       section: 'PREDICTIONS',
       items: [
         { id: 'ai-picks',    label: 'AI Picks',       icon: '◈' },
+        { id: 'history',     label: 'Pick History',   icon: '◷' },
         { id: 'parlay-page', label: 'Parlay Builder',  icon: '◉', soon: true }
       ]
     },
@@ -1305,6 +1306,192 @@ function BetValidatePage({ isMobile }) {
   );
 }
 
+// ─── PICK HISTORY PAGE ────────────────────────────────────────────────────────
+function PickHistoryPage({ isMobile }) {
+  const [data, setData]       = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError]     = React.useState(null);
+  const [expanded, setExpanded] = React.useState({});
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}?type=pick_history`);
+        const json = await res.json();
+        setData(json);
+        // auto-expand today
+        if (json.daily && json.daily.length > 0) {
+          setExpanded({ [json.daily[0].date]: true });
+        }
+      } catch (e) {
+        setError('Failed to load history');
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const fmtOdds = o => o == null ? '—' : (o > 0 ? `+${o}` : `${o}`);
+  const fmtDate = d => {
+    try {
+      const dt = new Date(d + 'T12:00:00');
+      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+    } catch { return d; }
+  };
+
+  const tierColor = t => t === 'ELITE LOCK' ? '#ffd700' : t === 'STRONG PICK' ? '#33cc33' : '#7ecfff';
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <div style={{ width: '40px', height: '40px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite', marginBottom: '16px' }} />
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#444', letterSpacing: '1px' }}>Loading history...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: '40px', textAlign: 'center' }}>
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#ff4444' }}>{error}</p>
+    </div>
+  );
+
+  const lt = data?.lifetime || {};
+  const daily = data?.daily || [];
+  const winRate = lt.won != null && (lt.won + lt.lost) > 0 ? Math.round(lt.won / (lt.won + lt.lost) * 100) : null;
+  const pnl = lt.pnl ?? 0;
+
+  return (
+    <div>
+      {/* Header */}
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>PICK HISTORY</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '28px' }} />
+
+      {/* Lifetime stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
+        {[
+          { label: 'TOTAL PICKS', value: lt.total ?? 0 },
+          { label: 'WINS', value: lt.won ?? 0, color: '#33cc33' },
+          { label: 'LOSSES', value: lt.lost ?? 0, color: '#ff4444' },
+          { label: 'WIN RATE', value: winRate != null ? `${winRate}%` : '—', color: winRate >= 60 ? '#33cc33' : winRate >= 50 ? '#ffd700' : '#ff4444' },
+          { label: 'P&L (UNITS)', value: pnl >= 0 ? `+${pnl.toFixed(2)}u` : `${pnl.toFixed(2)}u`, color: pnl >= 0 ? '#33cc33' : '#ff4444' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#555', marginBottom: '8px' }}>{label}</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', letterSpacing: '1px', color: color || '#fff' }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily sections */}
+      {daily.length === 0 ? (
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '48px', textAlign: 'center' }}>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#444', letterSpacing: '1px' }}>No pick history yet</p>
+        </div>
+      ) : daily.map(day => {
+        const isOpen = !!expanded[day.date];
+        const dayWon = day.picks.filter(p => p.result === 'win').length;
+        const dayLost = day.picks.filter(p => p.result === 'loss').length;
+        const dayPending = day.picks.filter(p => !p.result).length;
+        const dayPnl = day.picks.reduce((s, p) => s + (p.pnl || 0), 0);
+
+        return (
+          <div key={day.date} style={{ marginBottom: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', overflow: 'hidden' }}>
+            {/* Day header — clickable */}
+            <div
+              onClick={() => setExpanded(e => ({ ...e, [day.date]: !e[day.date] }))}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', userSelect: 'none' }}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+              onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', letterSpacing: '2px', color: '#fff' }}>{fmtDate(day.date)}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>{day.picks.length} pick{day.picks.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {dayWon > 0 && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#33cc33' }}>{dayWon}W</span>}
+                {dayLost > 0 && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#ff4444' }}>{dayLost}L</span>}
+                {dayPending > 0 && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888' }}>{dayPending} pending</span>}
+                {(dayWon > 0 || dayLost > 0) && (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: dayPnl >= 0 ? '#33cc33' : '#ff4444' }}>
+                    {dayPnl >= 0 ? '+' : ''}{dayPnl.toFixed(2)}u
+                  </span>
+                )}
+                <span style={{ color: '#444', fontSize: '12px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>▼</span>
+              </div>
+            </div>
+
+            {/* Pick rows */}
+            {isOpen && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {day.picks.map((pick, i) => {
+                  const isWin  = pick.result === 'win';
+                  const isLoss = pick.result === 'loss';
+                  const isPending = !pick.result;
+                  const resultColor = isWin ? '#33cc33' : isLoss ? '#ff4444' : '#888';
+                  const resultLabel = isWin ? 'WIN' : isLoss ? 'LOSS' : 'PENDING';
+
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
+                      padding: '12px 18px',
+                      borderBottom: i < day.picks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      background: isWin ? 'rgba(51,204,51,0.03)' : isLoss ? 'rgba(255,68,68,0.03)' : 'transparent'
+                    }}>
+                      {/* Left: player + pick info */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                        {/* Result indicator */}
+                        <div style={{ width: '3px', height: '36px', borderRadius: '2px', background: resultColor, flexShrink: 0 }} />
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                            <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '14px', color: '#e8e8f0' }}>{pick.player_name}</span>
+                            {pick.tier && (
+                              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: tierColor(pick.tier), border: `1px solid ${tierColor(pick.tier)}40`, borderRadius: '3px', padding: '1px 5px', letterSpacing: '0.5px' }}>
+                                {pick.tier === 'ELITE LOCK' ? '★ ELITE' : pick.tier === 'STRONG PICK' ? 'STRONG' : 'SOLID'}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#7788aa' }}>
+                            <span style={{ color: '#33cc33', textTransform: 'capitalize' }}>{pick.stat}</span>
+                            {' OVER '}<span style={{ color: '#fff' }}>{pick.line}</span>
+                            {pick.opponent && <span style={{ color: '#555' }}> · vs {pick.opponent}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: odds, actual, result, pnl */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginBottom: '2px' }}>ODDS</div>
+                          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa' }}>{fmtOdds(pick.over_odds)}</div>
+                        </div>
+                        {pick.actual_value != null && (
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginBottom: '2px' }}>ACTUAL</div>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#fff' }}>{pick.actual_value}</div>
+                          </div>
+                        )}
+                        {(isWin || isLoss) && pick.pnl != null && (
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginBottom: '2px' }}>P&L</div>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: resultColor }}>
+                              {pick.pnl >= 0 ? '+' : ''}{pick.pnl.toFixed(2)}u
+                            </div>
+                          </div>
+                        )}
+                        <div style={{ background: `${resultColor}18`, border: `1px solid ${resultColor}40`, borderRadius: '4px', padding: '4px 10px', fontFamily: "'Space Mono', monospace", fontSize: '9px', color: resultColor, letterSpacing: '1px', flexShrink: 0 }}>
+                          {resultLabel}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 function App() {
   const [currentPage, setCurrentPage] = React.useState('home');
@@ -1562,6 +1749,7 @@ function App() {
     if (currentPage === 'home')       return <Dashboard setCurrentPage={setCurrentPage} navigateToAnalyzer={navigateToAnalyzer} />;
     if (currentPage === 'datalab')    return <ComingSoon title="DATA LAB"      icon="📊" description="Player charts and advanced analytics" />;
     if (currentPage === 'ai-picks')   return <AiPicksPage openInAnalyzer={openInAnalyzer} isMobile={isMobile} />;
+    if (currentPage === 'history')    return <PickHistoryPage isMobile={isMobile} />;
     if (currentPage === 'arbitrage')  return <ComingSoon title="ARBITRAGE"     icon="⚖️" description="Find value across sportsbooks" />;
     if (currentPage === 'bet-validate') return <BetValidatePage isMobile={isMobile} />;
     if (currentPage === 'gpt')          return <ComingSoon title="TRENDBET GPT" icon="⊛" description="AI sports betting analyst — currently in testing phase" />;
