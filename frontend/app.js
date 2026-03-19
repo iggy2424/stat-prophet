@@ -1356,7 +1356,7 @@ function PickHistoryPage({ isMobile }) {
   const lt = data?.lifetime || {};
   const daily = data?.daily || [];
   const winRate = lt.won != null && (lt.won + lt.lost) > 0 ? Math.round(lt.won / (lt.won + lt.lost) * 100) : null;
-  const pnl = lt.pnl ?? 0;
+  const pnl = lt.total_pnl ?? lt.pnl ?? 0;
 
   return (
     <div>
@@ -1365,13 +1365,14 @@ function PickHistoryPage({ isMobile }) {
       <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '28px' }} />
 
       {/* Lifetime stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(6, 1fr)', gap: '12px', marginBottom: '28px' }}>
         {[
           { label: 'TOTAL PICKS', value: lt.total ?? 0 },
           { label: 'WINS', value: lt.won ?? 0, color: '#33cc33' },
           { label: 'LOSSES', value: lt.lost ?? 0, color: '#ff4444' },
           { label: 'WIN RATE', value: winRate != null ? `${winRate}%` : '—', color: winRate >= 60 ? '#33cc33' : winRate >= 50 ? '#ffd700' : '#ff4444' },
           { label: 'P&L ($100/bet)', value: pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`, color: pnl >= 0 ? '#33cc33' : '#ff4444' },
+          { label: 'ROI', value: lt.roi != null ? `${(lt.roi * 100).toFixed(1)}%` : '—', color: (lt.roi ?? 0) >= 0 ? '#33cc33' : '#ff4444' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#555', marginBottom: '8px' }}>{label}</div>
