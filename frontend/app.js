@@ -894,59 +894,44 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                           >Analyze →</button>
                         </div>
 
-                        {/* Row 2: OVER line + odds */}
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>OVER</span>
-                          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', color: '#33cc33', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>{statLabel.toUpperCase()}</span>
-                          {pick.over_odds != null && (
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa', marginLeft: '4px' }}>{fmtOdds(pick.over_odds)}</span>
-                          )}
-                          {pick.bookmaker && (
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker}</span>
-                          )}
+                        {/* Row 2: OVER box + odds/bookmaker */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px solid #33cc33', borderRadius: '6px', padding: '6px 16px', background: 'rgba(51,204,51,0.06)' }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#33cc33', letterSpacing: '2px' }}>OVER</span>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#33cc33', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {pick.over_odds != null && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa' }}>{fmtOdds(pick.over_odds)}</span>}
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker || ''} · {statLabel.toUpperCase()}</span>
+                          </div>
                         </div>
 
-                        {/* Row 3: $100 return box */}
+                        {/* Row 3: $100 return box — yellow */}
                         {ret && (
-                          <div style={{ background: 'rgba(51,204,51,0.06)', border: '1px solid rgba(51,204,51,0.15)', borderRadius: '5px', padding: '8px 12px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>$100 bet</span>
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#444' }}>→</span>
-                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', color: '#33cc33', letterSpacing: '1px' }}>${ret.total} RETURN</span>
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', opacity: 0.7 }}>(+${ret.profit} profit)</span>
+                          <div style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.25)', borderRadius: '5px', padding: '9px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#888' }}>$100 bet</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#666' }}>→</span>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', color: '#ffc800', letterSpacing: '1px', fontWeight: 700 }}>${ret.total} RETURN</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33' }}>(+${ret.profit} profit)</span>
                           </div>
                         )}
 
-                        {/* Row 4: L5 avg | SZN avg | Hit rate */}
-                        <div style={{ display: 'flex', gap: isMobile ? '16px' : '24px', flexWrap: 'wrap' }}>
+                        {/* Row 4: stat tiles full-width */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                           {[
-                            { label: 'L5 AVG', value: pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—' },
-                            { label: 'SZN AVG', value: pick.avg != null ? pick.avg.toFixed(1) : '—' },
+                            { label: 'L5 AVG',   value: pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—' },
+                            { label: 'SZN AVG',  value: pick.avg != null ? pick.avg.toFixed(1) : '—' },
                             { label: 'HIT RATE', value: hitCount != null ? `${hitCount}/${pick.games} LG` : pick.hit_rate != null ? `${Math.round(pick.hit_rate * 100)}%` : '—' },
                           ].map(({ label, value }) => (
-                            <div key={label}>
-                              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', letterSpacing: '1.5px', marginBottom: '3px' }}>{label}</div>
-                              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', color: '#ccc', letterSpacing: '0.5px' }}>{value}</div>
+                            <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', letterSpacing: '1.5px', marginBottom: '5px' }}>{label}</div>
+                              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', color: '#ccc', letterSpacing: '0.5px' }}>{value}</div>
                             </div>
                           ))}
                         </div>
                       </div>
                     );
                   })}
-
-                  {/* Validate as Parlay — 2+ picks from same team */}
-                  {(() => {
-                    const counts = {};
-                    game.picks.forEach(p => { counts[p.team_abbrev] = (counts[p.team_abbrev] || 0) + 1; });
-                    return Object.values(counts).some(c => c >= 2);
-                  })() && (
-                    <button
-                      onClick={() => validateParlay(game)}
-                      style={{ width: '100%', padding: '10px', background: 'rgba(0,150,255,0.06)', border: '1px solid rgba(0,150,255,0.25)', borderRadius: '6px', color: '#0096ff', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.12)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.06)'; }}
-                    >VALIDATE AS PARLAY →</button>
-                  )}
                 </div>
               )}
             </div>
