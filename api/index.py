@@ -51,6 +51,31 @@ def _strip_suffix(s):
     return ' '.join(parts)
 
 
+def _match_player_odds(event_odds, player_ascii):
+    """
+    Look up a player in event_odds by ascii name.
+    Falls back to last-name + first-initial matching so
+    'jayson tatum' matches 'j. tatum' and vice versa.
+    """
+    if player_ascii in event_odds:
+        return event_odds[player_ascii]
+    parts = _ascii(_strip_suffix(player_ascii)).split()
+    if len(parts) < 2:
+        return {}
+    first, last = parts[0], parts[-1]
+    first_initial = first[0]
+    for key in event_odds:
+        kparts = key.split()
+        if len(kparts) < 2:
+            continue
+        if kparts[-1] != last:
+            continue
+        kfirst = kparts[0].rstrip('.')
+        if kfirst == first or kfirst == first_initial:
+            return event_odds[key]
+    return {}
+
+
 # Supabase setup
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -172,6 +197,14 @@ class handler(BaseHTTPRequestHandler):
             self._handle_ai_picks(requests)
             return
 
+        if data_type == 'ai_picks_debug':
+            self._handle_ai_picks_debug(requests, query_params)
+            return
+
+        if data_type == 'pick_history':
+            self._handle_pick_history(requests, query_params or {})
+            return
+
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -229,14 +262,22 @@ class handler(BaseHTTPRequestHandler):
         else:
             self._send_json(400, {"error": "Unknown sport"})
 
-    def _fetch_nba(self, requests):
+    def _fetch_nba(self, requests, et_date=None):
         games = []
         debug = []
         headers = {"x-apisports-key": AS_KEY}
-        today = datetime.utcnow()
-        for i in range(4):
-            day = today + timedelta(days=i)
-            date_str = day.strftime("%Y-%m-%d")
+        if et_date:
+            # AI picks mode: fetch ET date + next UTC date to catch late games
+            # (games after 7 PM ET = after midnight UTC fall under the next UTC date in API-Sports)
+            from datetime import timezone as _tz
+            et_dt = datetime.strptime(et_date, '%Y-%m-%d')
+            next_utc = (et_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+            date_strings = [et_date, next_utc]
+        else:
+            # Games dashboard: 4-day lookahead from UTC
+            today = datetime.utcnow()
+            date_strings = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(4)]
+        for date_str in date_strings:
             url = f"https://v2.nba.api-sports.io/games?date={date_str}"
             try:
                 resp = requests.get(url, headers=headers, timeout=8)
@@ -255,6 +296,15 @@ class handler(BaseHTTPRequestHandler):
                             a_pts = scores.get('visitors', {}).get('points') if scores else None
                             date_obj = g.get('date') or {}
                             sched = date_obj.get('start', '') if isinstance(date_obj, dict) else str(date_obj)
+                            # When fetching by et_date: skip games from next UTC date that are
+                            # actually tomorrow ET (start >= 05:00 UTC = midnight ET)
+                            if et_date and date_str != et_date and sched:
+                                try:
+                                    sched_utc = datetime.fromisoformat(sched.replace('Z', '').replace('+00:00', ''))
+                                    if sched_utc.hour >= 5:  # 05:00+ UTC = after midnight ET = tomorrow ET
+                                        continue
+                                except Exception:
+                                    pass
                             games.append({'id': g.get('id'), 'sport': 'NBA',
                                 'status': 'inprogress' if short == 2 else 'scheduled',
                                 'scheduled': sched,
@@ -1491,12 +1541,17 @@ RULES:
     def _handle_ai_picks(self, requests):
         from concurrent.futures import ThreadPoolExecutor
 
-        # ── Supabase shared cache (4 hours) ───────────────────────────────────
-        _AI_PICKS_TTL_HOURS = 4
+        # ── Today's ET date (canonical date for all picks logic) ─────────────
+        from datetime import timezone
+        et_today = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime('%Y-%m-%d')
+
+        # ── Supabase shared cache (2 hours, same ET date only) ────────────────
+        _AI_PICKS_TTL_HOURS = 2
         sb_headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
         }
+        old_data = None   # stale cached picks for merging
         if SUPABASE_URL and SUPABASE_KEY:
             try:
                 cr = requests.get(
@@ -1506,16 +1561,27 @@ RULES:
                 if cr.status_code == 200:
                     rows = cr.json()
                     if rows:
-                        from datetime import timezone
                         cached_at = datetime.fromisoformat(rows[0]['cached_at'].replace('Z', '+00:00'))
                         age_hours = (datetime.now(timezone.utc) - cached_at).total_seconds() / 3600
-                        if age_hours < _AI_PICKS_TTL_HOURS:
-                            self._send_json(200, rows[0]['data'])
-                            return
+                        cached_et_date = (cached_at - timedelta(hours=5)).strftime('%Y-%m-%d')
+                        if age_hours < _AI_PICKS_TTL_HOURS and cached_et_date == et_today:
+                            # If any scheduled game has no odds yet, recompute so we pick up
+                            # props that went live after the cache was written.
+                            cached_games = (rows[0]['data'] or {}).get('games', [])
+                            has_missing_odds = any(
+                                not g.get('has_odds_event') and g.get('status') == 'scheduled'
+                                for g in cached_games
+                            )
+                            if not has_missing_odds:
+                                self._send_json(200, rows[0]['data'])
+                                return
+                        # Cache stale or from a different day — save for merging only if same ET date
+                        if cached_et_date == et_today:
+                            old_data = rows[0]['data']
             except Exception:
                 pass
 
-        games, _ = self._fetch_nba(requests)
+        games, _ = self._fetch_nba(requests, et_date=et_today)
         if not games:
             self._send_json(200, {"success": True, "games": []})
             return
@@ -1580,10 +1646,15 @@ RULES:
                                     continue
                                 player_lines.setdefault(aname, {}).setdefault(stat_name, {}).setdefault(pt, {'over': None, 'under': None, 'bm': bm_title})
                                 entry = player_lines[aname][stat_name][pt]
-                                if nm == 'Over'  and entry['over']  is None:
-                                    entry['over']  = outcome.get('price')
-                                elif nm == 'Under' and entry['under'] is None:
-                                    entry['under'] = outcome.get('price')
+                                if nm == 'Over':
+                                    price = outcome.get('price')
+                                    if price is not None and (entry['over'] is None or price > entry['over']):
+                                        entry['over'] = price
+                                        entry['bm'] = bm_title
+                                elif nm == 'Under':
+                                    price = outcome.get('price')
+                                    if price is not None and (entry['under'] is None or price > entry['under']):
+                                        entry['under'] = price
                     return eid, player_lines
                 except Exception:
                     return eid, {}
@@ -1636,38 +1707,44 @@ RULES:
                 # -- Team schedule: last-10 completed game IDs + opponent map --
                 last10_gids  = []
                 game_opp_map = {}
-                try:
-                    sched_r = requests.get(
-                        "https://v2.nba.api-sports.io/games",
-                        params={"team": api_id, "season": 2025},
-                        headers={"x-apisports-key": AS_KEY},
-                        timeout=10,
-                    )
-                    if sched_r.status_code == 200:
-                        completed = []
-                        for g in sched_r.json().get('response', []):
-                            status_obj = g.get('status') or {}
-                            short = status_obj.get('short') if isinstance(status_obj, dict) else None
-                            if short == 3:
-                                date_val = (g.get('date') or {}).get('start', '') or ''
-                                completed.append((date_val, g))
-                        completed.sort(key=lambda x: x[0])
-                        last10_gids = [g['id'] for _, g in completed[-10:] if g.get('id')]
-                        for _, g in completed:
-                            gid = g.get('id')
-                            if not gid:
-                                continue
-                            teams = g.get('teams', {})
-                            home  = teams.get('home', {})
-                            away  = teams.get('visitors', {})
-                            opp   = away if home.get('id') == api_id else home
-                            game_opp_map[gid] = (opp.get('name') or '').lower()
-                except Exception:
-                    pass
+                for _attempt in range(2):
+                    try:
+                        sched_r = requests.get(
+                            "https://v2.nba.api-sports.io/games",
+                            params={"team": api_id, "season": 2025},
+                            headers={"x-apisports-key": AS_KEY},
+                            timeout=12,
+                        )
+                        if sched_r.status_code == 200:
+                            completed = []
+                            for g in sched_r.json().get('response', []):
+                                status_obj = g.get('status') or {}
+                                short = status_obj.get('short') if isinstance(status_obj, dict) else None
+                                if short == 3:
+                                    date_val = (g.get('date') or {}).get('start', '') or ''
+                                    completed.append((date_val, g))
+                            completed.sort(key=lambda x: x[0])
+                            last10_gids = [g['id'] for _, g in completed[-10:] if g.get('id')]
+                            for _, g in completed:
+                                gid = g.get('id')
+                                if not gid:
+                                    continue
+                                teams = g.get('teams', {})
+                                home  = teams.get('home', {})
+                                away  = teams.get('visitors', {})
+                                opp   = away if home.get('id') == api_id else home
+                                game_opp_map[gid] = (opp.get('name') or '').lower()
+                            break  # success
+                    except Exception:
+                        pass
 
                 # -- Build player_data: stats as (game_id, value) tuples + mins dict --
+                stats_entries = stats_r.json().get('response', [])
                 player_data = {}
-                for entry in stats_r.json().get('response', []):
+                # Track gid appearance order from API response (roughly chronological)
+                gid_order = []
+                gid_order_set = set()
+                for entry in stats_entries:
                     player = entry.get('player', {})
                     pid    = player.get('id')
                     if not pid:
@@ -1677,10 +1754,14 @@ RULES:
                         m = int(str(mins).split(':')[0]) if ':' in str(mins) else int(float(mins or 0))
                     except Exception:
                         m = 0
-                    if m <= 0:
-                        continue
                     gid = (entry.get('game') or {}).get('id')
                     if not gid:
+                        continue
+                    # Track unique gids in response order (best proxy for chronological order)
+                    if gid not in gid_order_set:
+                        gid_order.append(gid)
+                        gid_order_set.add(gid)
+                    if m <= 0:
                         continue
                     if pid not in player_data:
                         name = f"{player.get('firstname', '')} {player.get('lastname', '')}".strip()
@@ -1697,18 +1778,10 @@ RULES:
                     if reb is not None: player_data[pid]['rebounds'].append((gid, float(reb)))
                     if ast is not None: player_data[pid]['assists'].append((gid, float(ast)))
 
-                # Fallback: if schedule fetch failed, derive last10_gids from stats
-                # game IDs (API-Sports IDs are sequential — higher = more recent)
-                if not last10_gids and player_data:
-                    all_gids = set()
-                    for pd in player_data.values():
-                        for gid, _ in pd['points']:
-                            all_gids.add(gid)
-                        for gid, _ in pd['rebounds']:
-                            all_gids.add(gid)
-                        for gid, _ in pd['assists']:
-                            all_gids.add(gid)
-                    last10_gids = sorted(all_gids)[-10:]
+                # Fallback: if schedule fetch failed, use API response order (roughly
+                # chronological) rather than gid number (gids are NOT sequential by date)
+                if not last10_gids and gid_order:
+                    last10_gids = gid_order[-10:]
 
                 return alias, player_data, last10_gids, game_opp_map
             except Exception:
@@ -1718,7 +1791,7 @@ RULES:
         team_last10    = {}
         team_schedules = {}
         if team_info and AS_KEY:
-            with ThreadPoolExecutor(max_workers=16) as executor:
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 futures = {alias: executor.submit(fetch_team_player_stats, alias) for alias in team_info}
                 for alias, f in futures.items():
                     _, pd, l10, opp_map = f.result()
@@ -1742,7 +1815,7 @@ RULES:
                 opponent     = g['away']['name'] if side == 'home' else g['home']['name']
 
                 for pid, pdata in player_data.items():
-                    player_odds = event_odds.get(pdata['ascii'], {})
+                    player_odds = _match_player_odds(event_odds, pdata['ascii'])
                     if not player_odds:
                         continue
 
@@ -1775,8 +1848,8 @@ RULES:
                         for try_line in qualifying:
                             odds_entry = lines_dict[try_line]
                             over_odds  = odds_entry.get('over')
-                            # Odds quality gate: reject juice worse than -180
-                            if over_odds is not None and over_odds < -180:
+                            # Odds quality gate: reject juice worse than -200
+                            if over_odds is not None and over_odds < -200:
                                 continue
                             scored = self._score_pick(
                                 values_all, try_line, stat_name,
@@ -1827,19 +1900,70 @@ RULES:
                 'picks':          game_picks[:6],
             })
 
+        # ── Merge with previous cycle's picks ────────────────────────────────
+        # Merge is scoped by game_id — finished games are excluded from _fetch_nba,
+        # so once all today's games finish, tomorrow's new game_ids won't match and
+        # the merge naturally produces zero carry-overs (automatic reset).
+        if old_data:
+            old_games = {g['game_id']: g for g in old_data.get('games', [])}
+            for game in output:
+                old_game = old_games.get(game['game_id'])
+                if not old_game:
+                    continue
+                # Union picks — dedup by (name, stat), prefer higher score
+                existing = {(p['name'], p['stat']): p for p in game['picks']}
+                for old_pick in old_game.get('picks', []):
+                    key = (old_pick['name'], old_pick['stat'])
+                    if key not in existing or old_pick['score'] > existing[key]['score']:
+                        existing[key] = old_pick
+                game['picks'] = sorted(existing.values(), key=lambda x: x['score'], reverse=True)[:10]
+
         result = {"success": True, "games": output}
 
-        # ── Write to Supabase shared cache ────────────────────────────────────
+        # ── Write cache FIRST (highest priority) ──────────────────────────────
+        # ── Write cache FIRST (highest priority) ──────────────────────────────
         if SUPABASE_URL and SUPABASE_KEY:
             try:
-                requests.post(
-                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache",
-                    headers={**sb_headers, "Content-Type": "application/json",
-                             "Prefer": "resolution=merge-duplicates"},
-                    json={"id": 1, "data": result,
+                requests.patch(
+                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache?id=eq.1",
+                    headers={**sb_headers, "Content-Type": "application/json"},
+                    json={"data": result,
                           "cached_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')},
-                    timeout=5,
+                    timeout=8,
                 )
+            except Exception:
+                pass
+
+        # ── Save picks to pick_history (upsert every fresh compute, skip existing) ─
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                pick_date = et_today
+                history_rows = []
+                for game in output:
+                    for pick in game['picks']:
+                        is_home = pick['team_abbrev'] == pick.get('home', {}).get('alias')
+                        opp = pick.get('away', {}).get('name', '') if is_home else pick.get('home', {}).get('name', '')
+                        history_rows.append({
+                            "pick_date":   pick_date,
+                            "game_id":     pick['game_id'],
+                            "player_name": pick['name'],
+                            "team_abbrev": pick['team_abbrev'],
+                            "opponent":    opp,
+                            "stat":        pick['stat'],
+                            "line":        pick['line'],
+                            "over_odds":   pick.get('over_odds'),
+                            "bookmaker":   pick.get('bookmaker', ''),
+                            "tier":        pick.get('tier'),
+                            "score":       pick.get('score'),
+                            "scheduled":   pick.get('scheduled', ''),
+                        })
+                if history_rows:
+                    requests.post(
+                        f"{SUPABASE_URL}/rest/v1/pick_history?on_conflict=pick_date,player_name,stat",
+                        headers={**sb_headers, "Content-Type": "application/json",
+                                 "Prefer": "resolution=ignore-duplicates"},
+                        json=history_rows, timeout=8,
+                    )
             except Exception:
                 pass
 
@@ -1871,7 +1995,9 @@ RULES:
         avg_mins    = sum(mins_last10) / len(mins_last10) if mins_last10 else 0
 
         # ── Stage 1: Hard Gates ───────────────────────────────────────────────
-        if games_played < 6:    return None
+        MIN_LINE = {'points': 10.5, 'rebounds': 3.5, 'assists': 2.5}
+        if line < MIN_LINE.get(stat, 0):     return None
+        if games_played < 6:                 return None
         if avg_last10 <= line:               return None
         if avg_mins < 20:                    return None
 
@@ -1879,10 +2005,12 @@ RULES:
         hit_count = sum(1 for v in last10_vals if v > line)
         hit_rate  = hit_count / games_played
 
-        if   hit_rate >= 1.0:  p1 = 40
-        elif hit_rate >= 0.9:  p1 = 35
-        elif hit_rate >= 0.8:  p1 = 25
-        else:                  return None  # kill
+        # Points has higher variance — allow 75% floor; rebounds/assists keep 80%
+        if   hit_rate >= 1.0:                        p1 = 40
+        elif hit_rate >= 0.9:                        p1 = 35
+        elif hit_rate >= 0.8:                        p1 = 25
+        elif hit_rate >= 0.75 and stat == 'points':  p1 = 15
+        else:                                        return None  # kill
 
         # ── Pillar 2: Matchup Context ─────────────────────────────────────────
         opp_lower  = opponent_name.lower()
@@ -1948,6 +2076,390 @@ RULES:
             'vs_opp_hit_rate': round(opp_hr, 3) if opp_hr is not None else None,
             'trend':           trend,
         })
+
+    def _handle_pick_history(self, requests, query_params=None):
+        """
+        Returns lifetime stats + last 7 days of picks with win/loss results.
+        Also auto-resolves pending picks whose game finished 3+ hours ago.
+        """
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            self._send_json(200, {"lifetime": {}, "daily": []})
+            return
+
+        sb_headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        }
+
+        # ── Phase A: Auto-resolve pending picks ───────────────────────────────
+        try:
+            pr = requests.get(
+                f"{SUPABASE_URL}/rest/v1/pick_history?select=*&result=is.null",
+                headers=sb_headers, timeout=5,
+            )
+            pending = pr.json() if pr.status_code == 200 else []
+        except Exception:
+            pending = []
+
+        now_utc = datetime.utcnow() - timedelta(hours=5)  # use ET for pick_date alignment
+        STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
+
+        for pick in pending:
+            scheduled_str = pick.get('scheduled', '')
+            if not scheduled_str:
+                continue
+            try:
+                sched_dt = datetime.fromisoformat(
+                    scheduled_str.replace('Z', '').replace('+00:00', ''))
+            except Exception:
+                continue
+            if (now_utc - sched_dt).total_seconds() < 3 * 3600:
+                continue  # game likely not finished yet
+
+            api_id = self._resolve_api_sports_id(requests, pick['player_name'], None)
+            if not api_id:
+                continue
+            try:
+                sr = requests.get(
+                    "https://v2.nba.api-sports.io/players/statistics",
+                    params={"id": api_id, "season": 2025},
+                    headers={"x-apisports-key": AS_KEY}, timeout=8,
+                )
+                if sr.status_code != 200:
+                    continue
+                stat_field = STAT_FIELD.get(pick['stat'])
+                actual = None
+                target_gid = int(pick['game_id']) if pick.get('game_id') is not None else None
+                for entry in sr.json().get('response', []):
+                    entry_gid = (entry.get('game') or {}).get('id')
+                    if target_gid is not None and entry_gid is not None and int(entry_gid) == target_gid:
+                        val = entry.get(stat_field)
+                        try:
+                            actual = float(val)
+                        except Exception:
+                            pass
+                        break
+                if actual is None:
+                    continue
+                result = 'win' if actual > float(pick['line']) else 'loss'
+                requests.patch(
+                    f"{SUPABASE_URL}/rest/v1/pick_history?id=eq.{pick['id']}",
+                    headers={**sb_headers, "Content-Type": "application/json"},
+                    json={"result": result, "actual_value": actual},
+                    timeout=5,
+                )
+            except Exception:
+                pass
+
+        # ── Phase B: Fetch history and build response ─────────────────────────
+        def calc_pnl(result, over_odds):
+            try:
+                odds = int(over_odds) if over_odds is not None else None
+            except Exception:
+                odds = None
+            if result == 'win':
+                if odds and odds < 0:
+                    return round(100 * 100 / abs(odds), 2)
+                elif odds and odds > 0:
+                    return float(odds)
+                return 100.0
+            elif result == 'loss':
+                return -100.0
+            return 0.0  # pending
+
+        # Lifetime totals
+        try:
+            ar = requests.get(
+                f"{SUPABASE_URL}/rest/v1/pick_history?select=result,over_odds",
+                headers=sb_headers, timeout=5,
+            )
+            all_picks = ar.json() if ar.status_code == 200 else []
+        except Exception:
+            all_picks = []
+
+        lt_total   = len(all_picks)
+        lt_won     = sum(1 for p in all_picks if p.get('result') == 'win')
+        lt_lost    = sum(1 for p in all_picks if p.get('result') == 'loss')
+        lt_pending = lt_total - lt_won - lt_lost
+        lt_pnl     = sum(calc_pnl(p.get('result'), p.get('over_odds')) for p in all_picks)
+        resolved   = lt_won + lt_lost
+        lifetime   = {
+            "total":    lt_total,
+            "won":      lt_won,
+            "lost":     lt_lost,
+            "pending":  lt_pending,
+            "win_rate": round(lt_won / resolved, 3) if resolved else 0,
+            "total_pnl": round(lt_pnl, 2),
+            "roi":       round(lt_pnl / (resolved * 100), 3) if resolved else 0,
+        }
+
+        # Date range: full month if requested, else last 7 days
+        month_param = (query_params or {}).get('month', [None])
+        month_param = month_param[0] if isinstance(month_param, list) else month_param
+        try:
+            if month_param:
+                from calendar import monthrange as _mr
+                y, m = int(month_param[:4]), int(month_param[5:7])
+                first_day = f"{y:04d}-{m:02d}-01"
+                last_day  = f"{y:04d}-{m:02d}-{_mr(y, m)[1]:02d}"
+                date_filter = f"pick_date=gte.{first_day}&pick_date=lte.{last_day}"
+            else:
+                seven_days_ago = (now_utc - timedelta(days=7)).strftime('%Y-%m-%d')
+                date_filter = f"pick_date=gte.{seven_days_ago}"
+            dr = requests.get(
+                f"{SUPABASE_URL}/rest/v1/pick_history?select=*&{date_filter}&order=pick_date.desc,created_at.desc",
+                headers=sb_headers, timeout=5,
+            )
+            day_picks = dr.json() if dr.status_code == 200 else []
+        except Exception:
+            day_picks = []
+
+        # Group by date
+        from collections import OrderedDict
+        days_map = OrderedDict()
+        for p in day_picks:
+            d = p['pick_date']
+            if d not in days_map:
+                days_map[d] = []
+            days_map[d].append(p)
+
+        daily = []
+        for date_str, picks in days_map.items():
+            won_d     = sum(1 for p in picks if p.get('result') == 'win')
+            lost_d    = sum(1 for p in picks if p.get('result') == 'loss')
+            pending_d = sum(1 for p in picks if p.get('result') is None)
+            pnl_d     = sum(calc_pnl(p.get('result'), p.get('over_odds')) for p in picks)
+            # Attach pnl to each pick for frontend
+            for p in picks:
+                p['pnl'] = calc_pnl(p.get('result'), p.get('over_odds'))
+            daily.append({
+                "date":    date_str,
+                "picks":   picks,
+                "summary": {
+                    "total":   len(picks),
+                    "won":     won_d,
+                    "lost":    lost_d,
+                    "pending": pending_d,
+                    "pnl":     round(pnl_d, 2),
+                },
+            })
+
+        self._send_json(200, {"lifetime": lifetime, "daily": daily})
+
+    def _handle_ai_picks_debug(self, requests, query_params):
+        """
+        Lightweight debug: fetch stats + odds for ONE player only and show gate results.
+        Usage: /api?type=ai_picks_debug&player=jokic
+        """
+        diag = {}  # step-by-step diagnostic output
+
+        player_val  = query_params.get('player', '')
+        if isinstance(player_val, list): player_val = player_val[0] if player_val else ''
+        name_filter = _ascii(str(player_val)).strip()
+        diag['name_filter'] = name_filter
+
+        # Step 1: today's games
+        games, _ = self._fetch_nba(requests)
+        diag['games_today'] = [f"{g['away']['name']} @ {g['home']['name']} (id={g['id']})" for g in games]
+        if not games:
+            self._send_json(200, {"diag": diag, "error": "no games today"})
+            return
+
+        # Step 2: find which game/team the player is in
+        target_alias  = None
+        target_api_id = None
+        target_game   = None
+        target_side   = None
+        for g in games:
+            for side in ['home', 'away']:
+                t = g[side]
+                # quick check via team name / alias
+                if name_filter:
+                    # We'll confirm match after fetching roster; for now pick all teams
+                    pass
+                if target_alias is None:
+                    # fetch all teams — we don't know which team yet without a roster
+                    pass
+
+        # Step 3: fetch stats for every team and find the player
+        headers_as = {"x-apisports-key": AS_KEY}
+        player_found = None
+        player_team_alias = None
+        player_game = None
+        player_opponent = None
+
+        for g in games:
+            if player_found:
+                break
+            for side in ['home', 'away']:
+                t    = g[side]
+                alias   = t['alias']
+                api_id  = t.get('api_id')
+                if not api_id or not AS_KEY:
+                    continue
+                try:
+                    r = requests.get(
+                        f"https://v2.nba.api-sports.io/players/statistics?team={api_id}&season=2025",
+                        headers=headers_as, timeout=12)
+                    diag[f'stats_fetch_{alias}'] = r.status_code
+                    if r.status_code != 200:
+                        continue
+                    player_data = {}
+                    for entry in r.json().get('response', []):
+                        pl = entry.get('player', {}); gm = entry.get('game', {}); tm = entry.get('team', {})
+                        if tm.get('id') != api_id: continue
+                        pid = pl.get('id'); gid = gm.get('id')
+                        if not pid or not gid: continue
+                        fn = pl.get('firstname',''); ln2 = pl.get('lastname','')
+                        full = f"{fn} {ln2}".strip()
+                        ascii_name = _ascii(full)
+                        if name_filter and name_filter not in ascii_name:
+                            continue
+                        if pid not in player_data:
+                            player_data[pid] = {'name': full, 'ascii': ascii_name, 'points': [], 'rebounds': [], 'assists': [], 'mins': {}}
+                        def _f(v):
+                            try: return float(v)
+                            except: return 0.0
+                        player_data[pid]['points'].append((gid, _f(entry.get('points'))))
+                        player_data[pid]['rebounds'].append((gid, _f(entry.get('totReb'))))
+                        player_data[pid]['assists'].append((gid, _f(entry.get('assists'))))
+                        mins_raw = entry.get('min','0') or '0'
+                        try: mins_val = int(str(mins_raw).split(':')[0])
+                        except: mins_val = 0
+                        player_data[pid]['mins'][gid] = mins_val
+
+                    if not player_data:
+                        continue
+
+                    # Found the player — fetch schedule for last10
+                    sr = requests.get(f"https://v2.nba.api-sports.io/games?team={api_id}&season=2025", headers=headers_as, timeout=10)
+                    diag[f'schedule_fetch_{alias}'] = sr.status_code
+                    last10_gids = []; game_opp_map = {}
+                    if sr.status_code == 200:
+                        completed = sorted(
+                            [(g2['id'], g2) for g2 in sr.json().get('response', [])
+                             if (g2.get('status',{}).get('short') if isinstance(g2.get('status'),dict) else None) == 3],
+                            key=lambda x: x[0])
+                        last10_gids = [gid2 for gid2, _ in completed[-10:]]
+                        for gid2, g2 in completed:
+                            teams2 = g2.get('teams', {})
+                            h2 = teams2.get('home', {}); a2 = teams2.get('visitors', {})
+                            opp = a2.get('name','') if h2.get('id') == api_id else h2.get('name','')
+                            game_opp_map[gid2] = opp.lower()
+                    if not last10_gids and player_data:
+                        all_gids = set()
+                        for pd2 in player_data.values():
+                            for gid2, _ in pd2['points']: all_gids.add(gid2)
+                        last10_gids = sorted(all_gids)[-10:]
+                        diag['last10_source'] = 'fallback_from_stat_ids'
+                    else:
+                        diag['last10_source'] = 'schedule_api'
+
+                    player_found    = player_data
+                    player_team_alias = alias
+                    player_game     = g
+                    player_opponent = g['away']['name'] if side == 'home' else g['home']['name']
+                    diag['last10_gids'] = last10_gids
+                    diag['game_opp_map_sample'] = dict(list(game_opp_map.items())[:5])
+                    break
+                except Exception as ex:
+                    diag[f'exception_{alias}'] = str(ex)
+
+        if not player_found:
+            self._send_json(200, {"diag": diag, "error": f"player '{name_filter}' not found in any team roster today"})
+            return
+
+        diag['player_found'] = {pid: pdata['name'] for pid, pdata in player_found.items()}
+
+        # Step 4: fetch odds for this game
+        ODDS_STAT_MAP = {'player_points_alternate': 'points', 'player_rebounds_alternate': 'rebounds', 'player_assists_alternate': 'assists'}
+        player_odds_all = {}
+        if ODDS_API_KEY:
+            # find event id
+            try:
+                ev_resp = requests.get("https://api.the-odds-api.com/v4/sports/basketball_nba/events",
+                    params={"apiKey": ODDS_API_KEY}, timeout=8)
+                events_list = ev_resp.json() if ev_resp.status_code == 200 else []
+                diag['odds_events_count'] = len(events_list)
+            except Exception as ex:
+                events_list = []; diag['odds_events_error'] = str(ex)
+            eid = None
+            gh = player_game['home']['name'].lower(); ga = player_game['away']['name'].lower()
+            for ev in events_list:
+                eh = ev.get('home_team','').lower(); ea = ev.get('away_team','').lower()
+                if any(w in eh for w in gh.split() if len(w)>3) or any(w in ea for w in ga.split() if len(w)>3):
+                    eid = ev['id']; break
+            diag['matched_event_id'] = eid
+            if eid:
+                for mk, stat in ODDS_STAT_MAP.items():
+                    try:
+                        r2 = requests.get(f"https://api.the-odds-api.com/v4/sports/basketball_nba/events/{eid}/odds",
+                            params={"apiKey": ODDS_API_KEY, "markets": mk, "regions": "us", "oddsFormat": "american"}, timeout=10)
+                        diag[f'odds_{stat}_status'] = r2.status_code
+                        if r2.status_code != 200: continue
+                        for bm in r2.json().get('bookmakers', []):
+                            for mkt in bm.get('markets', []):
+                                for out in mkt.get('outcomes', []):
+                                    if out.get('name','').lower() != 'over': continue
+                                    pn = _ascii(out.get('description',''))
+                                    ln = float(out.get('point', 0))
+                                    player_odds_all.setdefault(pn, {}).setdefault(stat, {})[ln] = {'over': out.get('price'), 'bm': bm.get('title','')}
+                    except Exception as ex:
+                        diag[f'odds_{stat}_error'] = str(ex)
+
+        MIN_LINE = {'points': 10.5, 'rebounds': 3.5, 'assists': 2.5}
+
+        def score_debug(values_all, line, stat, last10_gids, game_opp_map, opponent_name, mins_by_gid):
+            gid_set = set(last10_gids)
+            last10_entries = sorted([(gid, v) for gid, v in values_all if gid in gid_set], key=lambda x: last10_gids.index(x[0]))
+            last10_vals = [v for _, v in last10_entries]
+            games_played = len(last10_vals)
+            if not games_played: return False, "no_last10_data", {}
+            avg_last10 = sum(last10_vals) / games_played
+            mins_last10 = [mins_by_gid.get(gid, 0) for gid, _ in last10_entries]
+            avg_mins = sum(mins_last10) / len(mins_last10) if mins_last10 else 0
+            if line < MIN_LINE.get(stat, 0): return False, f"line {line} < min {MIN_LINE.get(stat,0)}", {}
+            if games_played < 6:             return False, f"only {games_played} games in last10 (need 6)", {}
+            if avg_last10 <= line:           return False, f"avg {round(avg_last10,1)} not above line {line}", {}
+            if avg_mins < 20:                return False, f"avg_mins {round(avg_mins,1)} < 20", {}
+            hit_count = sum(1 for v in last10_vals if v > line)
+            hit_rate  = hit_count / games_played
+            if hit_rate < 0.80: return False, f"hit_rate {round(hit_rate,2)} < 0.80 ({hit_count}/{games_played} games)", {'last10': last10_vals}
+            opp_lower = opponent_name.lower()
+            opp_words = [w for w in opp_lower.split() if len(w) > 3]
+            vs_opp_vals = [v for gid, v in values_all if opp_lower in game_opp_map.get(gid,'') or any(w in game_opp_map.get(gid,'') for w in opp_words)]
+            n_opp = len(vs_opp_vals)
+            opp_hr = sum(1 for v in vs_opp_vals if v > line) / n_opp if n_opp else None
+            if n_opp >= 4 and opp_hr < 0.50: return False, f"bad H2H vs opponent: {round(opp_hr,2)} on {n_opp} games", {}
+            mid = len(last10_vals) // 2
+            old_avg = sum(last10_vals[:mid]) / mid if mid else 0.001
+            new_avg = sum(last10_vals[mid:]) / (games_played - mid) if games_played - mid else 0
+            ratio = new_avg / max(old_avg, 0.001)
+            if ratio < 0.80: return False, f"trend cooling: ratio {round(ratio,2)} < 0.80 (old_avg={round(old_avg,1)} new_avg={round(new_avg,1)})", {}
+            p1 = 40 if hit_rate >= 1.0 else (35 if hit_rate >= 0.9 else 25)
+            p2 = (30 if opp_hr and opp_hr >= 0.75 else 20) if n_opp >= 4 else (18 if n_opp >= 1 and opp_hr and opp_hr >= 0.5 else (12 if n_opp >= 1 else 20))
+            p3 = 30 if ratio > 1.05 else (20 if ratio >= 0.90 else 10)
+            total = p1 + p2 + p3
+            if total < 75: return False, f"score {total} < 75 (p1={p1} p2={p2} p3={p3})", {}
+            tier = 'ELITE LOCK' if total >= 90 else ('STRONG PICK' if total >= 80 else 'SOLID VALUE')
+            return True, f"PASSED — score={total} tier={tier}", {'score': total, 'tier': tier, 'hit_rate': round(hit_rate,2), 'avg': round(avg_last10,1), 'last10': last10_vals}
+
+        results = []
+        for pid, pdata in player_found.items():
+            player_odds = player_odds_all.get(pdata['ascii'], {})
+            diag_key = f"odds_lines_for_{pdata['ascii']}"
+            diag[diag_key] = {stat: sorted(lines.keys()) for stat, lines in player_odds.items()} if player_odds else "NO ODDS FOUND"
+            for stat_name in ('points', 'rebounds', 'assists'):
+                values_all = pdata[stat_name]
+                lines_dict = player_odds.get(stat_name, {})
+                if not lines_dict:
+                    results.append({'player': pdata['name'], 'stat': stat_name, 'passed': False, 'reason': 'no odds available from Odds API', 'lines_checked': []})
+                    continue
+                for try_line in sorted(lines_dict.keys(), reverse=True)[:8]:
+                    passed, reason, details = score_debug(values_all, try_line, stat_name, last10_gids, game_opp_map, player_opponent, pdata['mins'])
+                    results.append({'player': pdata['name'], 'stat': stat_name, 'line': try_line, 'passed': passed, 'reason': reason, 'opponent': player_opponent, **details})
+
+        self._send_json(200, {"diag": diag, "results": results})
 
     def _send_json(self, status, data):
         self.send_response(status)
