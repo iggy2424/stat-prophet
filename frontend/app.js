@@ -662,10 +662,11 @@ function ValidationResultPanel({ result, onBack, isMobile }) {
 
 // ─── AI PICKS PAGE ────────────────────────────────────────────────────────────
 function AiPicksPage({ openInAnalyzer, isMobile }) {
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-  const [games, setGames] = React.useState([]);
-  const [validationState, setValidationState] = React.useState({}); // game_id -> {loading, result}
+  const [loading, setLoading]         = React.useState(true);
+  const [error, setError]             = React.useState(null);
+  const [games, setGames]             = React.useState([]);
+  const [filter, setFilter]           = React.useState('all'); // 'all' | 'picks'
+  const [validationState, setValidationState] = React.useState({});
 
   React.useEffect(() => {
     fetch(`${API_URL}?type=ai_picks`)
@@ -677,12 +678,6 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
       })
       .catch(() => { setLoading(false); setError('Failed to connect to API'); });
   }, []);
-
-  const canValidate = (picks) => {
-    const counts = {};
-    picks.forEach(p => { counts[p.team_abbrev] = (counts[p.team_abbrev] || 0) + 1; });
-    return Object.values(counts).some(c => c >= 2);
-  };
 
   const validateParlay = (game) => {
     const gid = game.game_id;
@@ -697,11 +692,14 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
       .catch(() => setValidationState(prev => ({ ...prev, [gid]: { loading: false, result: { success: false, error: 'Request failed' } } })));
   };
 
-  const clearValidation = (gid) => {
-    setValidationState(prev => { const n = { ...prev }; delete n[gid]; return n; });
-  };
+  const clearValidation = (gid) => setValidationState(prev => { const n = { ...prev }; delete n[gid]; return n; });
 
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const calcReturn = (odds) => {
+    if (!odds) return null;
+    const o = parseInt(odds);
+    const profit = o < 0 ? (100 * 100 / Math.abs(o)) : o;
+    return { profit: profit.toFixed(2), total: (100 + profit).toFixed(2) };
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -712,7 +710,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
 
   if (error) return (
     <div>
-      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>TODAY'S PICKS</h1>
       <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '28px' }} />
       <div style={{ textAlign: 'center', padding: '60px 20px' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', color: '#ff4444', letterSpacing: '3px', marginBottom: '10px' }}>LOAD FAILED</div>
@@ -723,165 +721,237 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
 
   const totalPicks     = games.reduce((s, g) => s + g.picks.length, 0);
   const gamesWithPicks = games.filter(g => g.picks.length > 0).length;
-
-  const headerBlock = (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }}>
-        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#33cc33', boxShadow: '0 0 8px #33cc33', animation: 'tbPulse 2s infinite', flexShrink: 0 }} />
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#33cc33' }}>LIVE DATA</span>
-      </div>
-      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>AI PICKS</h1>
-      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '6px' }} />
-      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: '0 0 4px' }}>
-        {today} · Highest-confidence props · Click Analyze → to run full prediction
-      </p>
-      {totalPicks > 0 && (
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#666', letterSpacing: '0.5px', margin: '0 0 24px' }}>
-          <span style={{ color: '#33cc33' }}>{totalPicks}</span> qualifying prop{totalPicks !== 1 ? 's' : ''} across <span style={{ color: '#33cc33' }}>{gamesWithPicks}</span> game{gamesWithPicks !== 1 ? 's' : ''} today
-        </p>
-      )}
-      {totalPicks === 0 && <div style={{ marginBottom: '24px' }} />}
-    </div>
-  );
-
-  if (!games.length) return (
-    <div>
-      {headerBlock}
-      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-        <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏀</div>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#444', letterSpacing: '3px' }}>NO GAMES TODAY</div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#a3a3a3', marginTop: '8px' }}>Check back on a game day</p>
-      </div>
-    </div>
-  );
+  const visibleGames   = filter === 'picks' ? games.filter(g => g.picks.length > 0) : games;
 
   return (
     <div>
-      {headerBlock}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px' }}>
-        {games.map(game => (
-          <div key={game.game_id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', overflow: 'hidden' }}>
+      {/* ── Page title ── */}
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>TODAY'S PICKS</h1>
+      <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '20px' }} />
 
-            {/* Game header */}
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.015)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>
-                {game.away.logo && <img src={game.away.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
-                {game.away.name}
-                <span style={{ color: '#a3a3a3', fontSize: '14px' }}>@</span>
-                {game.home.logo && <img src={game.home.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />}
-                {game.home.name}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {game.status === 'inprogress' && (
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', background: 'rgba(51,204,51,0.1)', border: '1px solid rgba(51,204,51,0.25)', borderRadius: '3px', padding: '2px 8px', letterSpacing: '1px' }}>LIVE</span>
-                )}
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' }}>
-                  {new Date(game.scheduled).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                </span>
-              </div>
-            </div>
-
-            {/* Content: validation panel OR normal picks */}
-            {validationState[game.game_id]?.loading ? (
-              <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '36px', height: '36px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
-                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '1px', margin: 0 }}>Validating parlay combinations...</p>
-              </div>
-            ) : validationState[game.game_id]?.result ? (
-              <ValidationResultPanel
-                result={validationState[game.game_id].result}
-                onBack={() => clearValidation(game.game_id)}
-                isMobile={isMobile}
-              />
-            ) : game.picks.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#a3a3a3' }}>
-                {game.has_odds_event === false
-                  ? 'No player prop markets posted yet for this game'
-                  : 'No qualifying picks found for this game'}
-              </div>
-            ) : (
-              <div>
-                {game.picks.map((pick, idx) => {
-                  const statLabel  = pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1);
-                  const trendUp    = pick.trend === 'up';
-                  const trendDown  = pick.trend === 'down';
-                  const trendArrow = trendUp ? '↑' : trendDown ? '↓' : '→';
-                  const trendLabel = trendUp ? 'TRENDING UP' : trendDown ? 'TRENDING DOWN' : 'STABLE';
-                  const trendColor = trendUp ? '#33cc33' : trendDown ? '#ff4444' : '#666';
-                  const trendGlow  = trendUp ? '0 0 8px rgba(51,204,51,0.4)' : trendDown ? '0 0 8px rgba(255,68,68,0.35)' : 'none';
-                  const tierColor  = pick.tier === 'ELITE LOCK' ? '#ffd700'
-                                   : pick.tier === 'STRONG PICK' ? '#33cc33'
-                                   : '#0096ff';
-                  const tierBg     = pick.tier === 'ELITE LOCK' ? 'rgba(255,215,0,0.10)'
-                                   : pick.tier === 'STRONG PICK' ? 'rgba(51,204,51,0.08)'
-                                   : 'rgba(0,150,255,0.08)';
-                  const tierGlow   = pick.tier === 'ELITE LOCK' ? '0 0 10px rgba(255,215,0,0.3)'
-                                   : pick.tier === 'STRONG PICK' ? '0 0 10px rgba(51,204,51,0.25)'
-                                   : '0 0 10px rgba(0,150,255,0.25)';
-                  return (
-                    <div key={pick.name + pick.stat} style={{
-                      display: 'flex', alignItems: 'center', gap: '16px',
-                      padding: '22px 20px',
-                      borderBottom: idx < game.picks.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                      flexWrap: isMobile ? 'wrap' : 'nowrap'
-                    }}>
-
-                      {/* Tier label badge */}
-                      <div style={{ flex: '0 0 auto', padding: '7px 16px', borderRadius: '6px', border: `1px solid ${tierColor}`, background: tierBg, boxShadow: tierGlow, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: tierColor, letterSpacing: '1.5px', fontWeight: 700 }}>{pick.tier}</div>
-                      </div>
-
-                      {/* Player name + trend + avg */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: '16px', color: '#fff', fontWeight: 500, marginBottom: '6px' }}>{pick.name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          {/* Trend pill */}
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}`, borderRadius: '20px', padding: '2px 10px', letterSpacing: '1px', boxShadow: trendGlow, whiteSpace: 'nowrap' }}>
-                            {trendArrow} {trendLabel}
-                          </span>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#666' }}>
-                            AVG {pick.avg != null ? pick.avg.toFixed(1) : '—'} — L5 <span style={{ color: tierColor }}>{pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—'}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Stat line + team/stat label below */}
-                      <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', letterSpacing: '1px', marginBottom: '2px' }}>OVER</div>
-                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', color: '#fff', lineHeight: 1, letterSpacing: '1px' }}>{pick.line}</div>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#888', marginTop: '3px', letterSpacing: '0.5px' }}>{pick.team_abbrev} · {statLabel.toUpperCase()}</div>
-                      </div>
-
-                      {/* Analyze button */}
-                      <button
-                        onClick={() => openInAnalyzer(pick)}
-                        style={{ flexShrink: 0, padding: '8px 16px', background: 'transparent', border: '1px solid rgba(51,204,51,0.3)', borderRadius: '4px', color: '#33cc33', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; e.currentTarget.style.borderColor = '#33cc33'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(51,204,51,0.3)'; }}
-                      >
-                        Analyze →
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {/* Validate as Parlay button — only when 2+ picks from same team exist */}
-                {canValidate(game.picks) && (
-                  <div style={{ padding: isMobile ? '12px 20px' : '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end' }}>
-                    <button
-                      onClick={() => validateParlay(game)}
-                      style={{ padding: '9px 20px', background: 'rgba(0,150,255,0.08)', border: '1px solid rgba(0,150,255,0.35)', borderRadius: '4px', color: '#0096ff', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.15)'; e.currentTarget.style.borderColor = '#0096ff'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(0,150,255,0.35)'; }}
-                    >
-                      VALIDATE AS PARLAY →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+      {/* ── Stats bar ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '16px' }}>
+        {[
+          { label: "TODAY'S GAMES", value: games.length },
+          { label: 'TOTAL PICKS',   value: totalPicks },
+          { label: 'GAMES W/ PICKS', value: gamesWithPicks },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: isMobile ? '12px' : '14px 18px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '2px', color: '#555', marginBottom: '6px' }}>{label}</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '26px', letterSpacing: '1px', color: '#fff' }}>{value}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Tier legend ── */}
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        {[
+          { label: 'ELITE LOCK', sub: 'Score ≥90', color: '#ffd700' },
+          { label: 'STRONG PICK', sub: 'Score ≥80', color: '#33cc33' },
+          { label: 'SOLID VALUE', sub: 'Score ≥75', color: '#7ecfff' },
+        ].map(({ label, sub, color }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color, flexShrink: 0 }} />
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#fff', letterSpacing: '0.5px' }}>{label}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555' }}>{sub}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filter buttons ── */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        {[
+          { id: 'all',   label: 'All Games' },
+          { id: 'picks', label: 'Has Picks' },
+        ].map(({ id, label }) => {
+          const active = filter === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setFilter(id)}
+              style={{
+                padding: '8px 18px',
+                background: active ? '#33cc33' : 'transparent',
+                border: `1px solid ${active ? '#33cc33' : 'rgba(255,255,255,0.15)'}`,
+                borderRadius: '4px',
+                fontFamily: "'Space Mono', monospace",
+                fontSize: '10px',
+                letterSpacing: '1px',
+                color: active ? '#000' : '#666',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = '#aaa'; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#666'; } }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── No games ── */}
+      {visibleGames.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏀</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '22px', color: '#444', letterSpacing: '3px' }}>
+            {games.length === 0 ? 'NO GAMES TODAY' : 'NO GAMES WITH PICKS'}
+          </div>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#555', marginTop: '8px' }}>
+            {games.length === 0 ? 'Check back on a game day' : 'Try "All Games" to see every game'}
+          </p>
+        </div>
+      )}
+
+      {/* ── Game cards ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '860px' }}>
+        {visibleGames.map(game => {
+          const isLive = game.status === 'inprogress';
+          const gameTime = (() => {
+            try { return new Date(game.scheduled).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); }
+            catch { return ''; }
+          })();
+
+          return (
+            <div key={game.game_id} style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${isLive ? 'rgba(255,68,68,0.25)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '10px', overflow: 'hidden' }}>
+
+              {/* Game header */}
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.015)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {game.away.logo && <img src={game.away.logo} alt="" style={{ width: '26px', height: '26px', objectFit: 'contain' }} />}
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? '14px' : '18px', letterSpacing: '2px', color: '#fff' }}>{game.away.name}</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444' }}>@</span>
+                  {game.home.logo && <img src={game.home.logo} alt="" style={{ width: '26px', height: '26px', objectFit: 'contain' }} />}
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? '14px' : '18px', letterSpacing: '2px', color: '#fff' }}>{game.home.name}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {isLive ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#ff4444', background: 'rgba(255,68,68,0.1)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: '3px', padding: '3px 8px', letterSpacing: '1px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ff4444', animation: 'tbPulse 1s infinite', display: 'inline-block' }} />
+                      LIVE
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#555' }}>{gameTime}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Validation loading */}
+              {validationState[game.game_id]?.loading && (
+                <div style={{ padding: '36px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', border: '3px solid rgba(51,204,51,0.15)', borderTopColor: '#33cc33', borderRadius: '50%', animation: 'tbSpin 1s linear infinite' }} />
+                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', margin: 0 }}>Validating parlay combinations...</p>
+                </div>
+              )}
+
+              {/* Validation result */}
+              {!validationState[game.game_id]?.loading && validationState[game.game_id]?.result && (
+                <ValidationResultPanel result={validationState[game.game_id].result} onBack={() => clearValidation(game.game_id)} isMobile={isMobile} />
+              )}
+
+              {/* No picks */}
+              {!validationState[game.game_id] && game.picks.length === 0 && (
+                <div style={{ padding: '22px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '0.5px' }}>
+                  {game.has_odds_event === false ? 'No player prop markets posted yet for this game' : 'No qualifying picks found for this game'}
+                </div>
+              )}
+
+              {/* Pick cards */}
+              {!validationState[game.game_id] && game.picks.length > 0 && (
+                <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {game.picks.map((pick) => {
+                    const trendUp    = pick.trend === 'up';
+                    const trendColor = trendUp ? '#33cc33' : pick.trend === 'down' ? '#ff4444' : '#888';
+                    const trendLabel = trendUp ? '↑ TRENDING UP' : pick.trend === 'down' ? '↓ TRENDING DOWN' : '→ STABLE';
+                    const tierColor  = pick.tier === 'ELITE LOCK' ? '#ffd700' : pick.tier === 'STRONG PICK' ? '#33cc33' : '#7ecfff';
+                    const statLabel  = pick.stat ? (pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1)) : '';
+                    const ret        = calcReturn(pick.over_odds);
+                    const hitCount   = pick.hit_rate != null && pick.games ? Math.round(pick.hit_rate * pick.games) : null;
+                    const fmtOdds    = (o) => o == null ? '' : o > 0 ? `+${o}` : `${o}`;
+
+                    return (
+                      <div key={pick.name + pick.stat} style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: `1px solid rgba(255,255,255,0.07)`,
+                        borderLeft: `3px solid ${tierColor}`,
+                        borderRadius: '8px',
+                        padding: '14px 16px',
+                      }}>
+                        {/* Row 1: player name + team + analyze btn */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                            <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '17px', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>{pick.name}</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', flexShrink: 0 }}>{pick.team_abbrev}</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}40`, borderRadius: '20px', padding: '2px 8px', letterSpacing: '0.5px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                              {trendLabel}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => openInAnalyzer(pick)}
+                            style={{ flexShrink: 0, marginLeft: '10px', padding: '6px 14px', background: 'transparent', border: '1px solid rgba(51,204,51,0.35)', borderRadius: '4px', color: '#33cc33', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                          >Analyze →</button>
+                        </div>
+
+                        {/* Row 2: OVER line + odds */}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px' }}>OVER</span>
+                          <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '32px', color: '#33cc33', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>{statLabel.toUpperCase()}</span>
+                          {pick.over_odds != null && (
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa', marginLeft: '4px' }}>{fmtOdds(pick.over_odds)}</span>
+                          )}
+                          {pick.bookmaker && (
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker}</span>
+                          )}
+                        </div>
+
+                        {/* Row 3: $100 return box */}
+                        {ret && (
+                          <div style={{ background: 'rgba(51,204,51,0.06)', border: '1px solid rgba(51,204,51,0.15)', borderRadius: '5px', padding: '8px 12px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555' }}>$100 bet</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#444' }}>→</span>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '15px', color: '#33cc33', letterSpacing: '1px' }}>${ret.total} RETURN</span>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33', opacity: 0.7 }}>(+${ret.profit} profit)</span>
+                          </div>
+                        )}
+
+                        {/* Row 4: L5 avg | SZN avg | Hit rate */}
+                        <div style={{ display: 'flex', gap: isMobile ? '16px' : '24px', flexWrap: 'wrap' }}>
+                          {[
+                            { label: 'L5 AVG', value: pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—' },
+                            { label: 'SZN AVG', value: pick.avg != null ? pick.avg.toFixed(1) : '—' },
+                            { label: 'HIT RATE', value: hitCount != null ? `${hitCount}/${pick.games} LG` : pick.hit_rate != null ? `${Math.round(pick.hit_rate * 100)}%` : '—' },
+                          ].map(({ label, value }) => (
+                            <div key={label}>
+                              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#555', letterSpacing: '1.5px', marginBottom: '3px' }}>{label}</div>
+                              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', color: '#ccc', letterSpacing: '0.5px' }}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Validate as Parlay — 2+ picks from same team */}
+                  {(() => {
+                    const counts = {};
+                    game.picks.forEach(p => { counts[p.team_abbrev] = (counts[p.team_abbrev] || 0) + 1; });
+                    return Object.values(counts).some(c => c >= 2);
+                  })() && (
+                    <button
+                      onClick={() => validateParlay(game)}
+                      style={{ width: '100%', padding: '10px', background: 'rgba(0,150,255,0.06)', border: '1px solid rgba(0,150,255,0.25)', borderRadius: '6px', color: '#0096ff', fontFamily: "'Space Mono', monospace", fontSize: '10px', cursor: 'pointer', letterSpacing: '1px' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.12)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,150,255,0.06)'; }}
+                    >VALIDATE AS PARLAY →</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
