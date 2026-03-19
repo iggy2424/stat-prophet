@@ -1371,7 +1371,7 @@ function PickHistoryPage({ isMobile }) {
           { label: 'WINS', value: lt.won ?? 0, color: '#33cc33' },
           { label: 'LOSSES', value: lt.lost ?? 0, color: '#ff4444' },
           { label: 'WIN RATE', value: winRate != null ? `${winRate}%` : '—', color: winRate >= 60 ? '#33cc33' : winRate >= 50 ? '#ffd700' : '#ff4444' },
-          { label: 'P&L (UNITS)', value: pnl >= 0 ? `+${pnl.toFixed(2)}u` : `${pnl.toFixed(2)}u`, color: pnl >= 0 ? '#33cc33' : '#ff4444' },
+          { label: 'P&L ($100/bet)', value: pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`, color: pnl >= 0 ? '#33cc33' : '#ff4444' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '16px' }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', letterSpacing: '2px', color: '#555', marginBottom: '8px' }}>{label}</div>
@@ -1411,7 +1411,7 @@ function PickHistoryPage({ isMobile }) {
                 {dayPending > 0 && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#888' }}>{dayPending} pending</span>}
                 {(dayWon > 0 || dayLost > 0) && (
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: dayPnl >= 0 ? '#33cc33' : '#ff4444' }}>
-                    {dayPnl >= 0 ? '+' : ''}{dayPnl.toFixed(2)}u
+                    {dayPnl >= 0 ? `+$${dayPnl.toFixed(2)}` : `-$${Math.abs(dayPnl).toFixed(2)}`}
                   </span>
                 )}
                 <span style={{ color: '#444', fontSize: '12px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>▼</span>
@@ -1472,7 +1472,7 @@ function PickHistoryPage({ isMobile }) {
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', marginBottom: '2px' }}>P&L</div>
                             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: resultColor }}>
-                              {pick.pnl >= 0 ? '+' : ''}{pick.pnl.toFixed(2)}u
+                              {pick.pnl >= 0 ? `+$${pick.pnl.toFixed(2)}` : `-$${Math.abs(pick.pnl).toFixed(2)}`}
                             </div>
                           </div>
                         )}
