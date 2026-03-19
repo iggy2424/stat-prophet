@@ -916,7 +916,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                           <div style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.25)', borderRadius: '5px', padding: '9px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#888' }}>$100 bet</span>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#666' }}>→</span>
-                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '16px', color: '#ffc800', letterSpacing: '1px', fontWeight: 700 }}>${ret.total} RETURN</span>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', color: '#ffc800', letterSpacing: '2px' }}>${ret.total} RETURN</span>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#33cc33' }}>(+${ret.profit} profit)</span>
                           </div>
                         )}
