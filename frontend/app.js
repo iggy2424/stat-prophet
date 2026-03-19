@@ -878,13 +878,10 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                         padding: '14px 16px',
                       }}>
                         {/* Row 1: player name + team + analyze btn */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                             <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '17px', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>{pick.name}</span>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', flexShrink: 0 }}>{pick.team_abbrev}</span>
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}40`, borderRadius: '20px', padding: '2px 8px', letterSpacing: '0.5px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                              {trendLabel}
-                            </span>
                           </div>
                           <button
                             onClick={() => openInAnalyzer(pick)}
@@ -894,15 +891,23 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                           >Analyze →</button>
                         </div>
 
-                        {/* Row 2: OVER box + odds/bookmaker */}
+                        {/* Row 2: stat name + trend */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '13px', color: '#ffc800', fontWeight: 500, letterSpacing: '0.5px' }}>{statLabel}</span>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}40`, borderRadius: '20px', padding: '2px 8px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+                            {trendLabel}
+                          </span>
+                        </div>
+
+                        {/* Row 3: OVER box + odds/bookmaker */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', border: '1px solid #33cc33', borderRadius: '6px', padding: '6px 16px', background: 'rgba(51,204,51,0.06)' }}>
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#33cc33', letterSpacing: '2px' }}>OVER</span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid #33cc33', borderRadius: '6px', padding: '6px 16px', background: 'rgba(51,204,51,0.06)' }}>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#33cc33', letterSpacing: '2px', lineHeight: 1 }}>OVER</span>
                             <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#33cc33', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             {pick.over_odds != null && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa' }}>{fmtOdds(pick.over_odds)}</span>}
-                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker || ''} · {statLabel.toUpperCase()}</span>
+                            {pick.bookmaker && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker}</span>}
                           </div>
                         </div>
 
