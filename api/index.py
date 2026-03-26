@@ -239,6 +239,10 @@ class handler(BaseHTTPRequestHandler):
             self._handle_pick_history(requests, query_params or {})
             return
 
+        if data_type == 'resolve_debug':
+            self._handle_resolve_debug(requests, query_params or {})
+            return
+
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -2109,6 +2113,114 @@ RULES:
             'vs_opp_hit_rate': round(opp_hr, 3) if opp_hr is not None else None,
             'trend':           trend,
         })
+
+    def _handle_resolve_debug(self, requests, query_params):
+        """Debug endpoint: trace why a pending pick isn't resolving.
+        Usage: ?type=resolve_debug&player=Nickeil Alexander-Walker
+        """
+        player_name = (query_params.get('player') or [''])[0] if isinstance(
+            query_params.get('player'), list) else (query_params.get('player') or '')
+        if not player_name:
+            self._send_json(400, {"error": "pass ?player=Name"})
+            return
+
+        out = {"player": player_name, "steps": []}
+
+        # Step 1: fetch pending pick from DB
+        sb_headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        try:
+            pr = requests.get(
+                f"{SUPABASE_URL}/rest/v1/pick_history?select=*&result=is.null&player_name=eq.{player_name}",
+                headers=sb_headers, timeout=5,
+            )
+            picks = pr.json() if pr.status_code == 200 else []
+            out["pending_rows"] = picks
+            out["steps"].append(f"Found {len(picks)} pending row(s) in pick_history")
+        except Exception as e:
+            out["steps"].append(f"DB fetch error: {e}")
+            picks = []
+
+        if not picks:
+            self._send_json(200, out)
+            return
+
+        pick = picks[0]
+        out["scheduled"]  = pick.get("scheduled")
+        out["game_id"]    = pick.get("game_id")
+        out["pick_date"]  = pick.get("pick_date")
+        out["stat"]       = pick.get("stat")
+        out["line"]       = pick.get("line")
+
+        # Step 2: 3-hour check
+        from datetime import timezone as _tz
+        now_utc = datetime.now(_tz.utc).replace(tzinfo=None)
+        scheduled_str = pick.get('scheduled', '')
+        sched_dt = None
+        if scheduled_str:
+            try:
+                sched_dt = datetime.fromisoformat(scheduled_str.replace('Z', '').replace('+00:00', ''))
+                elapsed_h = (now_utc - sched_dt).total_seconds() / 3600
+                out["elapsed_hours_since_scheduled"] = round(elapsed_h, 2)
+                out["steps"].append(f"3h check: {elapsed_h:.1f}h elapsed — {'PASS' if elapsed_h >= 3 else 'FAIL (too soon)'}")
+                if elapsed_h < 3:
+                    self._send_json(200, out)
+                    return
+            except Exception as e:
+                out["steps"].append(f"sched parse error: {e}")
+        else:
+            out["steps"].append("No scheduled time — falling back to pick_date check")
+
+        # Step 3: resolve API-Sports ID
+        api_id = self._resolve_api_sports_id(requests, player_name, None)
+        out["api_sports_id"] = api_id
+        out["steps"].append(f"_resolve_api_sports_id → {api_id}")
+        if not api_id:
+            self._send_json(200, out)
+            return
+
+        # Step 4: fetch season stats
+        STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
+        stat_field = STAT_FIELD.get(pick.get('stat', ''))
+        out["stat_field"] = stat_field
+        try:
+            sr = requests.get(
+                "https://v2.nba.api-sports.io/players/statistics",
+                params={"id": api_id, "season": 2025},
+                headers={"x-apisports-key": AS_KEY}, timeout=8,
+            )
+            entries = sr.json().get('response', [])
+            out["total_stat_entries"] = len(entries)
+            out["steps"].append(f"Stats API → {len(entries)} entries (status {sr.status_code})")
+
+            target_gid = int(pick['game_id']) if pick.get('game_id') is not None else None
+            sched_date = sched_dt.strftime('%Y-%m-%d') if sched_dt else pick.get('pick_date', '')
+            out["target_gid"]  = target_gid
+            out["sched_date"]  = sched_date
+
+            matched = []
+            for entry in entries:
+                eg = (entry.get('game') or {})
+                entry_gid  = eg.get('id')
+                entry_date = str(eg.get('date', ''))[:10]
+                val = entry.get(stat_field)
+                if target_gid is not None:
+                    if entry_gid is not None and int(entry_gid) == target_gid:
+                        matched.append({"match": "game_id", "gid": entry_gid, "date": entry_date, stat_field: val})
+                else:
+                    if entry_date == sched_date:
+                        matched.append({"match": "date", "gid": entry_gid, "date": entry_date, stat_field: val})
+
+            out["matched_entries"] = matched
+            # Also show last 5 game entries for context
+            out["last_5_games"] = [
+                {"gid": (e.get('game') or {}).get('id'), "date": str((e.get('game') or {}).get('date', ''))[:10],
+                 stat_field: e.get(stat_field)} for e in entries[-5:]
+            ]
+            out["steps"].append(f"Matched {len(matched)} entr{'y' if len(matched)==1 else 'ies'} by {'game_id' if target_gid else 'date'}")
+        except Exception as e:
+            out["steps"].append(f"Stats fetch error: {e}")
+
+        self._send_json(200, out)
 
     def _handle_pick_history(self, requests, query_params=None):
         """
