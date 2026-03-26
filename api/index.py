@@ -2088,6 +2088,13 @@ RULES:
             last3_hits = sum(1 for v in last3_vals if v > line)
             if last3_hits < 2:               return None  # cold streak = kill
 
+        # Volatility gate: CV (std dev / avg) too high = too unpredictable
+        CV_MAX = {'points': 0.35, 'rebounds': 0.40, 'assists': 0.45}
+        if games_played >= 5:
+            sd = _stats.stdev(last10_vals)
+            cv = sd / avg_last10 if avg_last10 else 1.0
+            if cv > CV_MAX.get(stat, 0.40):  return None  # too volatile = kill
+
         # ── Pillar 1: Consistency ─────────────────────────────────────────────
         hit_count = sum(1 for v in last10_vals if v > line)
         hit_rate  = hit_count / games_played
