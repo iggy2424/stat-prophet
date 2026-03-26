@@ -1482,7 +1482,14 @@ function PickHistoryPage({ isMobile }) {
                 const dateLbl= dt.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric', month: 'short' }).toUpperCase();
                 return (
                   <div key={d.date}
-                    onClick={() => { setHistView('history'); setExpanded(e => ({ ...e, [d.date]: true })); }}
+                    onClick={() => {
+                      setHistView('history');
+                      setExpanded(e => ({ ...e, [d.date]: true }));
+                      setTimeout(() => {
+                        const el = document.getElementById(`day-${d.date}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 80);
+                    }}
                     style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', cursor: hasResolved ? 'pointer' : 'default', gap: 0 }}>
                     {/* P&L label */}
                     <div style={{ fontFamily: "'Space Mono', monospace", fontSize: isMobile ? '7px' : '8px', color, marginBottom: '4px', whiteSpace: 'nowrap', minHeight: '12px', textAlign: 'center' }}>
@@ -1641,7 +1648,7 @@ function PickHistoryPage({ isMobile }) {
         const dayPnl = day.picks.reduce((s, p) => s + (p.pnl || 0), 0);
 
         return (
-          <div key={day.date} style={{ marginBottom: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', overflow: 'hidden' }}>
+          <div key={day.date} id={`day-${day.date}`} style={{ marginBottom: '10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', overflow: 'hidden' }}>
             {/* Day header — clickable */}
             <div
               onClick={() => setExpanded(e => ({ ...e, [day.date]: !e[day.date] }))}
