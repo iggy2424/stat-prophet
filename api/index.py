@@ -2173,27 +2173,29 @@ RULES:
 
     def _handle_refresh_defense(self, requests):
         """
-        Rebuild team defensive cache from last 20 games per team.
-        Stores avg points/rebounds/assists ALLOWED per game + defensive rank.
-        Called by cron daily at 6am ET via ?type=refresh_defense&secret=...
+        Incrementally build team defensive cache.
+        - Fetches all finished game IDs for the season per team.
+        - Only calls games/statistics for game IDs not already in game_stats_cache.
+        - Recomputes team_defense from full cached history (last 20 games per team).
+        - Daily cron: only ~10 new games to fetch after initial build.
         """
         from concurrent.futures import ThreadPoolExecutor
         from datetime import timezone as _tz
 
         sb_headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
         as_headers = {"x-apisports-key": AS_KEY}
-        STATS = ['points', 'rebounds', 'assists']
+        STATS      = ['points', 'rebounds', 'assists']
         STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
 
-        # Step 1 — All active NBA franchise teams
+        # ── Step 1: Active NBA teams ──────────────────────────────────────────
         tr = requests.get("https://v2.nba.api-sports.io/teams?league=standard",
                           headers=as_headers, timeout=10)
         all_teams = [t for t in tr.json().get('response', []) if t.get('nbaFranchise')]
         team_info = {t['id']: {'name': t.get('name', ''), 'code': t.get('code', '')}
                      for t in all_teams}
-        team_ids = list(team_info.keys())
+        team_ids  = list(team_info.keys())
 
-        # Step 2 — Last 20 finished games per team (parallel, 8 workers)
+        # ── Step 2: Finished game IDs + dates per team ────────────────────────
         def fetch_team_games(tid):
             r = requests.get("https://v2.nba.api-sports.io/games",
                              params={"team": tid, "season": 2025},
@@ -2201,43 +2203,121 @@ RULES:
             finished = [g for g in r.json().get('response', [])
                         if (g.get('status') or {}).get('short') == 3]
             finished.sort(key=lambda g: (g.get('date') or {}).get('start', ''))
-            return tid, [g['id'] for g in finished[-20:]]
+            return tid, [
+                (g['id'], ((g.get('date') or {}).get('start') or '')[:10])
+                for g in finished
+            ]
 
-        team_game_ids = {}
-        all_game_ids  = set()
+        team_game_info = {}   # tid -> [(game_id, date_str)]
+        all_game_ids   = set()
         with ThreadPoolExecutor(max_workers=8) as ex:
-            for tid, gids in ex.map(fetch_team_games, team_ids):
-                team_game_ids[tid] = gids
-                all_game_ids.update(gids)
+            for tid, ginfo in ex.map(fetch_team_games, team_ids):
+                team_game_info[tid] = ginfo
+                all_game_ids.update(gid for gid, _ in ginfo)
 
-        # Step 3 — Game stats for all unique games (parallel, 10 workers)
+        game_date_map = {}
+        for ginfo in team_game_info.values():
+            for gid, gdate in ginfo:
+                game_date_map[gid] = gdate
+
+        # ── Step 3: Find which game IDs are already cached ────────────────────
+        existing_ids = set()
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                er = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/game_stats_cache?select=game_id&limit=10000",
+                    headers=sb_headers, timeout=8,
+                )
+                if er.status_code == 200:
+                    existing_ids = {row['game_id'] for row in er.json()}
+            except Exception:
+                pass
+
+        new_game_ids = list(all_game_ids - existing_ids)
+
+        # ── Step 4: Fetch stats only for NEW games (3 workers — rate-limit safe)
         def fetch_game_stats(gid):
             r = requests.get("https://v2.nba.api-sports.io/games/statistics",
                              params={"id": gid}, headers=as_headers, timeout=8)
             result = {}
             for entry in r.json().get('response', []):
-                tid  = entry['team']['id']
-                s    = (entry.get('statistics') or [{}])[0]
+                tid = entry['team']['id']
+                s   = (entry.get('statistics') or [{}])[0]
                 result[tid] = {st: int(s.get(STAT_FIELD[st]) or 0) for st in STATS}
             return gid, result
 
-        game_stats = {}
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            for gid, gs in ex.map(fetch_game_stats, list(all_game_ids)):
-                game_stats[gid] = gs
+        new_game_stats = {}
+        if new_game_ids:
+            with ThreadPoolExecutor(max_workers=3) as ex:
+                for gid, gs in ex.map(fetch_game_stats, new_game_ids):
+                    if gs:
+                        new_game_stats[gid] = gs
 
-        # Step 4 — Build opponent-allowed lists per team per stat
+        # ── Step 5: Insert new rows into game_stats_cache ─────────────────────
+        cache_rows = []
+        for gid, gs in new_game_stats.items():
+            gdate = game_date_map.get(gid) or None
+            for tid, stats in gs.items():
+                cache_rows.append({
+                    "game_id":  gid,
+                    "team_id":  tid,
+                    "points":   stats['points'],
+                    "rebounds": stats['rebounds'],
+                    "assists":  stats['assists'],
+                    "game_date": gdate,
+                })
+
+        if cache_rows and SUPABASE_URL and SUPABASE_KEY:
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/game_stats_cache?on_conflict=game_id,team_id",
+                headers={**sb_headers, "Content-Type": "application/json",
+                         "Prefer": "resolution=ignore-duplicates"},
+                json=cache_rows, timeout=15,
+            )
+
+        # ── Step 6: Load full cache and compute team defensive averages ────────
+        all_cached = []
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                cr = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/game_stats_cache"
+                    f"?select=game_id,team_id,points,rebounds,assists,game_date&limit=10000",
+                    headers=sb_headers, timeout=10,
+                )
+                if cr.status_code == 200:
+                    all_cached = cr.json()
+            except Exception:
+                pass
+
+        # Build {game_id: {team_id: {stat: val, date: str}}}
+        cached_by_game = {}
+        for row in all_cached:
+            gid = row['game_id']
+            tid = row['team_id']
+            cached_by_game.setdefault(gid, {})[tid] = {
+                'points':   row.get('points')   or 0,
+                'rebounds': row.get('rebounds') or 0,
+                'assists':  row.get('assists')  or 0,
+                'date':     row.get('game_date') or '',
+            }
+
+        # For each team, take last 20 games from cache and collect opponent allowed stats
         team_opp = {tid: {s: [] for s in STATS} for tid in team_ids}
-        for tid, gids in team_game_ids.items():
-            for gid in gids:
-                gs = game_stats.get(gid, {})
+        for tid in team_ids:
+            played = sorted(
+                [(gid, cached_by_game[gid][tid]['date'])
+                 for gid in cached_by_game if tid in cached_by_game[gid]],
+                key=lambda x: x[1], reverse=True
+            )[:20]
+            for gid, _ in played:
+                gs = cached_by_game[gid]
                 for opp_tid, opp_s in gs.items():
                     if opp_tid != tid:
                         for s in STATS:
                             team_opp[tid][s].append(opp_s[s])
                         break
 
-        # Step 5 — Averages + league ranks (0.0 = best defense, 1.0 = worst)
+        # ── Step 7: Compute ranks + upsert team_defense ───────────────────────
         team_avgs = {tid: {} for tid in team_ids}
         for s in STATS:
             avgs = {tid: sum(team_opp[tid][s]) / len(team_opp[tid][s])
@@ -2245,26 +2325,25 @@ RULES:
             if not avgs:
                 continue
             league_avg = sum(avgs.values()) / len(avgs)
-            ranked = sorted(avgs, key=lambda t: avgs[t])  # best (lowest) → worst (highest)
+            ranked = sorted(avgs, key=lambda t: avgs[t])
             n = len(ranked)
-            for i, tid in enumerate(ranked):
-                team_avgs[tid][s] = {
-                    'avg':      round(avgs[tid], 2),
-                    'league':   round(league_avg, 2),
-                    'rank':     round(i / (n - 1), 3) if n > 1 else 0.5,
-                    'games':    len(team_opp[tid][s]),
+            for i, t in enumerate(ranked):
+                team_avgs[t][s] = {
+                    'avg':    round(avgs[t], 2),
+                    'league': round(league_avg, 2),
+                    'rank':   round(i / (n - 1), 3) if n > 1 else 0.5,
+                    'games':  len(team_opp[t][s]),
                 }
 
-        # Step 6 — Upsert to Supabase
         now_str = datetime.now(_tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        rows = []
+        def_rows = []
         for tid in team_ids:
             info = team_info[tid]
             for s in STATS:
                 d = team_avgs[tid].get(s)
                 if not d:
                     continue
-                rows.append({
+                def_rows.append({
                     "team_id":    tid,
                     "team_name":  info['name'],
                     "team_code":  info['code'],
@@ -2276,19 +2355,22 @@ RULES:
                     "updated_at": now_str,
                 })
 
-        if rows and SUPABASE_URL and SUPABASE_KEY:
+        if def_rows and SUPABASE_URL and SUPABASE_KEY:
             requests.post(
                 f"{SUPABASE_URL}/rest/v1/team_defense?on_conflict=team_id,stat",
                 headers={**sb_headers, "Content-Type": "application/json",
                          "Prefer": "resolution=merge-duplicates"},
-                json=rows, timeout=15,
+                json=def_rows, timeout=15,
             )
 
         self._send_json(200, {
-            "success":       True,
-            "teams":         len(team_ids),
-            "unique_games":  len(all_game_ids),
-            "rows_upserted": len(rows),
+            "success":               True,
+            "teams":                 len(team_ids),
+            "total_known_games":     len(all_game_ids),
+            "already_cached":        len(existing_ids),
+            "new_games_fetched":     len(new_game_stats),
+            "cache_rows_inserted":   len(cache_rows),
+            "defense_rows_upserted": len(def_rows),
         })
 
     def _handle_resolve_debug(self, requests, query_params):
