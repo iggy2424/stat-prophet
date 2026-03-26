@@ -2226,22 +2226,11 @@ RULES:
             "roi":       round(lt_pnl / (resolved * 100), 3) if resolved else 0,
         }
 
-        # Date range: full month if requested, else last 7 days
-        month_param = (query_params or {}).get('month', [None])
-        month_param = month_param[0] if isinstance(month_param, list) else month_param
+        # Fetch all history (no date limit)
         try:
-            if month_param:
-                from calendar import monthrange as _mr
-                y, m = int(month_param[:4]), int(month_param[5:7])
-                first_day = f"{y:04d}-{m:02d}-01"
-                last_day  = f"{y:04d}-{m:02d}-{_mr(y, m)[1]:02d}"
-                date_filter = f"pick_date=gte.{first_day}&pick_date=lte.{last_day}"
-            else:
-                seven_days_ago = (now_utc - timedelta(days=7)).strftime('%Y-%m-%d')
-                date_filter = f"pick_date=gte.{seven_days_ago}"
             dr = requests.get(
-                f"{SUPABASE_URL}/rest/v1/pick_history?select=*&{date_filter}&order=pick_date.desc,created_at.desc",
-                headers=sb_headers, timeout=5,
+                f"{SUPABASE_URL}/rest/v1/pick_history?select=*&order=pick_date.desc,created_at.desc",
+                headers=sb_headers, timeout=10,
             )
             day_picks = dr.json() if dr.status_code == 200 else []
         except Exception:
