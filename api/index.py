@@ -2134,20 +2134,24 @@ RULES:
         except Exception:
             pending = []
 
-        now_utc = _et_now()  # ET-aware current time for pick_date alignment
+        now_utc = datetime.utcnow()  # sched_dt is UTC, compare in UTC
         STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
 
         for pick in pending:
             scheduled_str = pick.get('scheduled', '')
-            if not scheduled_str:
-                continue
             try:
                 sched_dt = datetime.fromisoformat(
-                    scheduled_str.replace('Z', '').replace('+00:00', ''))
+                    scheduled_str.replace('Z', '').replace('+00:00', '')) if scheduled_str else None
             except Exception:
-                continue
-            if (now_utc - sched_dt).total_seconds() < 3 * 3600:
-                continue  # game likely not finished yet
+                sched_dt = None
+            # Skip if game likely not finished — needs scheduled OR pick_date fallback
+            if sched_dt is not None:
+                if (now_utc - sched_dt).total_seconds() < 3 * 3600:
+                    continue
+            else:
+                # No scheduled time — use pick_date; skip if today ET
+                if pick.get('pick_date', '') >= _et_now().strftime('%Y-%m-%d'):
+                    continue
 
             api_id = self._resolve_api_sports_id(requests, pick['player_name'], None)
             if not api_id:
@@ -2163,15 +2167,25 @@ RULES:
                 stat_field = STAT_FIELD.get(pick['stat'])
                 actual = None
                 target_gid = int(pick['game_id']) if pick.get('game_id') is not None else None
+                # Date fallback: if no game_id, match by scheduled date
+                sched_date = sched_dt.strftime('%Y-%m-%d') if sched_dt else pick.get('pick_date', '')
                 for entry in sr.json().get('response', []):
                     entry_gid = (entry.get('game') or {}).get('id')
-                    if target_gid is not None and entry_gid is not None and int(entry_gid) == target_gid:
-                        val = entry.get(stat_field)
-                        try:
-                            actual = float(val)
-                        except Exception:
-                            pass
-                        break
+                    if target_gid is not None:
+                        # Primary: match by game ID
+                        if entry_gid is None or int(entry_gid) != target_gid:
+                            continue
+                    else:
+                        # Fallback: match by date
+                        entry_date = str((entry.get('game') or {}).get('date', ''))[:10]
+                        if entry_date != sched_date:
+                            continue
+                    val = entry.get(stat_field)
+                    try:
+                        actual = float(val)
+                    except Exception:
+                        pass
+                    break
                 if actual is None:
                     continue
                 result = 'win' if actual > float(pick['line']) else 'loss'
