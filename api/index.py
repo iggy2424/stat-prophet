@@ -2236,6 +2236,15 @@ RULES:
         except Exception:
             day_picks = []
 
+        # Drop pending picks older than yesterday ET — they will never resolve
+        et_today_str     = _et_now().strftime('%Y-%m-%d')
+        et_yesterday_str = (_et_now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        day_picks = [
+            p for p in day_picks
+            if p.get('result') is not None
+            or p.get('pick_date', '') >= et_yesterday_str
+        ]
+
         # Group by date
         from collections import OrderedDict
         days_map = OrderedDict()
