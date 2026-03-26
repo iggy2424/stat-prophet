@@ -2134,7 +2134,8 @@ RULES:
         except Exception:
             pending = []
 
-        now_utc = datetime.utcnow()  # sched_dt is UTC, compare in UTC
+        from datetime import timezone as _tz
+        now_utc = datetime.now(_tz.utc).replace(tzinfo=None)  # naive UTC, matches sched_dt
         STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
 
         for pick in pending:
