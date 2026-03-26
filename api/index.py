@@ -2082,6 +2082,12 @@ RULES:
         if avg_last10 <= line:               return None
         if avg_mins < 20:                    return None
 
+        # Last-3 micro-gate: recent form must show ≥2/3 hits
+        last3_vals = last10_vals[-3:]
+        if len(last3_vals) >= 3:
+            last3_hits = sum(1 for v in last3_vals if v > line)
+            if last3_hits < 2:               return None  # cold streak = kill
+
         # ── Pillar 1: Consistency ─────────────────────────────────────────────
         hit_count = sum(1 for v in last10_vals if v > line)
         hit_rate  = hit_count / games_played
