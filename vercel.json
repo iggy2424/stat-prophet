@@ -11,5 +11,11 @@
     { "src": "/api/(.*)",     "dest": "/api/index.py" },
     { "src": "/login",        "dest": "/frontend/login.html" },
     { "src": "/(.*)",         "dest": "/frontend/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api?type=refresh_defense&secret=trendbet-cron",
+      "schedule": "0 10 * * *"
+    }
   ]
 }

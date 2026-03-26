@@ -243,6 +243,15 @@ class handler(BaseHTTPRequestHandler):
             self._handle_resolve_debug(requests, query_params or {})
             return
 
+        if data_type == 'refresh_defense':
+            secret = (query_params or {}).get('secret', [None])
+            secret = secret[0] if isinstance(secret, list) else secret
+            if secret != os.environ.get('CRON_SECRET', 'trendbet-cron'):
+                self._send_json(403, {"error": "forbidden"})
+                return
+            self._handle_refresh_defense(requests)
+            return
+
         headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -1608,6 +1617,21 @@ RULES:
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
         }
+        # ── Load team defensive cache (used in Pillar 2 when no H2H data) ────────
+        team_def_map = {}  # {team_name_lower: {stat: def_rank}}
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                dr = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/team_defense?select=team_name,stat,def_rank",
+                    headers=sb_headers, timeout=5,
+                )
+                if dr.status_code == 200:
+                    for row in dr.json():
+                        key = (row.get('team_name') or '').lower()
+                        team_def_map.setdefault(key, {})[row['stat']] = row['def_rank']
+            except Exception:
+                pass
+
         old_data = None   # stale cached picks for merging
         if SUPABASE_URL and SUPABASE_KEY:
             try:
@@ -1911,7 +1935,7 @@ RULES:
                             scored = self._score_pick(
                                 values_all, try_line, stat_name,
                                 last10_gids, game_opp_map,
-                                opponent, pdata['mins']
+                                opponent, pdata['mins'], team_def_map
                             )
                             if scored:
                                 score, tier, details = scored
@@ -2027,7 +2051,7 @@ RULES:
         self._send_json(200, result)
 
     def _score_pick(self, values_all, line, stat, last10_gids,
-                    game_opp_map, opponent_name, mins_by_gid):
+                    game_opp_map, opponent_name, mins_by_gid, team_def_map=None):
         """
         Run Stage 1 (hard gates) + Stage 2 (3-pillar scoring) for one player/stat/line.
         values_all  = [(game_id, float), ...] full season entries
@@ -2087,7 +2111,20 @@ RULES:
         elif n_opp >= 1:
             p2 = 18 if opp_hr >= 0.50 else 12
         else:
-            p2 = 20  # no H2H — true neutral (team def rank: Phase 2)
+            # No H2H — use team defensive rank if available, else neutral
+            def_rank = None
+            if team_def_map:
+                opp_l = opponent_name.lower()
+                for key, stats in team_def_map.items():
+                    if key in opp_l or opp_l in key or any(w in key for w in opp_l.split() if len(w) > 3):
+                        def_rank = stats.get(stat)
+                        break
+            if def_rank is not None:
+                if   def_rank >= 0.70: p2 = 25   # weak defense — boost confidence
+                elif def_rank >= 0.40: p2 = 20   # average
+                else:                  p2 = 14   # strong defense — reduce confidence
+            else:
+                p2 = 20  # no cache data — neutral
 
         # ── Pillar 3: Recency Trend ───────────────────────────────────────────
         mid      = len(last10_vals) // 2
@@ -2132,6 +2169,126 @@ RULES:
             'vs_opp_games':    n_opp,
             'vs_opp_hit_rate': round(opp_hr, 3) if opp_hr is not None else None,
             'trend':           trend,
+        })
+
+    def _handle_refresh_defense(self, requests):
+        """
+        Rebuild team defensive cache from last 20 games per team.
+        Stores avg points/rebounds/assists ALLOWED per game + defensive rank.
+        Called by cron daily at 6am ET via ?type=refresh_defense&secret=...
+        """
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import timezone as _tz
+
+        sb_headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        as_headers = {"x-apisports-key": AS_KEY}
+        STATS = ['points', 'rebounds', 'assists']
+        STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
+
+        # Step 1 — All active NBA franchise teams
+        tr = requests.get("https://v2.nba.api-sports.io/teams?league=standard",
+                          headers=as_headers, timeout=10)
+        all_teams = [t for t in tr.json().get('response', []) if t.get('nbaFranchise')]
+        team_info = {t['id']: {'name': t.get('name', ''), 'code': t.get('code', '')}
+                     for t in all_teams}
+        team_ids = list(team_info.keys())
+
+        # Step 2 — Last 20 finished games per team (parallel, 8 workers)
+        def fetch_team_games(tid):
+            r = requests.get("https://v2.nba.api-sports.io/games",
+                             params={"team": tid, "season": 2025},
+                             headers=as_headers, timeout=8)
+            finished = [g for g in r.json().get('response', [])
+                        if (g.get('status') or {}).get('short') == 3]
+            finished.sort(key=lambda g: g.get('date', ''))
+            return tid, [g['id'] for g in finished[-20:]]
+
+        team_game_ids = {}
+        all_game_ids  = set()
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for tid, gids in ex.map(fetch_team_games, team_ids):
+                team_game_ids[tid] = gids
+                all_game_ids.update(gids)
+
+        # Step 3 — Game stats for all unique games (parallel, 10 workers)
+        def fetch_game_stats(gid):
+            r = requests.get("https://v2.nba.api-sports.io/games/statistics",
+                             params={"id": gid}, headers=as_headers, timeout=8)
+            result = {}
+            for entry in r.json().get('response', []):
+                tid  = entry['team']['id']
+                s    = (entry.get('statistics') or [{}])[0]
+                result[tid] = {st: int(s.get(STAT_FIELD[st]) or 0) for st in STATS}
+            return gid, result
+
+        game_stats = {}
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            for gid, gs in ex.map(fetch_game_stats, list(all_game_ids)):
+                game_stats[gid] = gs
+
+        # Step 4 — Build opponent-allowed lists per team per stat
+        team_opp = {tid: {s: [] for s in STATS} for tid in team_ids}
+        for tid, gids in team_game_ids.items():
+            for gid in gids:
+                gs = game_stats.get(gid, {})
+                for opp_tid, opp_s in gs.items():
+                    if opp_tid != tid:
+                        for s in STATS:
+                            team_opp[tid][s].append(opp_s[s])
+                        break
+
+        # Step 5 — Averages + league ranks (0.0 = best defense, 1.0 = worst)
+        team_avgs = {tid: {} for tid in team_ids}
+        for s in STATS:
+            avgs = {tid: sum(team_opp[tid][s]) / len(team_opp[tid][s])
+                    for tid in team_ids if team_opp[tid][s]}
+            if not avgs:
+                continue
+            league_avg = sum(avgs.values()) / len(avgs)
+            ranked = sorted(avgs, key=lambda t: avgs[t])  # best (lowest) → worst (highest)
+            n = len(ranked)
+            for i, tid in enumerate(ranked):
+                team_avgs[tid][s] = {
+                    'avg':      round(avgs[tid], 2),
+                    'league':   round(league_avg, 2),
+                    'rank':     round(i / (n - 1), 3) if n > 1 else 0.5,
+                    'games':    len(team_opp[tid][s]),
+                }
+
+        # Step 6 — Upsert to Supabase
+        now_str = datetime.now(_tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        rows = []
+        for tid in team_ids:
+            info = team_info[tid]
+            for s in STATS:
+                d = team_avgs[tid].get(s)
+                if not d:
+                    continue
+                rows.append({
+                    "team_id":    tid,
+                    "team_name":  info['name'],
+                    "team_code":  info['code'],
+                    "stat":       s,
+                    "avg_allowed": d['avg'],
+                    "league_avg": d['league'],
+                    "def_rank":   d['rank'],
+                    "games_used": d['games'],
+                    "updated_at": now_str,
+                })
+
+        if rows and SUPABASE_URL and SUPABASE_KEY:
+            requests.post(
+                f"{SUPABASE_URL}/rest/v1/team_defense?on_conflict=team_id,stat",
+                headers={**sb_headers, "Content-Type": "application/json",
+                         "Prefer": "resolution=merge-duplicates"},
+                json=rows, timeout=15,
+            )
+
+        self._send_json(200, {
+            "success":       True,
+            "teams":         len(team_ids),
+            "unique_games":  len(all_game_ids),
+            "rows_upserted": len(rows),
         })
 
     def _handle_resolve_debug(self, requests, query_params):
