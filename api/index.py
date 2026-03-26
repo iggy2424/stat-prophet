@@ -9,6 +9,40 @@ import unicodedata
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 
+# ── ET timezone helpers (DST-aware) ──────────────────────────────────────────
+def _dst_offset(utc_dt):
+    """Return ET UTC offset (-4 EDT or -5 EST) for a naive UTC datetime."""
+    y = utc_dt.year
+    # 2nd Sunday of March at 2:00 AM UTC → DST starts
+    mar1 = datetime(y, 3, 1, 2, 0)
+    dst_start = mar1 + timedelta(days=(6 - mar1.weekday()) % 7 + 7)
+    # 1st Sunday of November at 2:00 AM UTC → DST ends
+    nov1 = datetime(y, 11, 1, 2, 0)
+    dst_end = nov1 + timedelta(days=(6 - nov1.weekday()) % 7)
+    return -4 if dst_start <= utc_dt < dst_end else -5
+
+def _et_now():
+    """Return current datetime in ET (naive, DST-aware)."""
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timezone as _tz
+        return datetime.now(ZoneInfo('America/New_York')).replace(tzinfo=None)
+    except Exception:
+        now = datetime.utcnow()
+        return now + timedelta(hours=_dst_offset(now))
+
+def _utc_to_et_date(utc_dt):
+    """Convert a UTC-aware or naive datetime to ET date string (DST-aware)."""
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timezone as _tz
+        if utc_dt.tzinfo is None:
+            utc_dt = utc_dt.replace(tzinfo=_tz.utc)
+        return utc_dt.astimezone(ZoneInfo('America/New_York')).strftime('%Y-%m-%d')
+    except Exception:
+        naive = utc_dt.replace(tzinfo=None) if utc_dt.tzinfo else utc_dt
+        return (naive + timedelta(hours=_dst_offset(naive))).strftime('%Y-%m-%d')
+
 # ── Session verification ─────────────────────────────────────────────────────
 _JWT_SECRET   = (os.environ.get("JWT_SECRET") or "").encode()
 _COOKIE_NAME  = "whop_session"
@@ -1542,8 +1576,7 @@ RULES:
         from concurrent.futures import ThreadPoolExecutor
 
         # ── Today's ET date (canonical date for all picks logic) ─────────────
-        from datetime import timezone
-        et_today = (datetime.now(timezone.utc) - timedelta(hours=5)).strftime('%Y-%m-%d')
+        et_today = _et_now().strftime('%Y-%m-%d')
 
         # ── Supabase shared cache (2 hours, same ET date only) ────────────────
         _AI_PICKS_TTL_HOURS = 2
@@ -1563,7 +1596,7 @@ RULES:
                     if rows:
                         cached_at = datetime.fromisoformat(rows[0]['cached_at'].replace('Z', '+00:00'))
                         age_hours = (datetime.now(timezone.utc) - cached_at).total_seconds() / 3600
-                        cached_et_date = (cached_at - timedelta(hours=5)).strftime('%Y-%m-%d')
+                        cached_et_date = _utc_to_et_date(cached_at)
                         if age_hours < _AI_PICKS_TTL_HOURS and cached_et_date == et_today:
                             # If any scheduled game has no odds yet, recompute so we pick up
                             # props that went live after the cache was written.
@@ -2101,7 +2134,7 @@ RULES:
         except Exception:
             pending = []
 
-        now_utc = datetime.utcnow() - timedelta(hours=5)  # use ET for pick_date alignment
+        now_utc = _et_now()  # ET-aware current time for pick_date alignment
         STAT_FIELD = {'points': 'points', 'rebounds': 'totReb', 'assists': 'assists'}
 
         for pick in pending:

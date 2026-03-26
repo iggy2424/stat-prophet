@@ -183,14 +183,15 @@ function Dashboard({ setCurrentPage, navigateToAnalyzer }) {
     if (!scheduled) return 'TBD';
     try {
       const d = new Date(scheduled);
-      const now = new Date();
-      const todayStr = now.toDateString();
-      const tmrStr = new Date(now.getTime() + 86400000).toDateString();
-      const dStr = d.toDateString();
-      const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      if (dStr === todayStr) return `TODAY  ${t}`;
-      if (dStr === tmrStr) return `TOMORROW  ${t}`;
-      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase() + `  ${t}`;
+      const ET = { timeZone: 'America/New_York' };
+      const t = d.toLocaleTimeString('en-US', { ...ET, hour: 'numeric', minute: '2-digit', hour12: true });
+      const dEt  = d.toLocaleDateString('en-US', { ...ET, year: 'numeric', month: '2-digit', day: '2-digit' });
+      const now  = new Date();
+      const todayEt = now.toLocaleDateString('en-US', { ...ET, year: 'numeric', month: '2-digit', day: '2-digit' });
+      const tmrEt   = new Date(now.getTime() + 86400000).toLocaleDateString('en-US', { ...ET, year: 'numeric', month: '2-digit', day: '2-digit' });
+      if (dEt === todayEt) return `TODAY  ${t} ET`;
+      if (dEt === tmrEt)   return `TOMORROW  ${t} ET`;
+      return d.toLocaleDateString('en-US', { ...ET, weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase() + `  ${t} ET`;
     } catch { return 'TBD'; }
   };
 
@@ -723,10 +724,16 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
   const gamesWithPicks = games.filter(g => g.picks.length > 0).length;
   const visibleGames   = filter === 'picks' ? games.filter(g => g.picks.length > 0) : games;
 
+  const etTodayLabel = (() => {
+    const ET = { timeZone: 'America/New_York' };
+    return new Date().toLocaleDateString('en-US', { ...ET, weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase() + ' ET';
+  })();
+
   return (
     <div>
       {/* ── Page title ── */}
-      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 6px' }}>TODAY'S PICKS</h1>
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '30px', letterSpacing: '4px', color: '#fff', margin: '0 0 2px' }}>TODAY'S PICKS</h1>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1.5px', marginBottom: '6px' }}>{etTodayLabel}</div>
       <div style={{ height: '2px', width: '36px', background: 'linear-gradient(90deg, #33cc33, transparent)', marginBottom: '20px' }} />
 
       {/* ── Stats bar ── */}
@@ -808,7 +815,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
         {visibleGames.map(game => {
           const isLive = game.status === 'inprogress';
           const gameTime = (() => {
-            try { return new Date(game.scheduled).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); }
+            try { return new Date(game.scheduled).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true }) + ' ET'; }
             catch { return ''; }
           })();
 
@@ -1393,8 +1400,9 @@ function PickHistoryPage({ isMobile }) {
   const fmtOdds = o => o == null ? '—' : (o > 0 ? `+${o}` : `${o}`);
   const fmtDate = d => {
     try {
+      // Parse as ET noon — d is already an ET date from DB
       const dt = new Date(d + 'T12:00:00');
-      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+      return dt.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
     } catch { return d; }
   };
 
