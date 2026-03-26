@@ -2200,7 +2200,7 @@ RULES:
                              headers=as_headers, timeout=8)
             finished = [g for g in r.json().get('response', [])
                         if (g.get('status') or {}).get('short') == 3]
-            finished.sort(key=lambda g: g.get('date', ''))
+            finished.sort(key=lambda g: (g.get('date') or {}).get('start', ''))
             return tid, [g['id'] for g in finished[-20:]]
 
         team_game_ids = {}
