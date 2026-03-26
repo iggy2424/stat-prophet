@@ -1453,6 +1453,60 @@ function PickHistoryPage({ isMobile }) {
         ))}
       </div>
 
+      {/* 7-day rolling P&L bar chart */}
+      {(() => {
+        const last7 = [...daily].slice(0, 7).reverse();
+        if (last7.length === 0) return null;
+        const days7 = last7.map(day => ({
+          date:    day.date,
+          pnl:     day.picks.reduce((s, p) => s + (p.pnl || 0), 0),
+          won:     day.picks.filter(p => p.result === 'win').length,
+          lost:    day.picks.filter(p => p.result === 'loss').length,
+          pending: day.picks.filter(p => !p.result).length,
+        }));
+        const maxAbs = Math.max(...days7.map(d => Math.abs(d.pnl)), 1);
+        const BAR_H  = 90;
+        return (
+          <div style={{ marginBottom: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '20px 16px 14px' }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '2px', color: '#444', marginBottom: '14px' }}>7-DAY ROLLING P&L</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: isMobile ? '4px' : '8px', height: `${BAR_H + 44}px`, position: 'relative' }}>
+              {/* Zero baseline */}
+              <div style={{ position: 'absolute', bottom: '28px', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+              {days7.map(d => {
+                const hasResolved = d.won + d.lost > 0;
+                const isPos  = d.pnl >= 0;
+                const barH   = hasResolved ? Math.max(5, Math.round(Math.abs(d.pnl) / maxAbs * BAR_H)) : 5;
+                const color  = !hasResolved ? 'rgba(255,255,255,0.08)' : isPos ? '#33cc33' : '#ff4444';
+                const dt     = new Date(d.date + 'T12:00:00');
+                const dayLbl = dt.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' }).toUpperCase();
+                const dateLbl= dt.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric', month: 'short' }).toUpperCase();
+                return (
+                  <div key={d.date}
+                    onClick={() => { setHistView('history'); setExpanded(e => ({ ...e, [d.date]: true })); }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', cursor: hasResolved ? 'pointer' : 'default', gap: 0 }}>
+                    {/* P&L label */}
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: isMobile ? '7px' : '8px', color, marginBottom: '4px', whiteSpace: 'nowrap', minHeight: '12px', textAlign: 'center' }}>
+                      {hasResolved ? `${isPos ? '+' : ''}${d.pnl.toFixed(0)}` : ''}
+                    </div>
+                    {/* Bar */}
+                    <div
+                      onMouseEnter={e => { if (hasResolved) e.currentTarget.style.filter = 'brightness(1.3)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                      style={{ width: '100%', height: `${barH}px`, background: color, borderRadius: '3px 3px 0 0', transition: 'filter 0.15s' }}
+                    />
+                    {/* Date labels */}
+                    <div style={{ marginTop: '6px', textAlign: 'center' }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: isMobile ? '6px' : '8px', color: '#666', letterSpacing: '0.5px' }}>{dayLbl}</div>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: isMobile ? '5px' : '7px', color: '#3a3a3a' }}>{dateLbl}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* View toggle */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '4px', width: 'fit-content' }}>
         {['HISTORY', 'CALENDAR'].map(v => {
