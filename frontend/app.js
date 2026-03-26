@@ -1379,6 +1379,10 @@ function PickHistoryPage({ isMobile }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError]     = React.useState(null);
   const [expanded, setExpanded] = React.useState({});
+  const [histView, setHistView] = React.useState('history');
+  const [calMonth, setCalMonth] = React.useState(() => {
+    const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() };
+  });
 
   React.useEffect(() => {
     (async () => {
@@ -1449,8 +1453,129 @@ function PickHistoryPage({ isMobile }) {
         ))}
       </div>
 
+      {/* View toggle */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '4px', width: 'fit-content' }}>
+        {['HISTORY', 'CALENDAR'].map(v => {
+          const active = histView === v.toLowerCase();
+          return (
+            <button key={v} onClick={() => setHistView(v.toLowerCase())} style={{
+              fontFamily: "'Space Mono', monospace", fontSize: '10px', letterSpacing: '2px',
+              color: active ? '#000' : '#555', background: active ? '#33cc33' : 'transparent',
+              border: 'none', borderRadius: '6px', padding: '8px 20px', cursor: 'pointer', transition: 'all 0.15s'
+            }}>{v}</button>
+          );
+        })}
+      </div>
+
+      {/* Calendar view */}
+      {histView === 'calendar' && (() => {
+        // Build day map from daily data
+        const dayMap = {};
+        daily.forEach(day => {
+          const won     = day.picks.filter(p => p.result === 'win').length;
+          const lost    = day.picks.filter(p => p.result === 'loss').length;
+          const pending = day.picks.filter(p => !p.result).length;
+          const pnl     = day.picks.reduce((s, p) => s + (p.pnl || 0), 0);
+          dayMap[day.date] = { won, lost, pending, pnl, total: day.picks.length };
+        });
+
+        const { year, month } = calMonth;
+        const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthName = new Date(year, month, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+
+        // Max abs pnl for intensity scaling
+        const allPnls = Object.values(dayMap).map(d => Math.abs(d.pnl)).filter(Boolean);
+        const maxPnl = allPnls.length ? Math.max(...allPnls) : 100;
+
+        const cells = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+        const pad = n => String(n).padStart(2, '0');
+        const dateStr = d => `${year}-${pad(month + 1)}-${pad(d)}`;
+
+        return (
+          <div style={{ marginBottom: '32px' }}>
+            {/* Month nav */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <button onClick={() => setCalMonth(({ year: y, month: m }) => m === 0 ? { year: y-1, month: 11 } : { year: y, month: m-1 })}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#888', fontSize: '14px', cursor: 'pointer', padding: '6px 14px' }}>←</button>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '3px', color: '#fff' }}>{monthName}</span>
+              <button onClick={() => setCalMonth(({ year: y, month: m }) => m === 11 ? { year: y+1, month: 0 } : { year: y, month: m+1 })}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#888', fontSize: '14px', cursor: 'pointer', padding: '6px 14px' }}>→</button>
+            </div>
+
+            {/* Day-of-week headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '4px' }}>
+              {['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d => (
+                <div key={d} style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', letterSpacing: '1px', color: '#444', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {cells.map((day, i) => {
+                if (!day) return <div key={`e${i}`} />;
+                const ds   = dateStr(day);
+                const info = dayMap[ds];
+                const hasPicks = info && info.total > 0;
+                const hasResolved = info && (info.won + info.lost) > 0;
+                const pnl  = info?.pnl || 0;
+                const isPos = pnl > 0;
+                const intensity = hasPicks && hasResolved ? Math.min(0.85, 0.2 + 0.65 * (Math.abs(pnl) / maxPnl)) : 0;
+                const bg = !hasPicks
+                  ? 'rgba(255,255,255,0.02)'
+                  : !hasResolved
+                  ? 'rgba(255,200,0,0.06)'
+                  : isPos
+                  ? `rgba(51,204,51,${intensity})`
+                  : `rgba(255,68,68,${intensity})`;
+                const textColor = hasPicks && hasResolved
+                  ? (intensity > 0.45 ? '#000' : isPos ? '#33cc33' : '#ff4444')
+                  : '#555';
+
+                return (
+                  <div key={ds} style={{
+                    background: bg, borderRadius: '6px', padding: isMobile ? '8px 4px' : '10px 8px',
+                    minHeight: isMobile ? '60px' : '72px',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    border: '1px solid rgba(255,255,255,0.04)', position: 'relative'
+                  }}>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: hasPicks ? (intensity > 0.45 ? '#00000088' : '#666') : '#333', alignSelf: 'flex-end' }}>{day}</span>
+                    {hasPicks && hasResolved && (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? '14px' : '17px', letterSpacing: '1px', color: textColor, lineHeight: 1 }}>
+                          {isPos ? '+' : ''}{pnl >= 0 ? pnl.toFixed(0) : `-${Math.abs(pnl).toFixed(0)}`}
+                        </div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: intensity > 0.45 ? '#00000066' : '#555', marginTop: '2px' }}>
+                          {info.won}W {info.lost}L{info.pending > 0 ? ` ${info.pending}P` : ''}
+                        </div>
+                      </div>
+                    )}
+                    {hasPicks && !hasResolved && (
+                      <div style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#ffc800', letterSpacing: '0.5px' }}>{info.pending} PENDING</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '16px', marginTop: '12px', justifyContent: 'center' }}>
+              {[['rgba(51,204,51,0.6)', 'PROFIT'], ['rgba(255,68,68,0.6)', 'LOSS'], ['rgba(255,200,0,0.12)', 'PENDING'], ['rgba(255,255,255,0.02)', 'NO PICKS']].map(([color, label]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color, border: '1px solid rgba(255,255,255,0.08)' }} />
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '7px', color: '#444', letterSpacing: '1px' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Daily sections */}
-      {daily.length === 0 ? (
+      {histView === 'history' && (daily.length === 0 ? (
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '48px', textAlign: 'center' }}>
           <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', color: '#444', letterSpacing: '1px' }}>No pick history yet</p>
         </div>
@@ -1556,7 +1681,7 @@ function PickHistoryPage({ isMobile }) {
             )}
           </div>
         );
-      })}
+      }))}
     </div>
   );
 }
