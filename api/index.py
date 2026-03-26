@@ -982,9 +982,30 @@ IMPORTANT RULES:
         pl_lower    = player_name.lower().strip()
         pl_ascii    = _ascii(player_name)
         pl_norm     = _ascii(name_norm)   # suffix-stripped ascii for loose matching
+        # Hyphen-normalised versions for players like "Alexander-Walker"
+        pl_ascii_nh = pl_ascii.replace('-', ' ')
+        pl_norm_nh  = pl_norm.replace('-', ' ')
+
+        def _name_matches_entry(p):
+            full      = (p.get('firstname', '') + ' ' + p.get('lastname', '')).lower().strip()
+            full_asc  = _ascii(full)
+            full_norm = _ascii(_strip_suffix(full))
+            return (
+                full == pl_lower
+                or full_asc == pl_ascii
+                or full_norm == pl_norm
+                # hyphen-normalised comparisons (e.g. "Alexander Walker" == "alexander-walker")
+                or full_asc.replace('-', ' ') == pl_ascii_nh
+                or full_norm.replace('-', ' ') == pl_norm_nh
+            )
+
+        # Build search terms: also try part after hyphen for hyphenated last names
+        search_terms = [last_ascii, first_ascii]
+        if '-' in last_ascii:
+            search_terms.append(last_ascii.split('-')[-1])  # e.g. "walker"
 
         candidate_ids = []
-        for search_term in filter(None, [last_ascii, first_ascii]):
+        for search_term in filter(None, search_terms):
             try:
                 r = requests.get(
                     "https://v2.nba.api-sports.io/players",
@@ -993,9 +1014,7 @@ IMPORTANT RULES:
                     timeout=6
                 )
                 for p in r.json().get('response', []):
-                    full = (p.get('firstname', '') + ' ' + p.get('lastname', '')).lower().strip()
-                    full_norm = _ascii(_strip_suffix(full))
-                    if (full == pl_lower or _ascii(full) == pl_ascii or full_norm == pl_norm) and p['id'] not in candidate_ids:
+                    if _name_matches_entry(p) and p['id'] not in candidate_ids:
                         candidate_ids.append(p['id'])
             except Exception:
                 pass
@@ -1009,7 +1028,8 @@ IMPORTANT RULES:
                     timeout=6
                 )
                 for p in r.json().get('response', []):
-                    if _ascii(p.get('lastname', '')) == last_ascii and p['id'] not in candidate_ids:
+                    last_asc = _ascii(p.get('lastname', ''))
+                    if (last_asc == last_ascii or last_asc.replace('-', ' ') == last_ascii.replace('-', ' ')) and p['id'] not in candidate_ids:
                         candidate_ids.append(p['id'])
             except Exception:
                 pass
