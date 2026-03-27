@@ -2082,12 +2082,6 @@ RULES:
         if avg_last10 <= line:               return None
         if avg_mins < 20:                    return None
 
-        # Last-3 micro-gate: recent form must show ≥2/3 hits
-        last3_vals = last10_vals[-3:]
-        if len(last3_vals) >= 3:
-            last3_hits = sum(1 for v in last3_vals if v > line)
-            if last3_hits < 2:               return None  # cold streak = kill
-
         # Volatility gate: CV (std dev / avg) too high = too unpredictable
         CV_MAX = {'points': 0.35, 'rebounds': 0.40, 'assists': 0.45}
         if games_played >= 5:
