@@ -1612,7 +1612,7 @@ RULES:
         et_today = _et_now().strftime('%Y-%m-%d')
 
         # ── Supabase shared cache (2 hours, same ET date only) ────────────────
-        _AI_PICKS_TTL_HOURS = 2
+        _AI_PICKS_TTL_HOURS = 1
         sb_headers = {
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -1632,7 +1632,6 @@ RULES:
             except Exception:
                 pass
 
-        old_data = None   # stale cached picks for merging
         if SUPABASE_URL and SUPABASE_KEY:
             try:
                 cr = requests.get(
@@ -1646,19 +1645,8 @@ RULES:
                         age_hours = (datetime.now(timezone.utc) - cached_at).total_seconds() / 3600
                         cached_et_date = _utc_to_et_date(cached_at)
                         if age_hours < _AI_PICKS_TTL_HOURS and cached_et_date == et_today:
-                            # If any scheduled game has no odds yet, recompute so we pick up
-                            # props that went live after the cache was written.
-                            cached_games = (rows[0]['data'] or {}).get('games', [])
-                            has_missing_odds = any(
-                                not g.get('has_odds_event') and g.get('status') == 'scheduled'
-                                for g in cached_games
-                            )
-                            if not has_missing_odds:
-                                self._send_json(200, rows[0]['data'])
-                                return
-                        # Cache stale or from a different day — save for merging only if same ET date
-                        if cached_et_date == et_today:
-                            old_data = rows[0]['data']
+                            self._send_json(200, rows[0]['data'])
+                            return
             except Exception:
                 pass
 
@@ -1981,51 +1969,16 @@ RULES:
                 'picks':          game_picks[:6],
             })
 
-        # ── Merge with previous cycle's picks ────────────────────────────────
-        # Merge is scoped by game_id — finished games are excluded from _fetch_nba,
-        # so once all today's games finish, tomorrow's new game_ids won't match and
-        # the merge naturally produces zero carry-overs (automatic reset).
-        if old_data:
-            old_games = {g['game_id']: g for g in old_data.get('games', [])}
-            for game in output:
-                old_game = old_games.get(game['game_id'])
-                if not old_game:
-                    continue
-                # Union picks — dedup by (name, stat), prefer higher score
-                existing = {(p['name'], p['stat']): p for p in game['picks']}
-                for old_pick in old_game.get('picks', []):
-                    key = (old_pick['name'], old_pick['stat'])
-                    if key not in existing or old_pick['score'] > existing[key]['score']:
-                        existing[key] = old_pick
-                game['picks'] = sorted(existing.values(), key=lambda x: x['score'], reverse=True)[:10]
-
-        result = {"success": True, "games": output}
-
-        # ── Write cache FIRST (highest priority) ──────────────────────────────
-        # ── Write cache FIRST (highest priority) ──────────────────────────────
+        # ── Save new picks to pick_history first (insert-or-ignore preserves original odds) ─
         if SUPABASE_URL and SUPABASE_KEY:
             try:
-                requests.patch(
-                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache?id=eq.1",
-                    headers={**sb_headers, "Content-Type": "application/json"},
-                    json={"data": result,
-                          "cached_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')},
-                    timeout=8,
-                )
-            except Exception:
-                pass
-
-        # ── Save picks to pick_history (upsert every fresh compute, skip existing) ─
-        if SUPABASE_URL and SUPABASE_KEY:
-            try:
-                pick_date = et_today
                 history_rows = []
                 for game in output:
                     for pick in game['picks']:
                         is_home = pick['team_abbrev'] == pick.get('home', {}).get('alias')
                         opp = pick.get('away', {}).get('name', '') if is_home else pick.get('home', {}).get('name', '')
                         history_rows.append({
-                            "pick_date":   pick_date,
+                            "pick_date":   et_today,
                             "game_id":     pick['game_id'],
                             "player_name": pick['name'],
                             "team_abbrev": pick['team_abbrev'],
@@ -2045,6 +1998,67 @@ RULES:
                                  "Prefer": "resolution=ignore-duplicates"},
                         json=history_rows, timeout=8,
                     )
+            except Exception:
+                pass
+
+        # ── Restore picks from pick_history that dropped out of this compute ──
+        # Once a player is picked today (at any compute), they stay visible for
+        # the rest of the day with their original odds, even if odds shift later.
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                ph_resp = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/pick_history",
+                    headers=sb_headers,
+                    params={
+                        "pick_date": f"eq.{et_today}",
+                        "select": "game_id,player_name,team_abbrev,stat,line,over_odds,bookmaker,tier,score,scheduled",
+                    },
+                    timeout=5,
+                )
+                if ph_resp.status_code == 200:
+                    games_by_id = {g['game_id']: g for g in output}
+                    for row in ph_resp.json():
+                        game = games_by_id.get(row['game_id'])
+                        if not game:
+                            continue
+                        already = any(
+                            p['name'] == row['player_name'] and p['stat'] == row['stat']
+                            for p in game['picks']
+                        )
+                        if not already:
+                            is_home = row['team_abbrev'] == game.get('home', {}).get('alias')
+                            game['picks'].append({
+                                'name':        row['player_name'],
+                                'team_abbrev': row['team_abbrev'],
+                                'team_name':   game.get('home', {}).get('name', '') if is_home else game.get('away', {}).get('name', ''),
+                                'game_id':     row['game_id'],
+                                'home':        game.get('home'),
+                                'away':        game.get('away'),
+                                'scheduled':   row.get('scheduled', ''),
+                                'status':      game.get('status', 'scheduled'),
+                                'stat':        row['stat'],
+                                'line':        row['line'],
+                                'over_odds':   row.get('over_odds'),
+                                'bookmaker':   row.get('bookmaker', ''),
+                                'tier':        row.get('tier'),
+                                'score':       row.get('score'),
+                            })
+                            game['picks'].sort(key=lambda x: (x.get('score') or 0), reverse=True)
+            except Exception:
+                pass
+
+        result = {"success": True, "games": output}
+
+        # ── Write cache ────────────────────────────────────────────────────────
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                requests.patch(
+                    f"{SUPABASE_URL}/rest/v1/ai_picks_cache?id=eq.1",
+                    headers={**sb_headers, "Content-Type": "application/json"},
+                    json={"data": result,
+                          "cached_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')},
+                    timeout=8,
+                )
             except Exception:
                 pass
 
