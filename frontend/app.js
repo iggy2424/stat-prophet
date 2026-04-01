@@ -905,9 +905,9 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                         {/* Row 2: stat name + trend */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                           <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '13px', color: '#ffc800', fontWeight: 500, letterSpacing: '0.5px' }}>{statLabel}</span>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}40`, borderRadius: '20px', padding: '2px 8px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+                          {pick.trend && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: trendColor, border: `1px solid ${trendColor}40`, borderRadius: '20px', padding: '2px 8px', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
                             {trendLabel}
-                          </span>
+                          </span>}
                         </div>
 
                         {/* Row 3: OVER/UNDER box + odds/bookmaker */}

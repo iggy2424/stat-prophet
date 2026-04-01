@@ -1990,6 +1990,15 @@ RULES:
                             "tier":        pick.get('tier'),
                             "score":       pick.get('score'),
                             "scheduled":   pick.get('scheduled', ''),
+                            "details": {
+                                "avg":             pick.get('avg'),
+                                "last_5_avg":      pick.get('last_5_avg'),
+                                "hit_rate":        pick.get('hit_rate'),
+                                "games":           pick.get('games'),
+                                "trend":           pick.get('trend'),
+                                "vs_opp_games":    pick.get('vs_opp_games'),
+                                "vs_opp_hit_rate": pick.get('vs_opp_hit_rate'),
+                            },
                         })
                 if history_rows:
                     requests.post(
@@ -2011,7 +2020,7 @@ RULES:
                     headers=sb_headers,
                     params={
                         "pick_date": f"eq.{et_today}",
-                        "select": "game_id,player_name,team_abbrev,stat,line,over_odds,bookmaker,tier,score,scheduled",
+                        "select": "game_id,player_name,team_abbrev,stat,line,over_odds,bookmaker,tier,score,scheduled,details",
                     },
                     timeout=5,
                 )
@@ -2027,21 +2036,29 @@ RULES:
                         )
                         if not already:
                             is_home = row['team_abbrev'] == game.get('home', {}).get('alias')
+                            d = row.get('details') or {}
                             game['picks'].append({
-                                'name':        row['player_name'],
-                                'team_abbrev': row['team_abbrev'],
-                                'team_name':   game.get('home', {}).get('name', '') if is_home else game.get('away', {}).get('name', ''),
-                                'game_id':     row['game_id'],
-                                'home':        game.get('home'),
-                                'away':        game.get('away'),
-                                'scheduled':   row.get('scheduled', ''),
-                                'status':      game.get('status', 'scheduled'),
-                                'stat':        row['stat'],
-                                'line':        row['line'],
-                                'over_odds':   row.get('over_odds'),
-                                'bookmaker':   row.get('bookmaker', ''),
-                                'tier':        row.get('tier'),
-                                'score':       row.get('score'),
+                                'name':            row['player_name'],
+                                'team_abbrev':     row['team_abbrev'],
+                                'team_name':       game.get('home', {}).get('name', '') if is_home else game.get('away', {}).get('name', ''),
+                                'game_id':         row['game_id'],
+                                'home':            game.get('home'),
+                                'away':            game.get('away'),
+                                'scheduled':       row.get('scheduled', ''),
+                                'status':          game.get('status', 'scheduled'),
+                                'stat':            row['stat'],
+                                'line':            row['line'],
+                                'over_odds':       row.get('over_odds'),
+                                'bookmaker':       row.get('bookmaker', ''),
+                                'tier':            row.get('tier'),
+                                'score':           row.get('score'),
+                                'avg':             d.get('avg'),
+                                'last_5_avg':      d.get('last_5_avg'),
+                                'hit_rate':        d.get('hit_rate'),
+                                'games':           d.get('games'),
+                                'trend':           d.get('trend'),
+                                'vs_opp_games':    d.get('vs_opp_games'),
+                                'vs_opp_hit_rate': d.get('vs_opp_hit_rate'),
                             })
                             game['picks'].sort(key=lambda x: (x.get('score') or 0), reverse=True)
             except Exception:
