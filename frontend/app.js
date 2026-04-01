@@ -720,9 +720,9 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
     </div>
   );
 
-  const totalPicks     = games.reduce((s, g) => s + g.picks.length, 0);
-  const gamesWithPicks = games.filter(g => g.picks.length > 0).length;
-  const visibleGames   = filter === 'picks' ? games.filter(g => g.picks.length > 0) : games;
+  const totalPicks     = games.reduce((s, g) => s + (g.picks || []).length, 0);
+  const gamesWithPicks = games.filter(g => (g.picks || []).length > 0).length;
+  const visibleGames   = filter === 'picks' ? games.filter(g => (g.picks || []).length > 0) : games;
 
   const etTodayLabel = (() => {
     const ET = { timeZone: 'America/New_York' };
@@ -857,22 +857,26 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
               )}
 
               {/* No picks */}
-              {!validationState[game.game_id] && game.picks.length === 0 && (
+              {!validationState[game.game_id] && (game.picks || []).length === 0 && (
                 <div style={{ padding: '22px', textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#444', letterSpacing: '0.5px' }}>
                   {game.has_odds_event === false ? 'No player prop markets posted yet for this game' : 'No qualifying picks found for this game'}
                 </div>
               )}
 
               {/* Pick cards */}
-              {!validationState[game.game_id] && game.picks.length > 0 && (
+              {!validationState[game.game_id] && (game.picks || []).length > 0 && (
                 <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {game.picks.map((pick) => {
-                    const trendUp    = pick.trend === 'up';
-                    const trendColor = trendUp ? '#33cc33' : pick.trend === 'down' ? '#ff4444' : '#888';
-                    const trendLabel = trendUp ? '↑ TRENDING UP' : pick.trend === 'down' ? '↓ TRENDING DOWN' : '→ STABLE';
+                  {(game.picks || []).map((pick) => {
+                    const dirColor   = '#33cc33';
+                    // up=good(green), down=bad(red)
+                    const trendColor = pick.trend === 'flat' ? '#888'
+                      : (pick.trend === 'up' ? '#33cc33' : '#ff4444');
+                    const trendLabel = pick.trend === 'flat' ? '→ STABLE'
+                      : (pick.trend === 'up' ? '↑ TRENDING UP' : '↓ TRENDING DOWN');
                     const tierColor  = pick.tier === 'ELITE LOCK' ? '#ffd700' : pick.tier === 'STRONG PICK' ? '#33cc33' : '#7ecfff';
                     const statLabel  = pick.stat ? (pick.stat.charAt(0).toUpperCase() + pick.stat.slice(1)) : '';
-                    const ret        = calcReturn(pick.over_odds);
+                    const activeOdds = pick.over_odds;
+                    const ret        = calcReturn(activeOdds);
                     const hitCount   = pick.hit_rate != null && pick.games ? Math.round(pick.hit_rate * pick.games) : null;
                     const fmtOdds    = (o) => o == null ? '' : o > 0 ? `+${o}` : `${o}`;
 
@@ -906,19 +910,19 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                           </span>
                         </div>
 
-                        {/* Row 3: OVER box + odds/bookmaker */}
+                        {/* Row 3: OVER/UNDER box + odds/bookmaker */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid #33cc33', borderRadius: '6px', padding: '6px 16px', background: 'rgba(51,204,51,0.06)' }}>
-                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#33cc33', letterSpacing: '2px', lineHeight: 1 }}>OVER</span>
-                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: '#33cc33', letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: `1px solid ${dirColor}`, borderRadius: '6px', padding: '6px 16px', background: `${dirColor}10` }}>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: dirColor, letterSpacing: '2px', lineHeight: 1 }}>OVER</span>
+                            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '28px', color: dirColor, letterSpacing: '1px', lineHeight: 1 }}>{pick.line}</span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {pick.over_odds != null && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa' }}>{fmtOdds(pick.over_odds)}</span>}
+                            {activeOdds != null && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#aaa' }}>{fmtOdds(activeOdds)}</span>}
                             {pick.bookmaker && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '8px', color: '#444' }}>{pick.bookmaker}</span>}
                           </div>
                         </div>
 
-                        {/* Row 3: $100 return box — yellow */}
+                        {/* $100 return box */}
                         {ret && (
                           <div style={{ background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.25)', borderRadius: '5px', padding: '9px 14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#888' }}>$100 bet</span>
@@ -928,7 +932,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                           </div>
                         )}
 
-                        {/* Row 4: stat tiles full-width */}
+                        {/* Stat tiles */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                           {[
                             { label: 'L5 AVG',   value: pick.last_5_avg != null ? pick.last_5_avg.toFixed(1) : '—' },
@@ -1705,7 +1709,8 @@ function PickHistoryPage({ isMobile }) {
                           </div>
                           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#7788aa' }}>
                             <span style={{ color: '#33cc33', textTransform: 'capitalize' }}>{pick.stat}</span>
-                            {' OVER '}<span style={{ color: '#fff' }}>{pick.line}</span>
+                            <span style={{ color: '#33cc33' }}> OVER </span>
+                            <span style={{ color: '#fff' }}>{pick.line}</span>
                             {pick.opponent && <span style={{ color: '#555' }}> · vs {pick.opponent}</span>}
                           </div>
                         </div>
