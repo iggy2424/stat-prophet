@@ -1895,7 +1895,6 @@ RULES:
                         gate_failures['no_odds'] += 1
                         continue
 
-                    best_pick = None
                     for stat_name in ('points', 'rebounds', 'assists'):
                         values_all = pdata[stat_name]   # [(game_id, float), ...]
                         lines_dict = player_odds.get(stat_name, {})
@@ -1952,23 +1951,17 @@ RULES:
                         if not stat_pick:
                             continue
 
-                        if best_pick is None or stat_pick['score'] > best_pick['score']:
-                            best_pick = stat_pick
-
-                    if not best_pick:
-                        continue
-
-                    game_picks.append({
-                        'name':        pdata['name'],
-                        'team_abbrev': alias,
-                        'team_name':   g[side]['name'],
-                        'game_id':     g['id'],
-                        'home':        g['home'],
-                        'away':        g['away'],
-                        'scheduled':   g.get('scheduled', ''),
-                        'status':      g.get('status', 'scheduled'),
-                        **best_pick,
-                    })
+                        game_picks.append({
+                            'name':        pdata['name'],
+                            'team_abbrev': alias,
+                            'team_name':   g[side]['name'],
+                            'game_id':     g['id'],
+                            'home':        g['home'],
+                            'away':        g['away'],
+                            'scheduled':   g.get('scheduled', ''),
+                            'status':      g.get('status', 'scheduled'),
+                            **stat_pick,
+                        })
 
             game_picks.sort(key=lambda x: x['score'], reverse=True)
             output.append({
