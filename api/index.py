@@ -2077,6 +2077,7 @@ RULES:
             except Exception:
                 pass
 
+        gate_failures['passed'] = sum(len(g['picks']) for g in output)
         result = {"success": True, "games": output, "debug_gates": gate_failures}
 
         # ── Write cache ────────────────────────────────────────────────────────
