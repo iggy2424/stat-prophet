@@ -321,9 +321,9 @@ class handler(BaseHTTPRequestHandler):
             next_utc = (et_dt + timedelta(days=1)).strftime('%Y-%m-%d')
             date_strings = [et_date, next_utc]
         else:
-            # Games dashboard: 4-day lookahead from UTC
+            # Games dashboard: yesterday UTC (catches late ET games still live) + 4-day lookahead
             today = datetime.utcnow()
-            date_strings = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(4)]
+            date_strings = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(-1, 4)]
         for date_str in date_strings:
             url = f"https://v2.nba.api-sports.io/games?date={date_str}"
             try:
@@ -359,9 +359,9 @@ class handler(BaseHTTPRequestHandler):
                                 'away': {'name': a.get('name',''), 'alias': a.get('code',''), 'api_id': a.get('id'), 'points': a_pts, 'logo': a.get('logo','')}})
             except Exception as e:
                 debug.append({"date": date_str, "error": str(e)})
-            if len(games) >= 6:
+            if len(games) >= 15:
                 break
-        return games[:8], debug
+        return games[:15], debug
 
     def _fetch_nfl(self, requests):
         games = []
