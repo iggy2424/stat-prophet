@@ -1776,7 +1776,7 @@ RULES:
                 # -- Team schedule: last-10 completed game IDs + opponent map --
                 last10_gids  = []
                 game_opp_map = {}
-                for _attempt in range(2):
+                for _attempt in range(3):
                     try:
                         sched_r = requests.get(
                             "https://v2.nba.api-sports.io/games",
@@ -1803,7 +1803,8 @@ RULES:
                                 away  = teams.get('visitors', {})
                                 opp   = away if home.get('id') == api_id else home
                                 game_opp_map[gid] = (opp.get('name') or '').lower()
-                            break  # success
+                            if last10_gids:
+                                break  # success — got valid schedule data
                     except Exception:
                         pass
 
@@ -1847,8 +1848,8 @@ RULES:
                     if reb is not None: player_data[pid]['rebounds'].append((gid, float(reb)))
                     if ast is not None: player_data[pid]['assists'].append((gid, float(ast)))
 
-                # Fallback: if schedule fetch failed, use API response order (roughly
-                # chronological) rather than gid number (gids are NOT sequential by date)
+                # Last resort: all 3 schedule attempts failed — fall back to API
+                # response order. Less reliable but better than skipping entirely.
                 if not last10_gids and gid_order:
                     last10_gids = gid_order[-10:]
 
