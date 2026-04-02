@@ -1990,6 +1990,7 @@ RULES:
                             "tier":        pick.get('tier'),
                             "score":       pick.get('score'),
                             "scheduled":   pick.get('scheduled', ''),
+                            "direction": "over",
                             "details": {
                                 "avg":             pick.get('avg'),
                                 "last_5_avg":      pick.get('last_5_avg'),
@@ -2002,7 +2003,7 @@ RULES:
                         })
                 if history_rows:
                     requests.post(
-                        f"{SUPABASE_URL}/rest/v1/pick_history?on_conflict=pick_date,player_name,stat",
+                        f"{SUPABASE_URL}/rest/v1/pick_history?on_conflict=pick_date,player_name,stat,direction",
                         headers={**sb_headers, "Content-Type": "application/json",
                                  "Prefer": "resolution=ignore-duplicates"},
                         json=history_rows, timeout=8,
