@@ -2150,25 +2150,9 @@ RULES:
                     drop_ratio = (line - down_avg) / line if line else 1.0
                     if drop_ratio > 0.40: return _kill('cv_volatility')  # dropped >40% below line
 
-        # ── Pre-calculate trend ratio (used by both Pillar 1 override and Pillar 3) ──
-        mid         = len(last10_vals) // 2
-        old_half    = last10_vals[:mid]  if mid > 0            else last10_vals
-        new_half    = last10_vals[mid:]  if mid < games_played else last10_vals
-        old_avg     = sum(old_half) / len(old_half) if old_half else 0.001
-        new_avg     = sum(new_half) / len(new_half) if new_half else 0
-        trend_ratio = new_avg / max(old_avg, 0.001)
-
         # ── Pillar 1: Consistency ─────────────────────────────────────────────
         hit_count = sum(1 for v in last10_vals if v > line)
         hit_rate  = hit_count / games_played
-
-        # Option A: if player is trending up, check last-5 hit rate instead of last-10.
-        # Old bad games shouldn't kill a genuinely improving player.
-        HR_FLOOR = 0.75 if stat == 'points' else 0.80
-        if hit_rate < HR_FLOOR and trend_ratio > 1.05 and len(new_half) >= 3:
-            last5_hit_rate = sum(1 for v in new_half if v > line) / len(new_half)
-            if last5_hit_rate >= HR_FLOOR:
-                hit_rate = last5_hit_rate  # use recent window — player is on uptrend
 
         # Points has higher variance — allow 75% floor; rebounds/assists keep 80%
         if   hit_rate >= 1.0:                        p1 = 40
@@ -2211,10 +2195,17 @@ RULES:
                 p2 = 20  # no cache data — neutral
 
         # ── Pillar 3: Recency Trend ───────────────────────────────────────────
-        if   trend_ratio > 1.05:  p3 = 30; trend = 'up'
-        elif trend_ratio >= 0.90: p3 = 20; trend = 'flat'
-        elif trend_ratio >= 0.80: p3 = 10; trend = 'down'
-        else:                     return _kill('trend')
+        mid      = len(last10_vals) // 2
+        old_half = last10_vals[:mid]  if mid > 0            else last10_vals
+        new_half = last10_vals[mid:]  if mid < games_played else last10_vals
+        old_avg  = sum(old_half) / len(old_half) if old_half else 0.001
+        new_avg  = sum(new_half) / len(new_half) if new_half else 0
+        ratio    = new_avg / max(old_avg, 0.001)
+
+        if   ratio > 1.05:  p3 = 30; trend = 'up'
+        elif ratio >= 0.90: p3 = 20; trend = 'flat'
+        elif ratio >= 0.80: p3 = 10; trend = 'down'
+        else:               return _kill('trend')
 
         # ── Volatility Bonus ──────────────────────────────────────────────────
         bonus = 0
