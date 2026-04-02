@@ -2132,12 +2132,23 @@ RULES:
         if avg_last10 <= line:               return _kill('avg_below_line')
         if avg_mins < 20:                    return _kill('avg_mins')
 
-        # Volatility gate: CV (std dev / avg) too high = too unpredictable
-        CV_MAX = {'points': 0.35, 'rebounds': 0.40, 'assists': 0.45}
+        # Downside volatility gate: only penalise variance on games AT OR BELOW the line.
+        # Upside variance (big games) should never kill a pick.
+        # CV_DOWN thresholds are tighter since we're only measuring bad days.
+        CV_DOWN_MAX = {'points': 0.40, 'rebounds': 0.45, 'assists': 0.50}
         if games_played >= 5:
-            sd = _stats.stdev(last10_vals)
-            cv = sd / avg_last10 if avg_last10 else 1.0
-            if cv > CV_MAX.get(stat, 0.40):  return _kill('cv_volatility')
+            below = [v for v in last10_vals if v <= line]
+            if below:
+                # How volatile are the bad days relative to the line?
+                down_avg = sum(below) / len(below)
+                if len(below) >= 2:
+                    down_sd = _stats.stdev(below)
+                    down_cv = down_sd / line if line else 1.0
+                    if down_cv > CV_DOWN_MAX.get(stat, 0.45): return _kill('cv_volatility')
+                # Single bad day: check how far below the line it dropped
+                else:
+                    drop_ratio = (line - down_avg) / line if line else 1.0
+                    if drop_ratio > 0.40: return _kill('cv_volatility')  # dropped >40% below line
 
         # ── Pillar 1: Consistency ─────────────────────────────────────────────
         hit_count = sum(1 for v in last10_vals if v > line)
