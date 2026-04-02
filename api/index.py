@@ -1870,6 +1870,11 @@ RULES:
                     team_schedules[alias] = opp_map
 
         # ── Step 4: Build picks using 3-pillar scoring system ────────────────
+        gate_failures = {
+            'no_odds': 0, 'no_last10': 0, 'avg_below_line': 0, 'odds_gate': 0,
+            'games_played': 0, 'avg_mins': 0, 'cv_volatility': 0,
+            'hit_rate': 0, 'matchup': 0, 'trend': 0, 'score_below_75': 0,
+        }
         output = []
         for g in games:
             eid            = game_to_event.get(g['id'])
@@ -1887,6 +1892,7 @@ RULES:
                 for pid, pdata in player_data.items():
                     player_odds = _match_player_odds(event_odds, pdata['ascii'])
                     if not player_odds:
+                        gate_failures['no_odds'] += 1
                         continue
 
                     best_pick = None
@@ -1905,6 +1911,7 @@ RULES:
                             )
                         ]
                         if not last10_q:
+                            gate_failures['no_last10'] += 1
                             continue
                         avg_q = sum(last10_q) / len(last10_q)
 
@@ -1913,18 +1920,22 @@ RULES:
                             [l for l in lines_dict if avg_q > l],
                             reverse=True
                         )
+                        if not qualifying:
+                            gate_failures['avg_below_line'] += 1
 
                         stat_pick = None
                         for try_line in qualifying:
                             odds_entry = lines_dict[try_line]
                             over_odds  = odds_entry.get('over')
-                            # Odds quality gate: reject juice worse than -200
-                            if over_odds is not None and over_odds < -200:
+                            # Odds quality gate: reject juice worse than -300
+                            if over_odds is not None and over_odds < -300:
+                                gate_failures['odds_gate'] += 1
                                 continue
                             scored = self._score_pick(
                                 values_all, try_line, stat_name,
                                 last10_gids, game_opp_map,
-                                opponent, pdata['mins'], team_def_map
+                                opponent, pdata['mins'], team_def_map,
+                                gate_counters=gate_failures
                             )
                             if scored:
                                 score, tier, details = scored
@@ -2066,7 +2077,7 @@ RULES:
             except Exception:
                 pass
 
-        result = {"success": True, "games": output}
+        result = {"success": True, "games": output, "debug_gates": gate_failures}
 
         # ── Write cache ────────────────────────────────────────────────────────
         if SUPABASE_URL and SUPABASE_KEY:
@@ -2084,7 +2095,7 @@ RULES:
         self._send_json(200, result)
 
     def _score_pick(self, values_all, line, stat, last10_gids,
-                    game_opp_map, opponent_name, mins_by_gid, team_def_map=None):
+                    game_opp_map, opponent_name, mins_by_gid, team_def_map=None, gate_counters=None):
         """
         Run Stage 1 (hard gates) + Stage 2 (3-pillar scoring) for one player/stat/line.
         values_all  = [(game_id, float), ...] full season entries
@@ -2109,18 +2120,23 @@ RULES:
         avg_mins    = sum(mins_last10) / len(mins_last10) if mins_last10 else 0
 
         # ── Stage 1: Hard Gates ───────────────────────────────────────────────
+        def _kill(key):
+            if gate_counters is not None:
+                gate_counters[key] = gate_counters.get(key, 0) + 1
+            return None
+
         MIN_LINE = {'points': 10.5, 'rebounds': 3.5, 'assists': 2.5}
-        if line < MIN_LINE.get(stat, 0):     return None
-        if games_played < 6:                 return None
-        if avg_last10 <= line:               return None
-        if avg_mins < 20:                    return None
+        if line < MIN_LINE.get(stat, 0):     return _kill('avg_below_line')
+        if games_played < 6:                 return _kill('games_played')
+        if avg_last10 <= line:               return _kill('avg_below_line')
+        if avg_mins < 20:                    return _kill('avg_mins')
 
         # Volatility gate: CV (std dev / avg) too high = too unpredictable
         CV_MAX = {'points': 0.35, 'rebounds': 0.40, 'assists': 0.45}
         if games_played >= 5:
             sd = _stats.stdev(last10_vals)
             cv = sd / avg_last10 if avg_last10 else 1.0
-            if cv > CV_MAX.get(stat, 0.40):  return None  # too volatile = kill
+            if cv > CV_MAX.get(stat, 0.40):  return _kill('cv_volatility')
 
         # ── Pillar 1: Consistency ─────────────────────────────────────────────
         hit_count = sum(1 for v in last10_vals if v > line)
@@ -2131,7 +2147,7 @@ RULES:
         elif hit_rate >= 0.9:                        p1 = 35
         elif hit_rate >= 0.8:                        p1 = 25
         elif hit_rate >= 0.75 and stat == 'points':  p1 = 15
-        else:                                        return None  # kill
+        else:                                        return _kill('hit_rate')
 
         # ── Pillar 2: Matchup Context ─────────────────────────────────────────
         opp_lower  = opponent_name.lower()
@@ -2147,7 +2163,7 @@ RULES:
         if n_opp >= 4:
             if   opp_hr >= 0.75: p2 = 30
             elif opp_hr >= 0.50: p2 = 20
-            else:                return None  # bad H2H history = kill
+            else:                return _kill('matchup')
         elif n_opp >= 1:
             p2 = 18 if opp_hr >= 0.50 else 12
         else:
@@ -2177,7 +2193,7 @@ RULES:
         if   ratio > 1.05:  p3 = 30; trend = 'up'
         elif ratio >= 0.90: p3 = 20; trend = 'flat'
         elif ratio >= 0.80: p3 = 10; trend = 'down'
-        else:               return None  # cooling player = kill
+        else:               return _kill('trend')
 
         # ── Volatility Bonus ──────────────────────────────────────────────────
         bonus = 0
@@ -2196,7 +2212,7 @@ RULES:
         if   total >= 90: tier = 'ELITE LOCK'
         elif total >= 80: tier = 'STRONG PICK'
         elif total >= 75: tier = 'SOLID VALUE'
-        else:             return None
+        else:             return _kill('score_below_75')
 
         last5 = last10_vals[-5:] if len(last10_vals) >= 5 else last10_vals
         return (total, tier, {
