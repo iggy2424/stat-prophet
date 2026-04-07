@@ -15,7 +15,7 @@ WHOP_PRODUCT_IDS   = {
     "prod_M1dvuYwoKXS3p",
     "prod_XQt15k4DIescc",
 }
-REDIRECT_URI = "https://stat-prophet.vercel.app/api/callback"
+REDIRECT_URI = "https://app.trendbet.ai/api/callback"
 JWT_SECRET   = os.environ.get("JWT_SECRET", "").encode()
 COOKIE_NAME  = "whop_session"
 MAX_AGE      = 60 * 60 * 24 * 7  # 7 days

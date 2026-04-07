@@ -8,7 +8,7 @@ const JWT_SECRET     = process.env.JWT_SECRET
 const CLIENT_ID      = process.env.WHOP_CLIENT_ID
 const CLIENT_SECRET  = process.env.WHOP_CLIENT_SECRET
 const COMPANY_KEY    = process.env.WHOP_COMPANY_KEY
-const REDIRECT_URI   = 'https://stat-prophet.vercel.app/api/callback'
+const REDIRECT_URI   = 'https://app.trendbet.ai/api/callback'
 const PRODUCT_IDS    = new Set([
   'prod_sjZuDJVjBjx67',
   'prod_M1dvuYwoKXS3p',

@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { serialize } from 'cookie'
 
 const CLIENT_ID    = process.env.WHOP_CLIENT_ID
-const REDIRECT_URI = 'https://stat-prophet.vercel.app/api/callback'
+const REDIRECT_URI = 'https://app.trendbet.ai/api/callback'
 
 export default function handler(req, res) {
   // Generate PKCE code_verifier + code_challenge

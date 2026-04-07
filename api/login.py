@@ -3,7 +3,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlencode
 
 WHOP_CLIENT_ID = os.environ.get("WHOP_CLIENT_ID")
-REDIRECT_URI = "https://stat-prophet.vercel.app/api/callback"
+REDIRECT_URI = "https://app.trendbet.ai/api/callback"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
