@@ -1,4 +1,4 @@
-const API_URL = 'https://stat-prophet.vercel.app/api';
+const API_URL = 'https://app.trendbet.ai/api';
 
 // Auth check — redirect to login if session invalid
 (async () => {
