@@ -100,7 +100,7 @@ function Sidebar({ currentPage, setCurrentPage, isMobile, sidebarOpen, setSideba
           onClick={() => navigate('home')}
           style={{ padding: '18px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}
         >
-          <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #33cc33, #00cc6a)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏀</div>
+          <img src="/TB_logo_transparent.png" alt="TrendBet" style={{ width: '52px', height: '52px', objectFit: 'contain', flexShrink: 0 }} />
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: '2px', color: '#fff' }}>TRENDBET</span>
         </div>
 

@@ -14,7 +14,7 @@
   ],
   "crons": [
     {
-      "path": "/api?type=refresh_defense&secret=trendbet-cron",
+      "path": "/api?type=refresh_defense",
       "schedule": "0 10 * * *"
     }
   ]

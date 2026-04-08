@@ -244,9 +244,9 @@ class handler(BaseHTTPRequestHandler):
             return
 
         if data_type == 'refresh_defense':
-            secret = (query_params or {}).get('secret', [None])
-            secret = secret[0] if isinstance(secret, list) else secret
-            if secret != os.environ.get('CRON_SECRET', 'trendbet-cron'):
+            auth = self.headers.get('Authorization', '')
+            expected = f"Bearer {os.environ.get('CRON_SECRET', '')}"
+            if not expected or auth != expected:
                 self._send_json(403, {"error": "forbidden"})
                 return
             self._handle_refresh_defense(requests)
