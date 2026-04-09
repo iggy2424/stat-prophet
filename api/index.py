@@ -1926,8 +1926,8 @@ RULES:
                         for try_line in qualifying:
                             odds_entry = lines_dict[try_line]
                             over_odds  = odds_entry.get('over')
-                            # Odds quality gate: reject juice worse than -300
-                            if over_odds is not None and over_odds < -300:
+                            # Odds quality gate: reject juice worse than -250
+                            if over_odds is not None and over_odds < -250:
                                 gate_failures['odds_gate'] += 1
                                 continue
                             scored = self._score_pick(
