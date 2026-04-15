@@ -228,7 +228,8 @@ class handler(BaseHTTPRequestHandler):
             return
 
         if data_type == 'ai_picks':
-            self._handle_ai_picks(requests)
+            debug_player = (query_params or {}).get('debug_player', [None])[0]
+            self._handle_ai_picks(requests, debug_player=debug_player)
             return
 
         if data_type == 'ai_picks_debug':
@@ -1605,7 +1606,7 @@ RULES:
         self._send_json(200, {'success': True, 'reply': 'Analysis incomplete — too many data fetches required. Try a more specific question.'})
 
     # ── AI PICKS (stats-first, 0 Odds API calls) ─────────────────────────────
-    def _handle_ai_picks(self, requests):
+    def _handle_ai_picks(self, requests, debug_player=None):
         from concurrent.futures import ThreadPoolExecutor
 
         # ── Today's ET date (canonical date for all picks logic) ─────────────
@@ -1875,6 +1876,7 @@ RULES:
             'games_played': 0, 'avg_mins': 0, 'cv_volatility': 0,
             'hit_rate': 0, 'matchup': 0, 'trend': 0, 'score_below_75': 0,
         }
+        debug_trace = []
         output = []
         for g in games:
             eid            = game_to_event.get(g['id'])
@@ -1890,15 +1892,18 @@ RULES:
                 opponent     = g['away']['name'] if side == 'home' else g['home']['name']
 
                 for pid, pdata in player_data.items():
+                    is_debug = debug_player and debug_player.lower() in pdata['name'].lower()
                     player_odds = _match_player_odds(event_odds, pdata['ascii'])
                     if not player_odds:
                         gate_failures['no_odds'] += 1
+                        if is_debug: debug_trace.append({'player': pdata['name'], 'stat': 'all', 'gate': 'no_odds'})
                         continue
 
                     for stat_name in ('points', 'rebounds', 'assists'):
                         values_all = pdata[stat_name]   # [(game_id, float), ...]
                         lines_dict = player_odds.get(stat_name, {})
                         if not lines_dict or not values_all:
+                            if is_debug: debug_trace.append({'player': pdata['name'], 'stat': stat_name, 'gate': 'no_lines_or_values'})
                             continue
 
                         # Quick avg of last-10 to filter qualifying lines
@@ -1929,13 +1934,18 @@ RULES:
                             # Odds quality gate: reject juice worse than -300
                             if over_odds is not None and over_odds < -300:
                                 gate_failures['odds_gate'] += 1
+                                if is_debug: debug_trace.append({'player': pdata['name'], 'stat': stat_name, 'line': try_line, 'gate': 'odds_gate', 'over_odds': over_odds})
                                 continue
+                            prev_failures = {k: v for k, v in gate_failures.items()}
                             scored = self._score_pick(
                                 values_all, try_line, stat_name,
                                 last10_gids, game_opp_map,
                                 opponent, pdata['mins'], team_def_map,
                                 gate_counters=gate_failures
                             )
+                            if is_debug and not scored:
+                                killed = [k for k, v in gate_failures.items() if v > prev_failures.get(k, 0)]
+                                debug_trace.append({'player': pdata['name'], 'stat': stat_name, 'line': try_line, 'over_odds': over_odds, 'gate': killed[0] if killed else 'unknown'})
                             if scored:
                                 score, tier, details = scored
                                 stat_pick = {
@@ -2072,6 +2082,8 @@ RULES:
 
         gate_failures['passed'] = sum(len(g['picks']) for g in output)
         result = {"success": True, "games": output, "debug_gates": gate_failures}
+        if debug_player and debug_trace:
+            result['debug_player_trace'] = debug_trace
 
         # ── Write cache ────────────────────────────────────────────────────────
         if SUPABASE_URL and SUPABASE_KEY:
