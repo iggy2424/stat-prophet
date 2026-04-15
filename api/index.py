@@ -1926,8 +1926,8 @@ RULES:
                         for try_line in qualifying:
                             odds_entry = lines_dict[try_line]
                             over_odds  = odds_entry.get('over')
-                            # Odds quality gate: reject juice worse than -250
-                            if over_odds is not None and over_odds < -250:
+                            # Odds quality gate: reject juice worse than -300
+                            if over_odds is not None and over_odds < -300:
                                 gate_failures['odds_gate'] += 1
                                 continue
                             scored = self._score_pick(
@@ -2147,11 +2147,11 @@ RULES:
         hit_count = sum(1 for v in last10_vals if v > line)
         hit_rate  = hit_count / games_played
 
-        # Points has higher variance — allow 75% floor; rebounds/assists keep 80%
+        # Points has higher variance — allow 70% floor; rebounds/assists keep 70%
         if   hit_rate >= 1.0:                        p1 = 40
         elif hit_rate >= 0.9:                        p1 = 35
         elif hit_rate >= 0.8:                        p1 = 25
-        elif hit_rate >= 0.75 and stat == 'points':  p1 = 15
+        elif hit_rate >= 0.7:                        p1 = 15
         else:                                        return _kill('hit_rate')
 
         # ── Pillar 2: Matchup Context ─────────────────────────────────────────
