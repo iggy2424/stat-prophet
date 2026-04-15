@@ -2166,11 +2166,11 @@ RULES:
         opp_hr = sum(1 for v in vs_opp_vals if v > line) / n_opp if n_opp else None
 
         if n_opp >= 4:
-            if   opp_hr >= 0.75: p2 = 30
-            elif opp_hr >= 0.50: p2 = 20
+            if   opp_hr >= 0.75: p2 = 40   # playoffs: heavy H2H weight
+            elif opp_hr >= 0.50: p2 = 28
             else:                return _kill('matchup')
         elif n_opp >= 1:
-            p2 = 18 if opp_hr >= 0.50 else 12
+            p2 = 25 if opp_hr >= 0.50 else 15
         else:
             # No H2H — use team defensive rank if available, else neutral
             def_rank = None
