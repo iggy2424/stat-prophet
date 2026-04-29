@@ -771,7 +771,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
         const books = [
           { id: 'fanduel',   label: 'FanDuel',   url: 'https://sportsbook.fanduel.com/navigation/nba' },
           { id: 'draftkings',label: 'DraftKings', url: 'https://sportsbook.draftkings.com/leagues/basketball/nba' },
-          { id: 'bet365',    label: 'Bet365',     url: 'https://www.bet365.com/#/AS/B7/' },
+          { id: 'bet365',    label: 'Bet365',     url: 'https://www.bet365.com/#/AC/B18/C20604387/D48/E1453/F10' },
           { id: 'betmgm',    label: 'BetMGM',     url: 'https://sports.betmgm.com/en/sports/basketball-7/betting/usa-43/nba-6004' },
           { id: 'caesars',   label: 'Caesars',    url: 'https://sportsbook.caesars.com/us/nj/sport/basketball/nba' },
           { id: 'betonline', label: 'BetOnline',  url: 'https://www.betonline.ag/sportsbook/basketball/nba' },
