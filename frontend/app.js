@@ -667,6 +667,7 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
   const [error, setError]             = React.useState(null);
   const [games, setGames]             = React.useState([]);
   const [filter, setFilter]           = React.useState('all'); // 'all' | 'picks'
+  const [sportsbook, setSportsbook]   = React.useState('fanduel');
   const [validationState, setValidationState] = React.useState({});
 
   React.useEffect(() => {
@@ -764,6 +765,49 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
           </div>
         ))}
       </div>
+
+      {/* ── Sportsbook selector ── */}
+      {(() => {
+        const books = [
+          { id: 'fanduel',   label: 'FanDuel',   url: 'https://sportsbook.fanduel.com/navigation/nba' },
+          { id: 'draftkings',label: 'DraftKings', url: 'https://sportsbook.draftkings.com/leagues/basketball/nba' },
+          { id: 'bet365',    label: 'Bet365',     url: 'https://www.bet365.com/#/AS/B7/' },
+          { id: 'betmgm',    label: 'BetMGM',     url: 'https://sports.betmgm.com/en/sports/basketball-7/betting/usa-43/nba-6004' },
+          { id: 'caesars',   label: 'Caesars',    url: 'https://sportsbook.caesars.com/us/nj/sport/basketball/nba' },
+          { id: 'betonline', label: 'BetOnline',  url: 'https://www.betonline.ag/sportsbook/basketball/nba' },
+          { id: 'bovada',    label: 'Bovada',     url: 'https://www.bovada.lv/sports/basketball/nba' },
+        ];
+        window.__sbBooks = books;
+        window.__sbSelected = sportsbook;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', letterSpacing: '1px', whiteSpace: 'nowrap' }}>BET WITH</span>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {books.map(b => {
+                const active = sportsbook === b.id;
+                return (
+                  <button key={b.id} onClick={() => setSportsbook(b.id)} style={{
+                    padding: '5px 12px',
+                    background: active ? 'rgba(51,204,51,0.15)' : 'transparent',
+                    border: `1px solid ${active ? '#33cc33' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: '20px',
+                    fontFamily: "'Space Mono', monospace",
+                    fontSize: '9px',
+                    color: active ? '#33cc33' : '#555',
+                    cursor: 'pointer',
+                    letterSpacing: '0.5px',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; e.currentTarget.style.color = '#aaa'; } }}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#555'; } }}
+                  >{b.label}</button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Filter buttons ── */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
@@ -894,12 +938,28 @@ function AiPicksPage({ openInAnalyzer, isMobile }) {
                             <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: '17px', color: '#fff', fontWeight: 500, whiteSpace: 'nowrap' }}>{pick.name}</span>
                             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#555', flexShrink: 0 }}>{pick.team_abbrev}</span>
                           </div>
-                          <button
-                            onClick={() => openInAnalyzer(pick)}
-                            style={{ flexShrink: 0, marginLeft: '10px', padding: '6px 14px', background: 'transparent', border: '1px solid rgba(51,204,51,0.35)', borderRadius: '4px', color: '#33cc33', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.08)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                          >Analyze →</button>
+                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '10px' }}>
+                            {(() => {
+                              const books = window.__sbBooks || [];
+                              const selected = books.find(b => b.id === sportsbook);
+                              return selected ? (
+                                <a
+                                  href={selected.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ padding: '6px 12px', background: 'rgba(51,204,51,0.12)', border: '1px solid rgba(51,204,51,0.5)', borderRadius: '4px', color: '#33cc33', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.22)'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(51,204,51,0.12)'; }}
+                                >BET ↗</a>
+                              ) : null;
+                            })()}
+                            <button
+                              onClick={() => openInAnalyzer(pick)}
+                              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', color: '#888', fontFamily: "'Space Mono', monospace", fontSize: '9px', cursor: 'pointer', letterSpacing: '1px', whiteSpace: 'nowrap' }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#aaa'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+                            >Analyze →</button>
+                          </div>
                         </div>
 
                         {/* Row 2: stat name + trend */}
