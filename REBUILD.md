@@ -109,7 +109,25 @@ The frontend reloads on save. The local API does not; restart `npm run dev` afte
   - 2025-26 sample: 1 of 12 team games incomplete
   - Re-fetching a week later returns the same gaps, so they are not filled in over time.
   - Several missing players are rookies with shortened names ("C. Murray-Boyles", "A. Martin").
-  This makes API-Sports unsafe as the only source for player stats. Decision pending (see section 6).
+  This makes API-Sports unsafe as the only source for player stats.
+
+**BallDontLie (`api.balldontlie.io/v1`) tested as the player stats source** (2 Nov 2026, GOAT
+trial, only endpoints that ALL-STAR also has). Same check, player points vs final score:
+
+| Season | Games | Team games | Mismatched |
+|---|---|---|---|
+| 2025-26 regular season | 1,237 | 2,474 | 0 |
+| 2025-26 playoffs | 85 | 170 | 0 |
+| 2026-27 to 1 Nov | 92 | 184 | 0 (API-Sports: 71) |
+
+- 46,056 player rows, no gaps. Minutes are exact (`"33:15"`). Team abbreviations match ours.
+- `/v1/stats` filters: `dates[]`, `game_ids[]`, `seasons[]`, `start_date`, `end_date`,
+  `postseason`; 100 rows per page with `meta.next_cursor`. Realtime for live games.
+- `/v1/player_injuries` has `status`, `return_date`, `description`.
+- Rate limits: trial 5/minute, ALL-STAR 60/minute, GOAT 600/minute.
+- Plan needed: **ALL-STAR $9.99/month** (Game Player Stats, Active Players, Player Injuries).
+- Commercial use terms not found on their site; confirm with BallDontLie.
+- Key is `BALLDONTLIE_API_KEY` in `.env`.
 
 ## 5. Logic
 
@@ -210,7 +228,9 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 
 - [x] Team and player box score tables, sync job and team rankings view
 - [x] 2026-27 box scores loaded (157 games)
-- [ ] **Decide the player stats source** (API-Sports gaps, see section 4) before loading 2025-26
+- [x] Decide the player stats source: BallDontLie passed every check (section 4)
+- [ ] Subscribe to BallDontLie ALL-STAR before the trial ends; confirm commercial use
+- [ ] Switch `player_game_stats` sync to BallDontLie, with a points check on every game
 - [ ] Load 2025-26 schedule and box scores
 - [ ] Schedule the sync jobs (Vercel Hobby cron runs at most once a day, so live work stays on demand)
 - [ ] `vercel.json` for the new structure, tested on a preview deployment before merging
@@ -254,3 +274,6 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Found incomplete player data in API-Sports** (39% of this season's regular season team
   games missing players). Paused the 2025-26 backfill until the data source is decided.
   The old Sportradar key in `.env` has expired.
+- **Compared providers** (BallDontLie, MySportsFeeds, SportsDataIO, Sportradar) and tested
+  BallDontLie on its trial: 0 gaps across 2,828 team games (all of 2025-26 and 2026-27 so far).
+  Chosen as the player stats source; API-Sports stays for schedule, live scores and team totals.
