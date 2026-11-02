@@ -22,7 +22,8 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
 /* Shell */
-.shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+/* minmax(0, 1fr): wide content (tables, the phone nav row) scrolls inside its box instead of widening the page */
+.shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
 .sidebar { border-right: 1px solid var(--line); padding: 20px 12px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; padding: 0 8px 20px; }
 .sidebar ul { list-style: none; display: flex; flex-direction: column; gap: 2px; }
@@ -34,10 +35,10 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .sidebar li button.active { background: var(--surface-2); color: var(--text); }
 .sidebar li button:disabled { cursor: default; opacity: 0.5; }
 .soon { font-size: 11px; border: 1px solid var(--line); border-radius: 99px; padding: 0 6px; }
-.content { padding: 28px 32px; max-width: 900px; width: 100%; }
+.content { padding: 28px 32px; max-width: 960px; width: 100%; min-width: 0; }
 
 @media (max-width: 720px) {
-  .shell { grid-template-columns: 1fr; }
+  .shell { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; }
   .sidebar ul { flex-direction: row; overflow-x: auto; }
   .sidebar li button { white-space: nowrap; gap: 6px; }
@@ -80,7 +81,40 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .badge.live { background: rgba(255, 90, 95, 0.15); color: var(--red); }
 .tag { font-size: 11px; }
 
+/* Segmented buttons */
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { padding: 5px 12px; border-radius: 7px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-bottom: 12px; }
+.window-note { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+.window-note strong { color: var(--text); }
+.footnote { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+/* Rankings table: scrolls sideways inside its box on narrow screens, team column stays put */
+.table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; transition: opacity 200ms; }
+.table-wrap.dim { opacity: 0.6; }
+.table-wrap.skeleton { animation: pulse 1.4s ease-in-out infinite; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.rank-table th, .rank-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rank-table tbody tr:last-child > * { border-bottom: 0; }
+.rank-table thead th { font-size: 12px; color: var(--muted); font-weight: 600; text-align: left; }
+.rank-table thead th.num { text-align: right; }
+.rank-table thead button { color: inherit; font-weight: inherit; letter-spacing: 0.03em; }
+.rank-table thead button:hover, .rank-table thead button.sorted { color: var(--text); }
+.rank-table thead button.sorted::after { content: ' \25BE'; }
+.rank-table .num { text-align: right; }
+.rank-table .muted { color: var(--muted); }
+.team-col { position: sticky; left: 0; background: var(--surface); z-index: 1; text-align: left; }
+tbody .team-col { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.team-col img, .team-col .logo-fallback { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+.row-num { color: var(--muted); font-weight: 400; font-size: 12px; min-width: 2ch; text-align: right; }
+.stat-value { display: inline-block; min-width: 4.5ch; }
+.rank { display: inline-block; min-width: 2.6ch; margin-left: 6px; font-size: 11px; text-align: center; border-radius: 4px; padding: 0 3px; color: var(--muted); background: var(--surface-2); }
+.rank.good { color: var(--green); background: rgba(51, 204, 51, 0.12); }
+.rank.bad { color: var(--red); background: rgba(255, 90, 95, 0.12); }
+
 @media (prefers-reduced-motion: reduce) {
-  .game-card.skeleton { animation: none; }
-  .team-score { transition: none; }
+  .game-card.skeleton, .table-wrap.skeleton { animation: none; }
+  .team-score, .table-wrap { transition: none; }
 }

@@ -73,6 +73,34 @@ def games(params: dict) -> tuple[int, dict]:
     }
 
 
+RANKING_WINDOWS = ("blended", "season", "last10")
+PRIOR_GAMES = 10  # must match params.prior_games in database/005_team_rankings_v2.sql
+
+
+def team_rankings(params: dict) -> tuple[int, dict]:
+    """All 30 teams with stats and ranks. ?season=2026&window=blended|season|last10."""
+    current = timeutil.current_season()
+    window = _param(params, "window", "blended")
+    try:
+        season = int(_param(params, "season", str(current)))
+    except ValueError:
+        return 400, {"error": "season must be a year, e.g. 2026"}
+    if window not in RANKING_WINDOWS:
+        return 400, {"error": f"window must be one of {list(RANKING_WINDOWS)}"}
+
+    rows = db.select("team_rankings", {
+        "select": "*", "window_name": f"eq.{window}", "season": f"eq.{season}",
+        "order": "net_rating_rank.asc,code.asc",
+    })
+    return 200, {
+        "season": season,
+        "window": window,
+        "seasons": [current, current - 1],
+        "prior_games": PRIOR_GAMES,
+        "teams": rows,
+    }
+
+
 def sync_status(params: dict) -> tuple[int, dict]:
     """Latest run of each sync job, for spotting failures."""
     rows = db.select("sync_log", {
@@ -97,6 +125,7 @@ def run_sync(params: dict) -> tuple[int, dict]:
 
 MEMBER_ROUTES = {
     "games": games,
+    "team_rankings": team_rankings,
     "sync_status": sync_status,
 }
 

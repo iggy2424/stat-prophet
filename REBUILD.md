@@ -188,7 +188,7 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
 - Limitation: scores only update while someone has the page open. Results needed for pick
   history will come from a nightly job instead.
 
-### 5.5 Box scores and team rankings (`backend/boxscores.py`, `backend/player_stats.py`, `database/003`, `004`)
+### 5.5 Box scores and team rankings (`backend/boxscores.py`, `backend/player_stats.py`, `database/003`, `004`, `005`)
 
 - **Tables:** `players` (BallDontLie id, current team and position, jersey, height, plus
   `search_name` for matching sportsbook names: lowercase, no accents, no Jr./III, hyphens as
@@ -209,17 +209,31 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
   tip off to catch late stat corrections. Players with 0 minutes are not stored. A player's
   team and position only update from a newer game, so backfilling old games never overwrites a trade.
 - **Possessions** per team game: `fga + 0.44 × fta − off_reb + turnovers`.
-- **`team_rankings` view:** calculated live from regular season games only, for
-  `window_name = 'season'` and `'last10'`. Offence (points, 3s made, 3P%, rebounds, offensive
-  rebounds, assists, offensive rating), defence as what opponents do (points, 3s, 3P%,
-  rebounds, assists allowed, defensive rating) and pace, each ranked 1 to 30. Offence rank 1
-  scores the most; defence rank 1 allows the fewest.
+- **`team_rankings` view** (`database/005_team_rankings_v2.sql`): calculated live from
+  regular season games only, one row per team per `window_name` and `season`.
+  - Windows: `season` (every game this season), `last10` (each team's 10 most recent),
+    `blended` (the default, for the early season, below).
+  - Offence: points, FG%, 3s made, 3P%, rebounds, offensive rebounds, rebound % (share of all
+    available rebounds, so pace does not inflate it), assists, offensive rating.
+  - Defence, as what opponents do: points, FG%, 3s, 3P%, rebounds, assists allowed, defensive rating.
+  - Also pace, net rating, record (`wins`, `losses`, this season only).
+  - Every stat has `<stat>_rank`, 1 to 30, ties share a rank. Offence rank 1 = the most;
+    defence rank 1 = allows the fewest.
+- **Blended window (early season):** this season's games at full weight plus last season
+  counted as **10 games** in total (each of last season's games weighs 10 / that team's games
+  last season). Opening night is 100% last season, 10 games in is 50/50, 40 games in is
+  80/20. Percentages and ratings blend totals (made and attempted, points and possessions),
+  never averages of averages. `current_share` is the % that comes from this season. The 10
+  lives in the view (`params.prior_games`) and in `handlers.PRIOR_GAMES` for display.
+- **Checked** against a Python calculation from the raw rows for all 30 teams in all three
+  windows: largest difference 0.05, which is the 1 decimal rounding.
 
 ### 5.6 API endpoints (`backend/handlers.py`)
 
 | `?type=` | Who | Returns |
 |---|---|---|
 | `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo |
+| `team_rankings&season=2026&window=blended` | Members | All 30 teams with stats and ranks, sorted by net rating. `window` is `blended` (default), `season` or `last10`; `season` defaults to the current one |
 | `sync_status` | Members | Latest run of each sync job |
 | `sync&job=...` | Cron secret only | Runs one sync job |
 
@@ -235,7 +249,16 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 
 - React 18 + TypeScript, built with Vite. The production bundle is about 48 KB gzipped.
 - `src/api.ts` is the only place that calls the backend. A 401 sends the user to `/login`.
-- Pages built: **Games**. Listed but not built yet: Picks, Prop Analyzer, DataLab, Bet Slip, Pick History.
+- Pages built: **Games**, **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
+  DataLab, Bet Slip, Pick History.
+- The page is kept in the URL hash (`/#rankings`), so refreshing or sharing a link keeps it.
+- **Team Rankings page:** Overview (net, offensive and defensive rating, pace, rebound %),
+  Offence and Defence tabs; season switch (this and last season; blended is only offered
+  for the current season); window switch; click a column to sort by its rank. Ranks 1 to 10
+  are green, 21 to 30 red. A note explains what the window contains, including how much of
+  the blended numbers come from this season.
+- Layout columns use `minmax(0, 1fr)` so wide tables scroll inside their box on phones
+  instead of widening the page.
 - Styles are working styles only. The visual design gets its own pass later.
 
 ## 6. Open items
@@ -250,6 +273,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [x] Load 2025-26 team box scores
 - [ ] Load player stats for 2025-26 and 2026-27 (after ALL-STAR: about 900 requests, 15 minutes)
 - [ ] Injury sync from `/v1/player_injuries`
+- [x] Team rankings: blended early season window, ranks on every stat, Team Rankings page
+- [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
 - [ ] Schedule the sync jobs (Vercel Hobby cron runs at most once a day, so live work stays on demand)
 - [ ] `vercel.json` for the new structure, tested on a preview deployment before merging
 - [ ] Rebuild Pick History on the new foundation
@@ -308,3 +333,9 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Ran 004 and tested the `players` job** on the 5 latest games: 112 player rows, 3 requests,
   points match the final score and each team totals 240 minutes. Tested the check by
   raising one game's score by 1: the game was rejected, nothing saved, reason logged.
+- **Team rankings v2** (`database/005_team_rankings_v2.sql`): blended window for the early
+  season (last season counted as 10 games), record, net rating, FG%, rebound %, and a rank
+  on every stat. Checked against a Python calculation for all 30 teams.
+- **`team_rankings` endpoint and Team Rankings page.** Pages now live in the URL hash.
+- **Fixed phone layout:** wide content no longer widens the page, and the nav row no longer
+  stretches when a page is short.

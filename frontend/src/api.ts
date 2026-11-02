@@ -31,6 +31,29 @@ export interface GamesResponse {
   scores_refreshed: boolean
 }
 
+export type RankingWindow = 'blended' | 'season' | 'last10'
+
+// One team in team_rankings. Every stat has a matching <stat>_rank (1 = best).
+export interface TeamRanking {
+  team_id: number
+  code: string
+  name: string
+  logo_url: string | null
+  games: number
+  wins: number
+  losses: number
+  current_share: number
+  [stat: string]: number | string | null
+}
+
+export interface TeamRankingsResponse {
+  season: number
+  window: RankingWindow
+  seasons: number[]
+  prior_games: number
+  teams: TeamRanking[]
+}
+
 export class ApiError extends Error {}
 
 async function get<T>(type: string, params: Record<string, string> = {}): Promise<T> {
@@ -47,4 +70,6 @@ async function get<T>(type: string, params: Record<string, string> = {}): Promis
 
 export const api = {
   games: (date?: string) => get<GamesResponse>('games', date ? { date } : {}),
+  teamRankings: (season: number | null, window: RankingWindow) =>
+    get<TeamRankingsResponse>('team_rankings', season ? { season: String(season), window } : { window }),
 }
