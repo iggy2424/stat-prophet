@@ -84,7 +84,8 @@ The frontend reloads on save. The local API does not; restart `npm run dev` afte
 
 | Provider | Plan | Limit | Used for |
 |---|---|---|---|
-| API-Sports NBA (`v2.nba.api-sports.io`) | Pro, renews 2 Dec 2026 | 7,500 requests/day | Teams, schedule, scores, box scores |
+| API-Sports NBA (`v2.nba.api-sports.io`) | Pro, renews 2 Dec 2026 | 7,500 requests/day | Teams, schedule, live scores, team box scores |
+| BallDontLie (`api.balldontlie.io/v1`) | GOAT trial until about 16:00 4 Nov 2026, then ALL-STAR | 5/minute on trial, 60/minute on ALL-STAR | Player box scores |
 | The Odds API | Free key in `.env.local` only | 500 requests/month | Not used yet. The paid key in `.env` and production is deactivated. A paid plan is needed when picks are built. |
 | Supabase | Free | Pauses after inactivity | Database |
 
@@ -92,7 +93,7 @@ The frontend reloads on save. The local API does not; restart `npm run dev` afte
 
 - Season label is the year the season starts: the 2026-27 season is `2026`.
 - Timestamps are UTC. A 10pm ET game is dated the next day in UTC.
-- `stage`: 1 = preseason, 2 = regular season. Playoff values to be confirmed when seen.
+- `stage`: 1 = preseason, 2 = regular season, 3 = playoffs (2025-26: 65, 1,237 and 85 games).
 - `status.short`: 1 scheduled, 2 in play, 3 finished. Postponed and canceled appear in `status.long`.
 - The away team is under `teams.visitors`, not `away`.
 - `/games?season=2026&league=standard` returns the whole season (1,265 games) in one request.
@@ -167,6 +168,12 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 | `schedule` | Loads the whole season. Skips exhibition games against non NBA teams. | 1 | Daily (not scheduled yet) |
 | `scores` | Refreshes every game dated yesterday, today and tomorrow (UTC). Backup sweep. | 3 | Not scheduled yet |
 | `live` | Refreshes live games, then fetches any game we still show as live (or that should have started) but that is missing from the live list, so its final score is saved. | 1, plus 1 per game that just ended | Every 15s while games are on |
+| `boxscores` | Team totals for finished games (section 5.5). | 1 per game | Nightly (not scheduled yet) |
+| `players` | Player box scores from BallDontLie, checked against the final score (section 5.5). | About 3 per game day | Nightly (not scheduled yet) |
+
+Each job names the API client it uses in `sync.JOBS`. A job that saves some games but leaves
+others pending raises `PartialSync`: the run is logged as failed, with the rows it did save.
+`scripts/sync.py <job> --all` repeats the job while each run still saves rows.
 
 ### 5.4 Live scores
 
@@ -181,25 +188,32 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 - Limitation: scores only update while someone has the page open. Results needed for pick
   history will come from a nightly job instead.
 
-### 5.5 Box scores and team rankings (`backend/boxscores.py`, `database/003`)
+### 5.5 Box scores and team rankings (`backend/boxscores.py`, `backend/player_stats.py`, `database/003`, `004`)
 
-- **Tables:** `players` (current team and position, plus `search_name` for matching sportsbook
-  names: lowercase, no accents, no Jr./III, hyphens as spaces), `team_game_stats`,
-  `player_game_stats`. Season, stage and Eastern date are copied onto every stats row so
-  queries can exclude preseason without a join.
-- **`boxscores` job:** 2 requests per finished game (`/games/statistics`, `/players/statistics`),
-  4 threads, paced by the client. A game is marked done (`games.box_synced_at`) only if both
-  teams and at least one player per team came back. Games finished in the last 2 days are
-  synced once more at least 5 hours after tip off to catch late stat corrections.
-  Players with 0 minutes are not stored. A player's team and position only update from a
-  newer game, so backfilling old games never overwrites a trade.
+- **Tables:** `players` (BallDontLie id, current team and position, jersey, height, plus
+  `search_name` for matching sportsbook names: lowercase, no accents, no Jr./III, hyphens as
+  spaces), `team_game_stats`, `player_game_stats`. Season, stage and Eastern date are copied
+  onto every stats row so queries can exclude preseason without a join.
+- **Two sources, two markers on `games`:** team totals come from API-Sports and set
+  `box_synced_at`; player stats come from BallDontLie and set `players_synced_at` plus `bdl_id`.
+  Either can be re-run without touching the other.
+- **`boxscores` job (API-Sports):** 1 request per finished game (`/games/statistics`), 4 threads,
+  paced by the client. A game is marked done only if both teams came back.
+- **`players` job (BallDontLie):** takes pending finished games (regular season and playoffs;
+  BallDontLie has no preseason), fetches `/stats` for their dates, 7 dates per request and 100
+  rows per page. BallDontLie games are matched to ours by Eastern date plus home and away team
+  codes. A game is saved only when BallDontLie shows it as Final **and each team's player
+  points add up to that team's final score in our `games` table**. Failing games are not saved,
+  stay pending, and are listed (date, teams, reason) in the job's `sync_log` message.
+- **Both jobs:** games finished in the last 2 days are synced once more at least 5 hours after
+  tip off to catch late stat corrections. Players with 0 minutes are not stored. A player's
+  team and position only update from a newer game, so backfilling old games never overwrites a trade.
 - **Possessions** per team game: `fga + 0.44 × fta − off_reb + turnovers`.
 - **`team_rankings` view:** calculated live from regular season games only, for
   `window_name = 'season'` and `'last10'`. Offence (points, 3s made, 3P%, rebounds, offensive
   rebounds, assists, offensive rating), defence as what opponents do (points, 3s, 3P%,
   rebounds, assists allowed, defensive rating) and pace, each ranked 1 to 30. Offence rank 1
   scores the most; defence rank 1 allows the fewest.
-- **Known problem:** API-Sports player data has gaps (see section 4). Team totals are complete.
 
 ### 5.6 API endpoints (`backend/handlers.py`)
 
@@ -230,8 +244,12 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [x] 2026-27 box scores loaded (157 games)
 - [x] Decide the player stats source: BallDontLie passed every check (section 4)
 - [ ] Subscribe to BallDontLie ALL-STAR before the trial ends; confirm commercial use
-- [ ] Switch `player_game_stats` sync to BallDontLie, with a points check on every game
-- [ ] Load 2025-26 schedule and box scores
+- [x] Switch `player_game_stats` sync to BallDontLie, with a points check on every game
+- [x] Run `database/004_balldontlie_players.sql`, then test the `players` job on a few games
+- [x] Load 2025-26 schedule
+- [x] Load 2025-26 team box scores
+- [ ] Load player stats for 2025-26 and 2026-27 (after ALL-STAR: about 900 requests, 15 minutes)
+- [ ] Injury sync from `/v1/player_injuries`
 - [ ] Schedule the sync jobs (Vercel Hobby cron runs at most once a day, so live work stays on demand)
 - [ ] `vercel.json` for the new structure, tested on a preview deployment before merging
 - [ ] Rebuild Pick History on the new foundation
@@ -277,3 +295,16 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Compared providers** (BallDontLie, MySportsFeeds, SportsDataIO, Sportradar) and tested
   BallDontLie on its trial: 0 gaps across 2,828 team games (all of 2025-26 and 2026-27 so far).
   Chosen as the player stats source; API-Sports stays for schedule, live scores and team totals.
+- **Moved player stats to BallDontLie** (`backend/balldontlie.py`, `backend/player_stats.py`,
+  `database/004_balldontlie_players.sql`). New `players` job with the final score check on
+  every game. 004 clears the API-Sports player rows (they used API-Sports player ids) and adds
+  `games.bdl_id`, `games.players_synced_at`, `players.jersey_number`, `players.height`.
+- **`boxscores` job is now team totals only**, 1 request per game instead of 2.
+- **`run_job` takes the job name only**; `sync.JOBS` maps each job to its function and API
+  client. Added `PartialSync` so a part-saved run logs the rows it saved, and `--all` keeps going.
+- **Loaded the 2025-26 schedule:** 1,387 games, 1 request.
+- **Loaded 2025-26 team box scores:** 1,387 games, 2,774 team rows, 1,387 requests, no
+  incomplete games. Every team's points match the final score.
+- **Ran 004 and tested the `players` job** on the 5 latest games: 112 player rows, 3 requests,
+  points match the final score and each team totals 240 minutes. Tested the check by
+  raising one game's score by 1: the game was rejected, nothing saved, reason logged.

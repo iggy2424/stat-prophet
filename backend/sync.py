@@ -1,14 +1,15 @@
 """Sync jobs: copy API-Sports data into Supabase.
 
 Each job is wrapped by run_job(), which writes one sync_log row with the outcome,
-the number of API-Sports requests used, and the error message if it failed.
+the number of API requests used, and the error message if it failed.
 
-Jobs
+Jobs (all API-Sports unless noted)
   teams     all 30 franchises (run once, then rarely)
   schedule  the full season schedule (daily)
   scores    status and scores for every game from yesterday to tomorrow (backup sweep)
   live      live games only, plus final scores for games that just ended (every 15s while games are on)
-  boxscores team and player stats for finished games (see boxscores.py)
+  boxscores team totals for finished games (see boxscores.py)
+  players   player box scores for finished games, from BallDontLie (see player_stats.py)
 """
 import traceback
 from datetime import timedelta
@@ -18,15 +19,17 @@ from .apisports import ApiSports
 from .nba_teams import TEAMS, logo_url
 
 
-def run_job(name: str, fn, *args) -> dict:
-    """Run a job, log it to sync_log, and return the log row. Never raises."""
-    api = ApiSports()
+def run_job(name: str, *args) -> dict:
+    """Run a job from JOBS, log it to sync_log, and return the log row. Never raises."""
+    fn, client = JOBS[name]
+    api = client()
     log = db.insert("sync_log", {"job": name})
     result = {"ok": False, "rows_written": 0, "message": None}
     try:
         result["rows_written"] = fn(api, *args)
         result["ok"] = True
     except Exception as e:
+        result["rows_written"] = getattr(e, "rows_written", 0)
         result["message"] = f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"[:2000]
     values = {
         "finished_at": timeutil.now_utc().isoformat(),
@@ -184,12 +187,16 @@ def sync_live(api: ApiSports) -> int:
     return db.upsert("games", rows) if rows else 0
 
 
-from .boxscores import sync_boxscores  # noqa: E402  (imported here to keep jobs listed in one place)
+from .balldontlie import BallDontLie  # noqa: E402  (imported here to keep jobs listed in one place)
+from .boxscores import sync_boxscores  # noqa: E402
+from .player_stats import sync_players  # noqa: E402
 
+# job name -> (function, API client it is given)
 JOBS = {
-    "teams": sync_teams,
-    "schedule": sync_schedule,
-    "scores": sync_scores,
-    "live": sync_live,
-    "boxscores": sync_boxscores,
+    "teams": (sync_teams, ApiSports),
+    "schedule": (sync_schedule, ApiSports),
+    "scores": (sync_scores, ApiSports),
+    "live": (sync_live, ApiSports),
+    "boxscores": (sync_boxscores, ApiSports),
+    "players": (sync_players, BallDontLie),
 }

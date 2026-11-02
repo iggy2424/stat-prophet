@@ -62,7 +62,7 @@ def games(params: dict) -> tuple[int, dict]:
 
     refreshed = None
     if day == timeutil.today_et() and _live_stale(rows):
-        refreshed = sync.run_job("live", sync.sync_live)
+        refreshed = sync.run_job("live")
         rows = db.select("games", query)
 
     return 200, {
@@ -87,11 +87,11 @@ def sync_status(params: dict) -> tuple[int, dict]:
 
 
 def run_sync(params: dict) -> tuple[int, dict]:
-    """Run one sync job: ?type=sync&job=teams|schedule|scores|live. Cron only."""
+    """Run one sync job: ?type=sync&job=<name from sync.JOBS>. Cron only."""
     job = _param(params, "job")
     if job not in sync.JOBS:
         return 400, {"error": f"job must be one of {sorted(sync.JOBS)}"}
-    result = sync.run_job(job, sync.JOBS[job])
+    result = sync.run_job(job)
     return (200 if result["ok"] else 500), result
 
 

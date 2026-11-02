@@ -4,8 +4,9 @@
   python scripts/sync.py schedule [season]        e.g. schedule 2025 for last season
   python scripts/sync.py scores
   python scripts/sync.py live
-  python scripts/sync.py boxscores [season] [limit]
-  python scripts/sync.py boxscores 2025 --all     repeat until every finished game is synced
+  python scripts/sync.py boxscores [season] [limit]   team totals (API-Sports)
+  python scripts/sync.py players [season] [limit]     player stats (BallDontLie)
+  python scripts/sync.py boxscores 2025 --all         repeat while each run still saves rows
 """
 import json
 import sys
@@ -25,8 +26,8 @@ if __name__ == "__main__":
     extra = [int(a) for a in args[1:] if a != "--all"]
 
     while True:
-        result = sync.run_job(job, sync.JOBS[job], *extra)
+        result = sync.run_job(job, *extra)
         print(json.dumps(result, indent=2))
-        if not result["ok"] or not repeat or result["rows_written"] == 0:
+        if not repeat or result["rows_written"] == 0:
             break
     sys.exit(0 if result["ok"] else 1)
