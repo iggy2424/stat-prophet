@@ -129,6 +129,8 @@ trial, only endpoints that ALL-STAR also has). Same check, player points vs fina
 - Plan needed: **ALL-STAR $9.99/month** (Game Player Stats, Active Players, Player Injuries).
 - Commercial use terms not found on their site; confirm with BallDontLie.
 - Key is `BALLDONTLIE_API_KEY` in `.env`.
+- Requests are spaced 1.05s apart (ALL-STAR). On the trial, set `BALLDONTLIE_MIN_INTERVAL=12.5`
+  to stay under 5/minute instead of waiting out 429 replies.
 
 ## 5. Logic
 
@@ -339,3 +341,5 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **`team_rankings` endpoint and Team Rankings page.** Pages now live in the URL hash.
 - **Fixed phone layout:** wide content no longer widens the page, and the nav row no longer
   stretches when a page is short.
+- **Started the player stats backfill on the trial** (12.5s between requests, about 3 hours)
+  instead of waiting for ALL-STAR. `BALLDONTLIE_MIN_INTERVAL` sets the spacing.

@@ -11,9 +11,9 @@ from . import config
 
 BASE = "https://api.balldontlie.io/v1"
 
-# ALL-STAR plan: 60 requests/minute. The free and trial tiers allow 5/minute; calls then
-# hit 429 and wait, so jobs still finish, just slowly.
-MIN_INTERVAL = 1.05
+# ALL-STAR plan: 60 requests/minute. The free and trial tiers allow 5/minute: set
+# BALLDONTLIE_MIN_INTERVAL=12.5 there, or calls hit 429 and wait (jobs still finish, just slowly).
+DEFAULT_MIN_INTERVAL = 1.05
 RATE_LIMIT_WAIT = 15  # seconds to back off after a 429
 MAX_RATE_LIMIT_WAITS = 40
 
@@ -26,6 +26,7 @@ class BallDontLie:
     def __init__(self):
         self.key = config.get("BALLDONTLIE_API_KEY")
         self.requests_used = 0
+        self.min_interval = float(config.get("BALLDONTLIE_MIN_INTERVAL", required=False) or DEFAULT_MIN_INTERVAL)
         self._lock = threading.Lock()
         self._next_slot = 0.0
 
@@ -33,7 +34,7 @@ class BallDontLie:
         with self._lock:
             now = time.monotonic()
             slot = max(now, self._next_slot)
-            self._next_slot = slot + MIN_INTERVAL
+            self._next_slot = slot + self.min_interval
             self.requests_used += 1
         time.sleep(max(0.0, slot - now))
 
