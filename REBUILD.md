@@ -299,7 +299,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
 - [x] Schedule the sync jobs: one nightly cron (live scores stay on demand)
 - [x] `vercel.json` for the new structure
-- [ ] Test the preview deployment, then merge `rebuild` into `main`
+- [x] Preview deployment works (Games, Team Rankings, logos, Vercel login wall on previews)
+- [ ] Check live scores on the preview during a game, then merge `rebuild` into `main`
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
@@ -367,3 +368,6 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Deployment setup:** new `vercel.json` (Vite build, Python function bundling `backend/`,
   nightly cron replacing the old `refresh_defense` one), `nightly` sync job, and the
   preview-only login skip. Pushed `rebuild` to GitHub for a preview deployment.
+- **Preview deployment tested:** set `SUPABASE_KEY` for Preview, added `PREVIEW_SKIP_LOGIN`
+  (Preview only) and `BALLDONTLIE_API_KEY` (Production and Preview). Games and Team
+  Rankings load on the preview; logged out visitors are sent to Vercel's login.
