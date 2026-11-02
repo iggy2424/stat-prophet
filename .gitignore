@@ -7,3 +7,5 @@ __pycache__/
 .claude/
 nul
 .env.production
+node_modules/
+dist/
