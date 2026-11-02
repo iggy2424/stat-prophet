@@ -293,7 +293,7 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [x] Run `database/004_balldontlie_players.sql`, then test the `players` job on a few games
 - [x] Load 2025-26 schedule
 - [x] Load 2025-26 team box scores
-- [ ] Load player stats for 2025-26 and 2026-27 (after ALL-STAR: about 900 requests, 15 minutes)
+- [x] Load player stats for 2025-26 and 2026-27 (done on the trial, 2 Nov 2026)
 - [ ] Injury sync from `/v1/player_injuries`
 - [x] Team rankings: blended early season window, ranks on every stat, Team Rankings page
 - [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
@@ -378,3 +378,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Preview deployment tested:** set `SUPABASE_KEY` for Preview, added `PREVIEW_SKIP_LOGIN`
   (Preview only) and `BALLDONTLIE_API_KEY` (Production and Preview). Games and Team
   Rankings load on the preview; logged out visitors are sent to Vercel's login.
+- **Player stats backfill finished** (about 2 hours, no rejected games):
+  2025-26 has all 1,322 finished games (regular season, play-in, playoffs), 28,670 player
+  rows, 582 players. 2026-27 has all 92 finished games, 2,078 rows, 442 players. Checked
+  against the database: in every game each team's player points add up to its final
+  score, and each team's minutes total 240 (more with overtime). No games pending.
