@@ -304,7 +304,14 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
-- [ ] Paid Odds API plan before picks go live
+- [ ] Paid Odds API plan before picks go live: **$30 / 20K credits** (decided 2 Nov 2026)
+- [ ] Backtest plan (decided 2 Nov 2026):
+  1. Projection test on all of 2025-26 player stats (free): only data from before each game,
+     check accuracy against simple averages, which factors help, and whether probabilities are honest
+  2. Historical prop lines for **January 2026** (one snapshot about 1 hour before tip, points,
+     rebounds, assists, 3s, US region): 10 credits per market per game = ~40 per game, ~9,000 credits
+  3. Test against every line in those games, not only engine picks (~10,000 lines vs ~200 picks)
+  4. If good, February 2026 the following billing month. Live picks use ~4,000-5,000 credits a month
 - [ ] Decide what to do with the landing page redesign sitting uncommitted in `statprph\landing\index.html`
 
 ---
