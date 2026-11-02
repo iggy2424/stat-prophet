@@ -57,6 +57,16 @@ def insert(table: str, row: dict) -> dict:
     return _check(resp).json()[0]
 
 
+def update_in(table: str, column: str, ids: list, values: dict) -> None:
+    """PATCH every row whose column is in ids."""
+    headers = _headers({"Prefer": "return=minimal"})
+    for i in range(0, len(ids), 200):
+        chunk = ",".join(str(x) for x in ids[i:i + 200])
+        resp = requests.patch(f"{_base()}/{table}", headers=headers,
+                              params={column: f"in.({chunk})"}, json=values, timeout=30)
+        _check(resp)
+
+
 def update(table: str, match: dict, values: dict) -> None:
     """PATCH rows where every column in match equals its value."""
     params = {k: f"eq.{v}" for k, v in match.items()}

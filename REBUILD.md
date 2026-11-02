@@ -98,6 +98,18 @@ The frontend reloads on save. The local API does not; restart `npm run dev` afte
 - `/games?season=2026&league=standard` returns the whole season (1,265 games) in one request.
 - `/games?live=all` returns only games in progress, in one request.
 - `/teams` logos point at French Wikipedia images, so we use NBA.com logos instead.
+- Rate limits on Pro: 7,500/day **and** 300/minute, and short bursts are rejected. The client
+  spaces calls 0.25s apart (240/minute) and waits 15s then retries on a rate limit reply.
+- `/teams/statistics` mixes preseason into season totals (Lakers: 12 games for a 5-2 record),
+  so we calculate team stats ourselves from regular season box scores.
+- **Player box scores are incomplete.** Checked by comparing each team's points with the sum of
+  its players' points (2 Nov 2026):
+  - 2026-27 regular season: 71 of 184 team games (39%) missing players, 2 to 20 points each
+  - 2026-27 preseason: 118 of 130 incomplete (irrelevant, preseason is excluded)
+  - 2025-26 sample: 1 of 12 team games incomplete
+  - Re-fetching a week later returns the same gaps, so they are not filled in over time.
+  - Several missing players are rookies with shortened names ("C. Murray-Boyles", "A. Martin").
+  This makes API-Sports unsafe as the only source for player stats. Decision pending (see section 6).
 
 ## 5. Logic
 
@@ -151,7 +163,27 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 - Limitation: scores only update while someone has the page open. Results needed for pick
   history will come from a nightly job instead.
 
-### 5.5 API endpoints (`backend/handlers.py`)
+### 5.5 Box scores and team rankings (`backend/boxscores.py`, `database/003`)
+
+- **Tables:** `players` (current team and position, plus `search_name` for matching sportsbook
+  names: lowercase, no accents, no Jr./III, hyphens as spaces), `team_game_stats`,
+  `player_game_stats`. Season, stage and Eastern date are copied onto every stats row so
+  queries can exclude preseason without a join.
+- **`boxscores` job:** 2 requests per finished game (`/games/statistics`, `/players/statistics`),
+  4 threads, paced by the client. A game is marked done (`games.box_synced_at`) only if both
+  teams and at least one player per team came back. Games finished in the last 2 days are
+  synced once more at least 5 hours after tip off to catch late stat corrections.
+  Players with 0 minutes are not stored. A player's team and position only update from a
+  newer game, so backfilling old games never overwrites a trade.
+- **Possessions** per team game: `fga + 0.44 × fta − off_reb + turnovers`.
+- **`team_rankings` view:** calculated live from regular season games only, for
+  `window_name = 'season'` and `'last10'`. Offence (points, 3s made, 3P%, rebounds, offensive
+  rebounds, assists, offensive rating), defence as what opponents do (points, 3s, 3P%,
+  rebounds, assists allowed, defensive rating) and pace, each ranked 1 to 30. Offence rank 1
+  scores the most; defence rank 1 allows the fewest.
+- **Known problem:** API-Sports player data has gaps (see section 4). Team totals are complete.
+
+### 5.6 API endpoints (`backend/handlers.py`)
 
 | `?type=` | Who | Returns |
 |---|---|---|
@@ -161,13 +193,13 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 
 Any handler error returns HTTP 500 with the error message. Errors are never turned into empty data.
 
-### 5.6 Authentication (`backend/auth.py`)
+### 5.7 Authentication (`backend/auth.py`)
 
 - Members: the `whop_session` cookie, an HS256 JWT signed by `api/callback.js` with `JWT_SECRET`.
 - Cron and sync calls: `Authorization: Bearer <CRON_SECRET>`.
 - Local development skips the member check.
 
-### 5.7 Frontend (`frontend/`)
+### 5.8 Frontend (`frontend/`)
 
 - React 18 + TypeScript, built with Vite. The production bundle is about 48 KB gzipped.
 - `src/api.ts` is the only place that calls the backend. A 401 sends the user to `/login`.
@@ -176,7 +208,10 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 
 ## 6. Open items
 
-- [ ] Player box scores for every finished game, this season and last (next step)
+- [x] Team and player box score tables, sync job and team rankings view
+- [x] 2026-27 box scores loaded (157 games)
+- [ ] **Decide the player stats source** (API-Sports gaps, see section 4) before loading 2025-26
+- [ ] Load 2025-26 schedule and box scores
 - [ ] Schedule the sync jobs (Vercel Hobby cron runs at most once a day, so live work stays on demand)
 - [ ] `vercel.json` for the new structure, tested on a preview deployment before merging
 - [ ] Rebuild Pick History on the new foundation
@@ -209,3 +244,13 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - **Added live scores**: `live` job using `/games?live=all`, 15 second shared refresh,
   final score capture tested by faking a live game and confirming it was corrected
   (Raptors 125, Lakers 131). Commit `18ae0be`.
+- **Added `REBUILD.md`** (this file). Commit `8fd3ce7`.
+- **Added box scores and team rankings** (`database/003_box_scores.sql`, `backend/boxscores.py`,
+  `backend/names.py`): `players`, `team_game_stats`, `player_game_stats`,
+  `games.box_synced_at`, and the `team_rankings` view.
+- **Added request pacing to the API-Sports client** after the first box score run hit the
+  per minute limit at about 30 burst requests. Now 0.25s spacing and rate limit retries.
+- **Loaded 2026-27 box scores:** 157 games, 314 requests, 84 seconds, 498 players.
+- **Found incomplete player data in API-Sports** (39% of this season's regular season team
+  games missing players). Paused the 2025-26 backfill until the data source is decided.
+  The old Sportradar key in `.env` has expired.

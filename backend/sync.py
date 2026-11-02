@@ -8,6 +8,7 @@ Jobs
   schedule  the full season schedule (daily)
   scores    status and scores for every game from yesterday to tomorrow (backup sweep)
   live      live games only, plus final scores for games that just ended (every 15s while games are on)
+  boxscores team and player stats for finished games (see boxscores.py)
 """
 import traceback
 from datetime import timedelta
@@ -183,9 +184,12 @@ def sync_live(api: ApiSports) -> int:
     return db.upsert("games", rows) if rows else 0
 
 
+from .boxscores import sync_boxscores  # noqa: E402  (imported here to keep jobs listed in one place)
+
 JOBS = {
     "teams": sync_teams,
     "schedule": sync_schedule,
     "scores": sync_scores,
     "live": sync_live,
+    "boxscores": sync_boxscores,
 }
