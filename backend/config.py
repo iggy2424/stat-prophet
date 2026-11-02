@@ -33,3 +33,10 @@ def get(name: str, required: bool = True) -> str:
 def is_dev() -> bool:
     """True only when running through scripts/dev_server.py. Never set this on Vercel."""
     return os.environ.get("TB_DEV") == "1"
+
+
+def preview_skips_login() -> bool:
+    """Vercel preview deployments can skip the Whop login, because Whop only redirects back to
+    app.trendbet.ai. Needs PREVIEW_SKIP_LOGIN=1 set for the Preview environment, and never
+    applies in production. Vercel Deployment Protection keeps preview links private."""
+    return os.environ.get("VERCEL_ENV") == "preview" and os.environ.get("PREVIEW_SKIP_LOGIN") == "1"

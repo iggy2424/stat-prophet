@@ -2,7 +2,7 @@
 
 Members: the whop_session cookie, an HS256 JWT signed by api/callback.js with JWT_SECRET.
 Cron and sync calls: Authorization: Bearer <CRON_SECRET>.
-Local development (TB_DEV=1) skips the member check.
+Local development (TB_DEV=1) and opted-in Vercel previews skip the member check.
 """
 import base64
 import hashlib
@@ -29,7 +29,7 @@ def _b64(data: bytes) -> str:
 
 
 def is_member(headers) -> bool:
-    if config.is_dev():
+    if config.is_dev() or config.preview_skips_login():
         return True
     token = _cookie(headers, COOKIE_NAME)
     secret = config.get("JWT_SECRET", required=False).encode()

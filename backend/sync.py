@@ -191,6 +191,9 @@ from .balldontlie import BallDontLie  # noqa: E402  (imported here to keep jobs 
 from .boxscores import sync_boxscores  # noqa: E402
 from .player_stats import sync_players  # noqa: E402
 
+# The daily cron runs these in order: last night's finals, then their box scores
+NIGHTLY = ["schedule", "scores", "boxscores", "players"]
+
 # job name -> (function, API client it is given)
 JOBS = {
     "teams": (sync_teams, ApiSports),

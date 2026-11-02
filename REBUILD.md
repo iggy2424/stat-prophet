@@ -246,6 +246,26 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - Members: the `whop_session` cookie, an HS256 JWT signed by `api/callback.js` with `JWT_SECRET`.
 - Cron and sync calls: `Authorization: Bearer <CRON_SECRET>`.
 - Local development skips the member check.
+- **Vercel previews** skip the member check only when `VERCEL_ENV=preview` **and**
+  `PREVIEW_SKIP_LOGIN=1` (set for the Preview environment only). Needed because Whop always
+  redirects back to app.trendbet.ai. Vercel Deployment Protection keeps preview links
+  private to the Vercel account. Never applies in production.
+
+### 5.9 Deployment (`vercel.json`)
+
+- Push to any branch other than `main` = preview deployment with its own link. Push to
+  `main` = production (app.trendbet.ai).
+- Build: `npm ci` at the root (for the Node login functions), then the frontend is built
+  into `frontend/dist`, which Vercel serves. `/login` serves `login.html`.
+- Functions: `api/index.py` (Python, bundles `backend/**`, up to 60s), `api/login.js` and
+  `api/callback.js` (Node, Whop OAuth). Only `/api` reaches `index.py`; routes use `?type=`.
+- **Nightly cron, 09:00 UTC** (4 or 5am ET, after every game has ended):
+  `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players` in order.
+  Each job logs its own `sync_log` row, and one failing never stops the rest. Crons only
+  run on production. Live scores stay on demand (Hobby cron runs at most once a day).
+- Environment variables needed in Vercel (Production and Preview): `SUPABASE_URL`,
+  `SUPABASE_KEY`, `API_SPORTS_KEY`, `BALLDONTLIE_API_KEY`, `JWT_SECRET`, `CRON_SECRET`,
+  `WHOP_CLIENT_ID`, `WHOP_CLIENT_SECRET`, `WHOP_COMPANY_KEY`. Preview only: `PREVIEW_SKIP_LOGIN=1`.
 
 ### 5.8 Frontend (`frontend/`)
 
@@ -277,8 +297,9 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [ ] Injury sync from `/v1/player_injuries`
 - [x] Team rankings: blended early season window, ranks on every stat, Team Rankings page
 - [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
-- [ ] Schedule the sync jobs (Vercel Hobby cron runs at most once a day, so live work stays on demand)
-- [ ] `vercel.json` for the new structure, tested on a preview deployment before merging
+- [x] Schedule the sync jobs: one nightly cron (live scores stay on demand)
+- [x] `vercel.json` for the new structure
+- [ ] Test the preview deployment, then merge `rebuild` into `main`
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
@@ -343,3 +364,6 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
   stretches when a page is short.
 - **Started the player stats backfill on the trial** (12.5s between requests, about 3 hours)
   instead of waiting for ALL-STAR. `BALLDONTLIE_MIN_INTERVAL` sets the spacing.
+- **Deployment setup:** new `vercel.json` (Vite build, Python function bundling `backend/`,
+  nightly cron replacing the old `refresh_defense` one), `nightly` sync job, and the
+  preview-only login skip. Pushed `rebuild` to GitHub for a preview deployment.

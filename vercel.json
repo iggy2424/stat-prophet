@@ -1,21 +1,14 @@
 {
-  "builds": [
-    { "src": "api/login.js",    "use": "@vercel/node" },
-    { "src": "api/callback.js", "use": "@vercel/node" },
-    { "src": "api/**/*.py",     "use": "@vercel/python" },
-    { "src": "frontend/**",     "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/login",    "dest": "/api/login.js" },
-    { "src": "/api/callback", "dest": "/api/callback.js" },
-    { "src": "/api/(.*)",     "dest": "/api/index.py" },
-    { "src": "/login",        "dest": "/frontend/login.html" },
-    { "src": "/(.*)",         "dest": "/frontend/$1" }
+  "installCommand": "npm ci",
+  "buildCommand": "npm --prefix frontend ci && npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/index.py": { "includeFiles": "backend/**", "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" }
   ],
   "crons": [
-    {
-      "path": "/api?type=refresh_defense",
-      "schedule": "0 10 * * *"
-    }
+    { "path": "/api?type=sync&job=nightly", "schedule": "0 9 * * *" }
   ]
 }

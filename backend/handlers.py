@@ -115,10 +115,17 @@ def sync_status(params: dict) -> tuple[int, dict]:
 
 
 def run_sync(params: dict) -> tuple[int, dict]:
-    """Run one sync job: ?type=sync&job=<name from sync.JOBS>. Cron only."""
+    """Run a sync job: ?type=sync&job=<name from sync.JOBS, or nightly>. Cron only.
+
+    nightly runs every job in sync.NIGHTLY even if one fails, so a box score problem
+    never stops player stats from syncing. Each job gets its own sync_log row.
+    """
     job = _param(params, "job")
+    if job == "nightly":
+        results = [sync.run_job(name) for name in sync.NIGHTLY]
+        return (200 if all(r["ok"] for r in results) else 500), {"jobs": results}
     if job not in sync.JOBS:
-        return 400, {"error": f"job must be one of {sorted(sync.JOBS)}"}
+        return 400, {"error": f"job must be nightly or one of {sorted(sync.JOBS)}"}
     result = sync.run_job(job)
     return (200 if result["ok"] else 500), result
 
