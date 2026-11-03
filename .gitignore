@@ -9,3 +9,4 @@ nul
 .env.production
 node_modules/
 dist/
+research/.cache/

@@ -1,0 +1,6 @@
+# Local research only (not deployed). Install with: pip install -r research/requirements.txt
+lightgbm==4.5.0
+pandas==2.2.3
+numpy==1.26.4
+scipy==1.11.3
+requests

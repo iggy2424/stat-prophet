@@ -1,0 +1,169 @@
+
+=== Split A: train 13,309 games (30 Oct 2025 to 31 Jan 2026), test 12,515 (01 Feb 2026 to 13 Jun 2026)
+
+PTS  (average 10.7)
+  model             MAE   RMSE   bias
+  season           4.85   6.33  -0.22
+  last10           4.73   6.19  -0.09
+  ewm10            4.70   6.13  -0.15
+  min_rate         4.63   6.07  -0.11
+  lgbm             4.56   5.92  -0.01
+  lgbm_no_opp      4.57   5.93  +0.05
+  lgbm_no_mates    4.66   6.07  -0.21
+  over/under vs ewm10 line 9.5 median: over 44.4% of the time, Brier 0.2344 (always the base rate: 0.2468)
+    model says 0%-30%       996 props   said 26.8%  happened 25.3%
+    model says 30%-40%    4,435 props   said 35.7%  happened 36.9%
+    model says 40%-45%    2,567 props   said 42.4%  happened 45.2%
+    model says 45%-55%    3,082 props   said 49.3%  happened 50.0%
+    model says 55%-60%      645 props   said 57.2%  happened 62.0%
+    model says 60%-70%      549 props   said 64.1%  happened 68.1%
+    model says 70%-100%     241 props   said 77.5%  happened 77.6%
+    leans of 60%+ either way: 6,221 props, right 66.0% (always under on the same props: 60.6%)
+      over  leans:    790 props, right 71.0%
+      under leans:  5,431 props, right 65.2%
+  top factors: points_ewm10 33%, fga_ewm10 23%, points_l10 13%, fga_ewm3 8%, points_ewm3 5%, points_season 4%, missing_pts 2%, fga_season 2%
+
+REB  (average 4.0)
+  model             MAE   RMSE   bias
+  season           1.94   2.56  -0.03
+  last10           1.93   2.56  +0.01
+  ewm10            1.91   2.52  +0.01
+  min_rate         1.89   2.50  +0.02
+  lgbm             1.87   2.45  +0.08
+  lgbm_no_opp      1.88   2.47  +0.12
+  lgbm_no_mates    1.89   2.49  +0.01
+  over/under vs ewm10 line 3.5 median: over 39.8% of the time, Brier 0.2290 (always the base rate: 0.2395)
+    model says 0%-30%     1,395 props   said 25.1%  happened 22.4%
+    model says 30%-40%    4,139 props   said 35.6%  happened 33.1%
+    model says 40%-45%    2,335 props   said 42.4%  happened 40.9%
+    model says 45%-55%    3,254 props   said 49.3%  happened 47.0%
+    model says 55%-60%      715 props   said 57.3%  happened 54.3%
+    model says 60%-70%      508 props   said 63.8%  happened 59.1%
+    model says 70%-100%     169 props   said 75.1%  happened 70.4%
+    leans of 60%+ either way: 6,211 props, right 68.7% (always under on the same props: 66.2%)
+      over  leans:    677 props, right 61.9%
+      under leans:  5,534 props, right 69.6%
+  top factors: tot_reb_ewm10 39%, tot_reb_season 26%, tot_reb_ewm3 14%, tot_reb_l10 2%, missing_pts 2%, missing_min 2%, minutes_ewm3 1%, opp_allowed_reb 1%
+
+AST  (average 2.5)
+  model             MAE   RMSE   bias
+  season           1.40   1.91  -0.03
+  last10           1.39   1.90  +0.01
+  ewm10            1.37   1.87  +0.00
+  min_rate         1.36   1.85  +0.01
+  lgbm             1.34   1.82  +0.03
+  lgbm_no_opp      1.34   1.83  +0.02
+  lgbm_no_mates    1.35   1.85  -0.02
+  over/under vs ewm10 line 2.5 median: over 37.7% of the time, Brier 0.2215 (always the base rate: 0.2349)
+    model says 0%-30%     2,624 props   said 24.3%  happened 22.5%
+    model says 30%-40%    4,415 props   said 35.3%  happened 33.9%
+    model says 40%-45%    2,226 props   said 42.5%  happened 40.7%
+    model says 45%-55%    2,541 props   said 49.0%  happened 50.1%
+    model says 55%-60%      390 props   said 57.1%  happened 60.0%
+    model says 60%-70%      280 props   said 63.6%  happened 68.2%
+    model says 70%-100%      39 props   said 73.9%  happened 71.8%
+    leans of 60%+ either way: 7,358 props, right 70.3% (always under on the same props: 68.6%)
+      over  leans:    319 props, right 68.7%
+      under leans:  7,039 props, right 70.3%
+  top factors: assists_ewm10 57%, assists_ewm3 19%, assists_season 7%, assists_l10 4%, missing_pts 1%, missing_min 1%, minutes_ewm3 1%, points_ewm3 1%
+
+3PM  (average 1.2)
+  model             MAE   RMSE   bias
+  season           0.90   1.26  -0.01
+  last10           0.90   1.27  -0.01
+  ewm10            0.89   1.24  -0.01
+  min_rate         0.88   1.24  -0.00
+  lgbm             0.89   1.23  +0.00
+  lgbm_no_opp      0.89   1.23  +0.01
+  lgbm_no_mates    0.89   1.24  -0.01
+  over/under vs ewm10 line 1.5 median: over 31.4% of the time, Brier 0.1981 (always the base rate: 0.2154)
+    model says 0%-30%     4,880 props   said 19.6%  happened 18.3%
+    model says 30%-40%    3,922 props   said 34.7%  happened 34.6%
+    model says 40%-45%    1,551 props   said 42.4%  happened 42.2%
+    model says 45%-55%    1,800 props   said 48.9%  happened 45.4%
+    model says 55%-60%      198 props   said 57.1%  happened 49.0%
+    model says 60%-70%      125 props   said 63.9%  happened 64.8%
+    model says 70%-100%      39 props   said 74.4%  happened 74.4%
+    leans of 60%+ either way: 8,966 props, right 74.3% (always under on the same props: 73.7%)
+      over  leans:    164 props, right 67.1%
+      under leans:  8,802 props, right 74.4%
+  top factors: tpa_ewm10 39%, tpa_ewm3 14%, tpa_season 12%, tpa_l10 7%, tpm_ewm10 6%, tpa_per_min 4%, tpm_season 2%, missing_pts 1%
+
+=== Split B: train 25,824 games (30 Oct 2025 to 13 Jun 2026), test 2,170 (20 Oct 2026 to 02 Nov 2026)
+
+PTS  (average 10.4)
+  model             MAE   RMSE   bias
+  season           5.01   6.63  +0.16
+  last10           5.07   6.50  +0.79
+  ewm10            4.92   6.26  +1.11
+  min_rate         4.84   6.21  +0.93
+  lgbm             4.72   6.14  +0.38
+  lgbm_no_opp      4.72   6.14  +0.30
+  lgbm_no_mates    4.87   6.24  +0.81
+  over/under vs ewm10 line 10.5 median: over 37.4% of the time, Brier 0.2292 (always the base rate: 0.2341)
+    model says 0%-30%       642 props   said 23.1%  happened 28.3%
+    model says 30%-40%      698 props   said 35.3%  happened 35.8%
+    model says 40%-45%      354 props   said 42.4%  happened 41.8%
+    model says 45%-55%      364 props   said 49.1%  happened 47.3%
+    model says 55%-60%       62 props   said 57.2%  happened 51.6%
+    model says 60%-70%       42 props   said 63.8%  happened 47.6%
+    leans of 60%+ either way: 1,390 props, right 67.3% (always under on the same props: 67.0%)
+      over  leans:     50 props, right 54.0%
+      under leans:  1,340 props, right 67.8%
+
+REB  (average 4.0)
+  model             MAE   RMSE   bias
+  season           2.00   2.68  +0.02
+  last10           1.97   2.63  +0.11
+  ewm10            1.93   2.53  +0.20
+  min_rate         1.91   2.54  +0.12
+  lgbm             1.92   2.55  -0.05
+  lgbm_no_opp      1.91   2.54  -0.03
+  lgbm_no_mates    1.94   2.56  +0.12
+  over/under vs ewm10 line 4.5 median: over 37.1% of the time, Brier 0.2321 (always the base rate: 0.2332)
+    model says 0%-30%       655 props   said 21.9%  happened 28.5%
+    model says 30%-40%      638 props   said 35.2%  happened 36.8%
+    model says 40%-45%      379 props   said 42.4%  happened 41.2%
+    model says 45%-55%      391 props   said 49.1%  happened 43.2%
+    model says 55%-60%       60 props   said 57.4%  happened 51.7%
+    model says 60%-70%       36 props   said 63.1%  happened 52.8%
+    leans of 60%+ either way: 1,340 props, right 66.9% (always under on the same props: 66.6%)
+      over  leans:     47 props, right 55.3%
+      under leans:  1,293 props, right 67.4%
+
+AST  (average 2.4)
+  model             MAE   RMSE   bias
+  season           1.44   1.98  -0.04
+  last10           1.41   1.92  +0.08
+  ewm10            1.38   1.84  +0.18
+  min_rate         1.36   1.84  +0.14
+  lgbm             1.36   1.84  +0.04
+  lgbm_no_opp      1.35   1.83  +0.04
+  lgbm_no_mates    1.41   1.88  +0.19
+  over/under vs ewm10 line 2.5 median: over 34.9% of the time, Brier 0.2232 (always the base rate: 0.2273)
+    model says 0%-30%       706 props   said 22.3%  happened 26.5%
+    model says 30%-40%      690 props   said 35.1%  happened 34.6%
+    model says 40%-45%      279 props   said 42.4%  happened 40.1%
+    model says 45%-55%      363 props   said 49.1%  happened 40.8%
+    model says 55%-60%       77 props   said 57.0%  happened 59.7%
+    model says 60%-70%       49 props   said 62.4%  happened 51.0%
+    leans of 60%+ either way: 1,451 props, right 68.6% (always under on the same props: 68.8%)
+      over  leans:     55 props, right 47.3%
+      under leans:  1,396 props, right 69.5%
+
+3PM  (average 1.2)
+  model             MAE   RMSE   bias
+  season           0.96   1.37  -0.03
+  last10           0.94   1.29  +0.04
+  ewm10            0.92   1.25  +0.08
+  min_rate         0.91   1.24  +0.06
+  lgbm             0.89   1.25  -0.07
+  lgbm_no_opp      0.90   1.25  -0.05
+  lgbm_no_mates    0.90   1.25  -0.01
+  over/under vs ewm10 line 1.5 median: over 30.2% of the time, Brier 0.1974 (always the base rate: 0.2109)
+    model says 0%-30%     1,099 props   said 16.8%  happened 20.5%
+    model says 30%-40%      642 props   said 34.8%  happened 35.2%
+    model says 40%-45%      196 props   said 42.2%  happened 44.4%
+    model says 45%-55%      204 props   said 48.8%  happened 49.5%
+    leans of 60%+ either way: 1,748 props, right 74.0% (always under on the same props: 74.0%)
+      under leans:  1,741 props, right 74.1%

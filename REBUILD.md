@@ -324,6 +324,43 @@ are not stored: the record is graded from the final scores in `games`.
 - Past seasons have no injury list. For tests on 2025-26, missing players are worked out
   from the box scores instead (a regular who did not play).
 
+### 5.12 Player projection test (`research/projections/`, local only)
+
+Not deployed. `research/requirements.txt` (LightGBM, pandas, scipy) is separate from the
+Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (not in git),
+`features.py` builds pre-game features, `evaluate.py` runs the test. Full output:
+`research/projections/results_2026-11-03.txt`.
+
+- **Rules:** every feature uses only earlier games. Only games the player played are scored
+  (a prop on a player who sits is void). A player needs 5 earlier games. Splits are by
+  date, never shuffled: **A** trains on 2025-26 before February and tests February to the
+  end of the playoffs (12,515 player games); **B** trains on all of 2025-26 and tests
+  2026-27 so far (2,170, the early season case).
+- **Models:** season average, last 10, exponential average (half-life 10 games), minutes x
+  per minute rate, and LightGBM on everything (form, rest, home, position, pace, opponent,
+  missing teammates). LightGBM uses Poisson loss for rebounds, assists and 3s.
+- **Accuracy, split A** (average miss, points / rebounds / assists / 3s):
+  season average 4.85 / 1.94 / 1.40 / 0.90, exponential 4.70 / 1.91 / 1.37 / 0.89,
+  minutes x rate 4.63 / 1.89 / 1.36 / 0.88, **LightGBM 4.56 / 1.87 / 1.34 / 0.89**.
+  Points gain the most; 3s gain nothing over the simple models.
+- **What helps:** missing teammates (without them, points miss rises 4.56 to 4.66, and in
+  the early season 4.72 to 4.87). Opponent features (defence, pace, what it allows) add
+  nothing measurable (4.56 vs 4.57). The model leans on recent averages and shot attempts.
+  `missing_min` uses the real box score, so it knows about late scratches a pre-game
+  injury report would miss: slightly optimistic.
+- **Early season (split B):** the simple averages run high (points +1.1 a game: players'
+  last season numbers overstate this season). LightGBM cuts that to +0.4.
+- **Probabilities:** each projection becomes a negative binomial distribution (points
+  included: a normal curve put "over" about 5 points too high, because scoring is skewed),
+  with the spread fitted on the last 20% of the training period. Stand-in line: the
+  exponential average rounded to x.5. In split A every band is within about 5 points of
+  what happened, most within 2-3 (e.g. points "60-70% over" happened 68%). In split B the
+  model is overconfident on overs (points "60-70%" happened 48%, 42 props).
+- **Not an edge yet.** Against the stand-in line, 60%+ leans beat "always under" by
+  5 points on points, 2-3 on rebounds and assists, under 1 on 3s, and by nothing in the
+  early season. Sportsbook lines are sharper than an average, so the real test is
+  January 2026 Odds API lines.
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -347,6 +384,9 @@ are not stored: the record is graded from the final scores in `games`.
 - [x] `vercel.json` for the new structure
 - [x] Preview deployment works (Games, Team Rankings, logos, Vercel login wall on previews)
 - [ ] Check live scores on the preview during a game, then merge `rebuild` into `main`
+- [x] Projection test on 2025-26 (section 5.12)
+- [ ] Projection model v2: early season shrinkage and calibration, a minutes model that uses
+  injuries, and more history (backfill 2024-25 now that ALL-STAR is active)
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
@@ -450,3 +490,9 @@ are not stored: the record is graded from the final scores in `games`.
   players listed on the Games page cards. Added `db.insert_many` and `db.delete_in`.
 - Subscribed to **BallDontLie ALL-STAR**. Checked: 12 requests in 16 seconds with no rate limit
   errors (the trial allowed 5 a minute). Default spacing (1.05s) applies everywhere now.
+- **Player projection test** (`research/projections/`, section 5.12): baselines and LightGBM
+  on 2025-26 and early 2026-27. LightGBM is best (points miss 4.56 vs 4.70 for an
+  exponential average); missing teammates is the factor that helps, opponent factors add
+  nothing. Probabilities switched to negative binomial after the first run showed points
+  "over" about 5 points too high; mid-season bands are now within about 5 points.
+  Early-season overs are still overconfident.
