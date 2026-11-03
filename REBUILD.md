@@ -386,7 +386,7 @@ Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (no
 - [ ] Check live scores on the preview during a game, then merge `rebuild` into `main`
 - [x] Projection test on 2025-26 (section 5.12)
 - [ ] Projection model v2: early season shrinkage and calibration, a minutes model that uses
-  injuries, and more history (backfill 2024-25 now that ALL-STAR is active)
+  injuries, and more history (2024-25 player stats loaded 3 Nov 2026)
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
@@ -496,3 +496,12 @@ Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (no
   nothing. Probabilities switched to negative binomial after the first run showed points
   "over" about 5 points too high; mid-season bands are now within about 5 points.
   Early-season overs are still overconfident.
+- **2024-25 backfill** for model training: schedule from API-Sports (1 request, 1,321
+  finished regular season and playoff games) and player stats from BallDontLie (484
+  requests, 28,157 rows, 569 players). No team box scores for 2024-25 (1,320 API-Sports
+  requests, not needed: team totals can be summed from the player rows). Every game in
+  2024-25, 2025-26 and 2026-27 checked: player points add up to the final score.
+- **Fix: players with "0" minutes but a stat are now saved.** A few seconds of garbage time
+  shows as 0 minutes, and three 2024-25 games were missing a free throw or basket because
+  those rows were skipped. A row now counts as played if it has minutes or any stat. The
+  three games were re-synced. 2025-26 and 2026-27 points all matched already.
