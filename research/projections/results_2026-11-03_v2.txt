@@ -1,0 +1,287 @@
+
+=== Split A: train 40,797 games (31 Oct 2024 to 31 Jan 2026), test 12,665 (01 Feb 2026 to 13 Jun 2026)
+
+PTS  (average 10.6; 478 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          4.85   6.32  -0.22             4.08  -0.91
+  last10          4.73   6.19  -0.08             4.21  -0.58
+  ewm10           4.70   6.13  -0.12             4.11  -0.55
+  min_rate        4.63   6.06  -0.12             4.07  -0.65
+  lgbm_v1         4.59   5.94  +0.15             3.98  +0.25
+  lgbm_v2         4.52   5.86  +0.14             3.94  +0.56
+  v2_no_prev      4.51   5.85  +0.13             3.91  +0.51
+  v2_no_mates     4.61   6.00  -0.06             4.04  -0.24
+  over/under vs ewm10 line (median 9.5, over 43.8% of the time; always the base rate: Brier 0.2461)
+    v1 probabilities: Brier 0.2349, calibration gap 0.7%, overs 60%+: 804 said 68% happened 70%, unders 60%+: 4,852 said 66% happened 66%
+    v2 probabilities: Brier 0.2307, calibration gap 1.9%, overs 60%+: 739 said 70% happened 73%, unders 60%+: 5,359 said 66% happened 67%
+    first 10 games only, v1: Brier 0.2352, calibration gap 8.3%, overs 60%+: 105 said 72% happened 61%, unders 60%+: 163 said 70% happened 69%
+    first 10 games only, v2: Brier 0.2257, calibration gap 5.9%, overs 60%+: 86 said 72% happened 64%, unders 60%+: 170 said 68% happened 71%
+    (early spread fitted on 4,664 forward predictions)
+      v2 says 0%-30%     1,114 props   said 25.7%  happened 23.1%
+      v2 says 30%-40%    4,245 props   said 35.9%  happened 35.4%
+      v2 says 40%-45%    2,811 props   said 42.4%  happened 43.3%
+      v2 says 45%-55%    3,152 props   said 49.0%  happened 52.4%
+      v2 says 55%-60%      604 props   said 57.2%  happened 62.9%
+      v2 says 60%-70%      475 props   said 64.2%  happened 67.8%
+      v2 says 70%-100%     264 props   said 79.4%  happened 81.1%
+  top factors: points_ewm10 49%, fga_ewm3 23%, points_ewm3 9%, points_season 5%, fga_season 3%, fga_ewm10 3%, missing_pts 2%, minutes_ewm3 1%
+
+REB  (average 4.0; 478 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.94   2.57  -0.03             1.73  -0.24
+  last10          1.94   2.57  +0.01             1.74  -0.07
+  ewm10           1.91   2.52  +0.03             1.71  -0.06
+  min_rate        1.89   2.50  +0.03             1.70  -0.10
+  lgbm_v1         1.87   2.45  +0.08             1.69  +0.16
+  lgbm_v2         1.85   2.43  +0.09             1.69  +0.27
+  v2_no_prev      1.85   2.43  +0.09             1.69  +0.27
+  v2_no_mates     1.87   2.47  -0.00             1.67  -0.05
+  over/under vs ewm10 line (median 3.5, over 39.3% of the time; always the base rate: Brier 0.2386)
+    v1 probabilities: Brier 0.2282, calibration gap 2.5%, overs 60%+: 649 said 67% happened 63%, unders 60%+: 5,707 said 67% happened 70%
+    v2 probabilities: Brier 0.2247, calibration gap 1.9%, overs 60%+: 614 said 69% happened 69%, unders 60%+: 6,026 said 68% happened 70%
+    first 10 games only, v1: Brier 0.2317, calibration gap 8.4%, overs 60%+: 75 said 70% happened 60%, unders 60%+: 199 said 71% happened 68%
+    first 10 games only, v2: Brier 0.2224, calibration gap 6.6%, overs 60%+: 70 said 71% happened 73%, unders 60%+: 203 said 71% happened 70%
+    (early spread fitted on 4,664 forward predictions)
+      v2 says 0%-30%     1,729 props   said 24.0%  happened 21.2%
+      v2 says 30%-40%    4,297 props   said 35.7%  happened 33.3%
+      v2 says 40%-45%    2,606 props   said 42.4%  happened 41.2%
+      v2 says 45%-55%    2,892 props   said 49.0%  happened 47.7%
+      v2 says 55%-60%      527 props   said 57.3%  happened 58.1%
+      v2 says 60%-70%      418 props   said 63.9%  happened 65.6%
+      v2 says 70%-100%     196 props   said 78.5%  happened 77.0%
+  top factors: tot_reb_ewm10 54%, tot_reb_ewm3 21%, tot_reb_season 10%, missing_min 2%, minutes_ewm3 1%, missing_pts 1%, tot_reb_per_min 1%, missing_same_pos 1%
+
+AST  (average 2.4; 478 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.40   1.91  -0.02             1.22  -0.06
+  last10          1.39   1.90  +0.01             1.23  -0.10
+  ewm10           1.37   1.87  +0.00             1.20  -0.07
+  min_rate        1.35   1.85  +0.00             1.18  -0.10
+  lgbm_v1         1.34   1.82  +0.03             1.17  +0.13
+  lgbm_v2         1.32   1.80  +0.02             1.17  +0.20
+  v2_no_prev      1.33   1.80  +0.03             1.17  +0.22
+  v2_no_mates     1.34   1.83  -0.04             1.15  -0.04
+  over/under vs ewm10 line (median 2.5, over 37.5% of the time; always the base rate: Brier 0.2344)
+    v1 probabilities: Brier 0.2202, calibration gap 1.2%, overs 60%+: 320 said 67% happened 68%, unders 60%+: 7,288 said 69% happened 71%
+    v2 probabilities: Brier 0.2176, calibration gap 0.6%, overs 60%+: 493 said 68% happened 71%, unders 60%+: 7,428 said 71% happened 71%
+    first 10 games only, v1: Brier 0.2096, calibration gap 4.9%, overs 60%+: 59 said 71% happened 69%, unders 60%+: 251 said 72% happened 76%
+    first 10 games only, v2: Brier 0.2071, calibration gap 4.0%, overs 60%+: 69 said 71% happened 70%, unders 60%+: 248 said 72% happened 76%
+    (early spread fitted on 4,664 forward predictions)
+      v2 says 0%-30%     3,445 props   said 23.0%  happened 22.0%
+      v2 says 30%-40%    3,983 props   said 35.1%  happened 35.0%
+      v2 says 40%-45%    1,900 props   said 42.4%  happened 42.5%
+      v2 says 45%-55%    2,398 props   said 49.3%  happened 49.5%
+      v2 says 55%-60%      446 props   said 57.3%  happened 57.2%
+      v2 says 60%-70%      353 props   said 63.9%  happened 69.4%
+      v2 says 70%-100%     140 props   said 77.2%  happened 74.3%
+  top factors: assists_ewm10 56%, assists_ewm3 20%, assists_season 7%, assists_l10 5%, missing_pts 1%, missing_min 1%, missing_same_pos 1%, minutes_ewm3 1%
+
+3PM  (average 1.2; 478 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          0.90   1.26  -0.01             0.73  -0.10
+  last10          0.90   1.27  -0.00             0.74  -0.06
+  ewm10           0.89   1.24  -0.01             0.72  -0.07
+  min_rate        0.88   1.24  -0.01             0.72  -0.07
+  lgbm_v1         0.90   1.23  +0.03             0.73  +0.00
+  lgbm_v2         0.88   1.22  +0.03             0.73  +0.06
+  v2_no_prev      0.88   1.22  +0.04             0.74  +0.07
+  v2_no_mates     0.89   1.23  +0.01             0.74  -0.03
+  over/under vs ewm10 line (median 1.5, over 31.3% of the time; always the base rate: Brier 0.2150)
+    v1 probabilities: Brier 0.1996, calibration gap 1.9%, overs 60%+: 177 said 66% happened 62%, unders 60%+: 8,740 said 73% happened 74%
+    v2 probabilities: Brier 0.1958, calibration gap 1.5%, overs 60%+: 165 said 68% happened 67%, unders 60%+: 8,801 said 74% happened 75%
+    first 10 games only, v1: Brier 0.1934, calibration gap 2.2%, overs 60%+: 21 said 67% happened 57%, unders 60%+: 344 said 76% happened 77%
+    first 10 games only, v2: Brier 0.1855, calibration gap 2.4%, unders 60%+: 344 said 77% happened 77%
+    (early spread fitted on 4,664 forward predictions)
+      v2 says 0%-30%     4,898 props   said 19.4%  happened 17.1%
+      v2 says 30%-40%    3,903 props   said 34.9%  happened 34.9%
+      v2 says 40%-45%    1,582 props   said 42.4%  happened 40.2%
+      v2 says 45%-55%    1,889 props   said 48.9%  happened 47.2%
+      v2 says 55%-60%      228 props   said 57.2%  happened 53.5%
+      v2 says 60%-70%      122 props   said 64.2%  happened 63.9%
+      v2 says 70%-100%      43 props   said 77.0%  happened 76.7%
+  top factors: tpa_ewm3 38%, tpa_ewm10 22%, tpm_ewm10 13%, tpa_season 8%, tpa_per_min 4%, tpm_season 3%, tpm_ewm3 1%, tpa_l10 1%
+
+=== Split B: train 53,462 games (31 Oct 2024 to 13 Jun 2026), test 2,203 (20 Oct 2026 to 02 Nov 2026)
+
+PTS  (average 10.4; 2,203 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          5.01   6.63  +0.15             5.01  +0.15
+  last10          5.08   6.51  +0.79             5.08  +0.79
+  ewm10           4.92   6.25  +1.12             4.92  +1.12
+  min_rate        4.84   6.21  +0.91             4.84  +0.91
+  lgbm_v1         4.68   6.04  +0.55             4.68  +0.55
+  lgbm_v2         4.65   6.00  +0.50             4.65  +0.50
+  v2_no_prev      4.66   6.02  +0.52             4.66  +0.52
+  v2_no_mates     4.69   6.05  +0.57             4.69  +0.57
+  over/under vs ewm10 line (median 10.5, over 37.4% of the time; always the base rate: Brier 0.2340)
+    v1 probabilities: Brier 0.2258, calibration gap 1.7%, overs 60%+: 36 said 65% happened 56%, unders 60%+: 1,321 said 70% happened 68%
+    v2 probabilities: Brier 0.2248, calibration gap 0.9%, overs 60%+: 26 said 64% happened 65%, unders 60%+: 1,418 said 69% happened 68%
+    first 10 games only, v1: Brier 0.2258, calibration gap 1.7%, overs 60%+: 36 said 65% happened 56%, unders 60%+: 1,321 said 70% happened 68%
+    first 10 games only, v2: Brier 0.2248, calibration gap 0.9%, overs 60%+: 26 said 64% happened 65%, unders 60%+: 1,418 said 69% happened 68%
+    (early spread fitted on 5,142 forward predictions)
+      v2 says 0%-30%       552 props   said 24.7%  happened 25.5%
+      v2 says 30%-40%      866 props   said 35.1%  happened 35.8%
+      v2 says 40%-45%      399 props   said 42.5%  happened 43.1%
+      v2 says 45%-55%      315 props   said 48.7%  happened 50.2%
+      v2 says 55%-60%       45 props   said 57.0%  happened 55.6%
+
+REB  (average 4.0; 2,203 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.99   2.68  +0.02             1.99  +0.02
+  last10          1.97   2.62  +0.12             1.97  +0.12
+  ewm10           1.92   2.52  +0.21             1.92  +0.21
+  min_rate        1.90   2.52  +0.13             1.90  +0.13
+  lgbm_v1         1.84   2.44  -0.06             1.84  -0.06
+  lgbm_v2         1.82   2.42  -0.07             1.82  -0.07
+  v2_no_prev      1.83   2.43  -0.05             1.83  -0.05
+  v2_no_mates     1.85   2.45  -0.03             1.85  -0.03
+  over/under vs ewm10 line (median 4.5, over 37.1% of the time; always the base rate: Brier 0.2333)
+    v1 probabilities: Brier 0.2245, calibration gap 2.5%, overs 60%+: 34 said 66% happened 71%, unders 60%+: 1,412 said 70% happened 69%
+    v2 probabilities: Brier 0.2225, calibration gap 2.4%, overs 60%+: 26 said 67% happened 73%, unders 60%+: 1,499 said 70% happened 69%
+    first 10 games only, v1: Brier 0.2245, calibration gap 2.5%, overs 60%+: 34 said 66% happened 71%, unders 60%+: 1,412 said 70% happened 69%
+    first 10 games only, v2: Brier 0.2225, calibration gap 2.4%, overs 60%+: 26 said 67% happened 73%, unders 60%+: 1,499 said 70% happened 69%
+    (early spread fitted on 5,142 forward predictions)
+      v2 says 0%-30%       644 props   said 23.2%  happened 25.9%
+      v2 says 30%-40%      855 props   said 35.2%  happened 34.3%
+      v2 says 40%-45%      365 props   said 42.3%  happened 47.4%
+      v2 says 45%-55%      270 props   said 48.7%  happened 51.1%
+      v2 says 55%-60%       43 props   said 57.2%  happened 62.8%
+
+AST  (average 2.4; 2,203 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.44   1.99  -0.04             1.44  -0.04
+  last10          1.41   1.92  +0.07             1.41  +0.07
+  ewm10           1.37   1.84  +0.18             1.37  +0.18
+  min_rate        1.36   1.84  +0.13             1.36  +0.13
+  lgbm_v1         1.34   1.81  +0.06             1.34  +0.06
+  lgbm_v2         1.34   1.80  +0.07             1.34  +0.07
+  v2_no_prev      1.34   1.81  +0.07             1.34  +0.07
+  v2_no_mates     1.35   1.81  +0.09             1.35  +0.09
+  over/under vs ewm10 line (median 2.5, over 34.8% of the time; always the base rate: Brier 0.2269)
+    v1 probabilities: Brier 0.2193, calibration gap 2.2%, overs 60%+: 45 said 64% happened 62%, unders 60%+: 1,392 said 71% happened 71%
+    v2 probabilities: Brier 0.2185, calibration gap 1.5%, overs 60%+: 27 said 63% happened 56%, unders 60%+: 1,462 said 71% happened 70%
+    first 10 games only, v1: Brier 0.2193, calibration gap 2.2%, overs 60%+: 45 said 64% happened 62%, unders 60%+: 1,392 said 71% happened 71%
+    first 10 games only, v2: Brier 0.2185, calibration gap 1.5%, overs 60%+: 27 said 63% happened 56%, unders 60%+: 1,462 said 71% happened 70%
+    (early spread fitted on 5,142 forward predictions)
+      v2 says 0%-30%       705 props   said 23.4%  happened 24.5%
+      v2 says 30%-40%      757 props   said 34.9%  happened 34.5%
+      v2 says 40%-45%      319 props   said 42.3%  happened 43.3%
+      v2 says 45%-55%      339 props   said 49.1%  happened 44.5%
+      v2 says 55%-60%       56 props   said 57.0%  happened 51.8%
+
+3PM  (average 1.2; 2,203 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          0.96   1.38  -0.03             0.96  -0.03
+  last10          0.94   1.29  +0.05             0.94  +0.05
+  ewm10           0.93   1.25  +0.09             0.93  +0.09
+  min_rate        0.92   1.25  +0.06             0.92  +0.06
+  lgbm_v1         0.90   1.24  -0.00             0.90  -0.00
+  lgbm_v2         0.90   1.23  -0.01             0.90  -0.01
+  v2_no_prev      0.90   1.23  -0.01             0.90  -0.01
+  v2_no_mates     0.90   1.23  +0.01             0.90  +0.01
+  over/under vs ewm10 line (median 1.5, over 30.1% of the time; always the base rate: Brier 0.2106)
+    v1 probabilities: Brier 0.1954, calibration gap 1.8%, unders 60%+: 1,776 said 74% happened 75%
+    v2 probabilities: Brier 0.1947, calibration gap 1.9%, unders 60%+: 1,862 said 75% happened 74%
+    first 10 games only, v1: Brier 0.1954, calibration gap 1.8%, unders 60%+: 1,776 said 74% happened 75%
+    first 10 games only, v2: Brier 0.1947, calibration gap 1.9%, unders 60%+: 1,862 said 75% happened 74%
+    (early spread fitted on 5,142 forward predictions)
+      v2 says 0%-30%     1,167 props   said 20.0%  happened 19.9%
+      v2 says 30%-40%      695 props   said 34.6%  happened 37.0%
+      v2 says 40%-45%      204 props   said 42.1%  happened 50.5%
+      v2 says 45%-55%      129 props   said 48.4%  happened 52.7%
+
+=== Split C: train 25,384 games (31 Oct 2024 to 22 Jun 2025), test 6,219 (21 Oct 2025 to 30 Nov 2025)
+
+PTS  (average 11.0; 3,874 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          4.72   6.32  -0.26             4.67  -0.23
+  last10          4.75   6.28  -0.14             4.70  -0.14
+  ewm10           4.71   6.20  -0.17             4.63  -0.03
+  min_rate        4.64   6.14  -0.16             4.55  -0.11
+  lgbm_v1         4.62   6.10  -0.09             4.52  -0.20
+  lgbm_v2         4.62   6.10  -0.09             4.52  -0.17
+  v2_no_prev      4.62   6.10  -0.09             4.52  -0.17
+  v2_no_mates     4.69   6.13  +0.08             4.61  +0.13
+  over/under vs ewm10 line (median 9.5, over 44.0% of the time; always the base rate: Brier 0.2464)
+    v1 probabilities: Brier 0.2381, calibration gap 3.5%, overs 60%+: 199 said 67% happened 66%, unders 60%+: 2,823 said 68% happened 64%
+    v2 probabilities: Brier 0.2380, calibration gap 3.0%, overs 60%+: 251 said 68% happened 65%, unders 60%+: 2,780 said 68% happened 64%
+    first 10 games only, v1: Brier 0.2365, calibration gap 3.8%, overs 60%+: 122 said 67% happened 66%, unders 60%+: 2,024 said 69% happened 65%
+    first 10 games only, v2: Brier 0.2361, calibration gap 3.3%, overs 60%+: 145 said 68% happened 64%, unders 60%+: 1,996 said 69% happened 65%
+    (early spread fitted on 283 forward predictions)
+      v2 says 0%-30%       909 props   said 24.1%  happened 28.4%
+      v2 says 30%-40%    1,871 props   said 35.6%  happened 39.0%
+      v2 says 40%-45%    1,250 props   said 42.5%  happened 45.1%
+      v2 says 45%-55%    1,639 props   said 49.1%  happened 51.7%
+      v2 says 55%-60%      299 props   said 57.0%  happened 57.9%
+      v2 says 60%-70%      178 props   said 63.6%  happened 61.2%
+      v2 says 70%-100%      73 props   said 77.3%  happened 74.0%
+
+REB  (average 4.1; 3,874 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.96   2.61  -0.10             1.96  -0.06
+  last10          1.98   2.59  +0.01             1.97  +0.07
+  ewm10           1.94   2.54  +0.03             1.93  +0.13
+  min_rate        1.92   2.51  +0.04             1.90  +0.10
+  lgbm_v1         1.91   2.50  -0.02             1.89  -0.03
+  lgbm_v2         1.91   2.50  +0.00             1.89  +0.01
+  v2_no_prev      1.91   2.50  +0.00             1.89  +0.01
+  v2_no_mates     1.94   2.52  +0.10             1.93  +0.17
+  over/under vs ewm10 line (median 3.5, over 40.6% of the time; always the base rate: Brier 0.2411)
+    v1 probabilities: Brier 0.2337, calibration gap 1.8%, overs 60%+: 149 said 66% happened 66%, unders 60%+: 3,182 said 69% happened 67%
+    v2 probabilities: Brier 0.2335, calibration gap 1.9%, overs 60%+: 170 said 67% happened 64%, unders 60%+: 3,070 said 69% happened 68%
+    first 10 games only, v1: Brier 0.2316, calibration gap 2.1%, overs 60%+: 113 said 67% happened 61%, unders 60%+: 2,227 said 70% happened 67%
+    first 10 games only, v2: Brier 0.2312, calibration gap 2.5%, overs 60%+: 121 said 68% happened 61%, unders 60%+: 2,147 said 70% happened 68%
+    (early spread fitted on 283 forward predictions)
+      v2 says 0%-30%     1,043 props   said 23.1%  happened 28.1%
+      v2 says 30%-40%    2,027 props   said 35.7%  happened 34.5%
+      v2 says 40%-45%    1,324 props   said 42.5%  happened 44.3%
+      v2 says 45%-55%    1,465 props   said 48.9%  happened 49.8%
+      v2 says 55%-60%      190 props   said 57.2%  happened 56.3%
+      v2 says 60%-70%      128 props   said 64.0%  happened 59.4%
+      v2 says 70%-100%      42 props   said 75.4%  happened 78.6%
+
+AST  (average 2.5; 3,874 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          1.37   1.91  -0.10             1.37  -0.11
+  last10          1.38   1.90  -0.07             1.38  -0.11
+  ewm10           1.36   1.86  -0.08             1.35  -0.07
+  min_rate        1.34   1.84  -0.08             1.33  -0.08
+  lgbm_v1         1.34   1.83  -0.06             1.32  -0.11
+  lgbm_v2         1.34   1.83  -0.06             1.32  -0.11
+  v2_no_prev      1.34   1.83  -0.06             1.32  -0.11
+  v2_no_mates     1.36   1.84  +0.01             1.35  +0.01
+  over/under vs ewm10 line (median 2.5, over 39.1% of the time; always the base rate: Brier 0.2382)
+    v1 probabilities: Brier 0.2286, calibration gap 1.8%, overs 60%+: 151 said 65% happened 65%, unders 60%+: 3,441 said 71% happened 68%
+    v2 probabilities: Brier 0.2281, calibration gap 1.7%, overs 60%+: 173 said 66% happened 65%, unders 60%+: 3,489 said 71% happened 69%
+    first 10 games only, v1: Brier 0.2255, calibration gap 2.3%, overs 60%+: 100 said 66% happened 66%, unders 60%+: 2,342 said 72% happened 69%
+    first 10 games only, v2: Brier 0.2250, calibration gap 2.5%, overs 60%+: 115 said 66% happened 65%, unders 60%+: 2,359 said 72% happened 69%
+    (early spread fitted on 283 forward predictions)
+      v2 says 0%-30%     1,617 props   said 22.5%  happened 26.0%
+      v2 says 30%-40%    1,872 props   said 35.1%  happened 35.8%
+      v2 says 40%-45%      919 props   said 42.5%  happened 44.7%
+      v2 says 45%-55%    1,393 props   said 49.4%  happened 48.7%
+      v2 says 55%-60%      245 props   said 57.1%  happened 57.6%
+      v2 says 60%-70%      148 props   said 63.7%  happened 61.5%
+
+3PM  (average 1.3; 3,874 of the test games are a player's first 10 of the season)
+  model            MAE   RMSE   bias   first 10:   MAE   bias
+  season          0.91   1.29  -0.03             0.89  -0.04
+  last10          0.90   1.26  -0.01             0.88  -0.02
+  ewm10           0.89   1.23  -0.01             0.87  +0.00
+  min_rate        0.89   1.23  -0.01             0.86  -0.01
+  lgbm_v1         0.89   1.24  -0.04             0.86  -0.08
+  lgbm_v2         0.89   1.23  -0.04             0.86  -0.08
+  v2_no_prev      0.89   1.23  -0.04             0.86  -0.08
+  v2_no_mates     0.89   1.23  -0.01             0.86  -0.04
+  over/under vs ewm10 line (median 1.5, over 32.4% of the time; always the base rate: Brier 0.2191)
+    v1 probabilities: Brier 0.2026, calibration gap 1.5%, overs 60%+: 66 said 64% happened 67%, unders 60%+: 4,453 said 76% happened 74%
+    v2 probabilities: Brier 0.2023, calibration gap 1.8%, overs 60%+: 49 said 64% happened 71%, unders 60%+: 4,538 said 75% happened 73%
+    first 10 games only, v1: Brier 0.2024, calibration gap 3.0%, overs 60%+: 39 said 64% happened 59%, unders 60%+: 2,849 said 77% happened 74%
+    first 10 games only, v2: Brier 0.2020, calibration gap 3.2%, overs 60%+: 32 said 64% happened 66%, unders 60%+: 2,898 said 77% happened 73%
+    (early spread fitted on 283 forward predictions)
+      v2 says 0%-30%     2,748 props   said 17.8%  happened 20.3%
+      v2 says 30%-40%    1,790 props   said 34.8%  happened 36.4%
+      v2 says 40%-45%      701 props   said 42.5%  happened 43.5%
+      v2 says 45%-55%      817 props   said 48.9%  happened 48.6%
+      v2 says 55%-60%      114 props   said 57.1%  happened 62.3%
+      v2 says 60%-70%       43 props   said 63.3%  happened 72.1%

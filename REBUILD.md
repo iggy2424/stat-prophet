@@ -361,6 +361,28 @@ Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (no
   early season. Sportsbook lines are sharper than an average, so the real test is
   January 2026 Odds API lines.
 
+**v2 (3 Nov 2026,** `results_2026-11-03_v2.txt`**).** Trains on 2024-25 as well, so it
+sees a season change; adds last season's averages and missing minutes at the player's
+position; team totals now summed from the player rows (all three seasons); probability
+spread fitted from forward predictions, separately for a player's first 10 games of a
+season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games).
+
+- **Accuracy** (average miss, points / rebounds / assists / 3s), v1 vs v2 on the same games:
+  A 4.59 / 1.87 / 1.34 / 0.90 vs **4.52 / 1.85 / 1.32 / 0.88**; B 4.68 / 1.84 / 1.34 / 0.90
+  vs **4.65 / 1.82 / 1.34 / 0.90**; C equal (4.62 / 1.91 / 1.34 / 0.89). Brier score better
+  for every stat in every split.
+- **What helped:** the extra season of training data. Last season's averages add nothing
+  (points 4.51 without them vs 4.52 with). Missing teammates still matter most after form.
+- **Early season probabilities:** better but not solved. Split A, first 10 games, points
+  calibration gap 8.3% to 5.9% and rebounds 8.4% to 6.6%; "60%+ overs" there said 72% and
+  happened 64% (86 props; v1 61%). In B and C the overs are within about 1-6 points, on small
+  samples (26 to 250 props).
+- **Open: 2026-27 runs about 0.5 points high.** League scoring is down this season (113.4
+  points a team game in the first two weeks vs 115.6 across 2025-26), but per player game
+  the league average barely moved, so that explains little. Two fixes tested and not used:
+  scaling by league scoring (no change) and subtracting the model's own average miss so far
+  this season (helped A and B slightly, hurt C).
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -385,8 +407,9 @@ Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (no
 - [x] Preview deployment works (Games, Team Rankings, logos, Vercel login wall on previews)
 - [ ] Check live scores on the preview during a game, then merge `rebuild` into `main`
 - [x] Projection test on 2025-26 (section 5.12)
-- [ ] Projection model v2: early season shrinkage and calibration, a minutes model that uses
-  injuries, and more history (2024-25 player stats loaded 3 Nov 2026)
+- [x] Projection model v2 (section 5.12): two seasons of training, early season spread
+- [ ] Projection model v3: a minutes model that uses the injury list; keep watching the
+  2026-27 points bias as games come in
 - [ ] Rebuild Pick History on the new foundation
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
@@ -505,3 +528,8 @@ Vercel `requirements.txt`. `data.py` caches box scores in `research/.cache/` (no
   shows as 0 minutes, and three 2024-25 games were missing a free throw or basket because
   those rows were skipped. A row now counts as played if it has minutes or any stat. The
   three games were re-synced. 2025-26 and 2026-27 points all matched already.
+- **Projection model v2** (section 5.12): trains on 2024-25 too, last season's averages,
+  missing minutes by position, team totals from player rows, early season spread. Small
+  gains everywhere (points miss 4.59 to 4.52 on Feb-Jun 2026), better early season
+  calibration. Last season's averages add nothing; the extra training season does the work.
+  2026-27 points still run about 0.5 high; two corrections tested and not adopted.

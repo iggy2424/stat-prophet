@@ -2,9 +2,11 @@
 
 Player form   recent averages (exponential, last 10, season to date) of minutes, points,
               rebounds, assists, 3s and shot attempts, per minute rates, rest days
-Opponent      the opponent's pace, defensive rating and what it allows (rebounds, assists, 3s)
+Opponent      the opponent's pace, defensive rating and what it allows (rebounds, assists, 3s),
+              from team totals summed from the player rows (so 2024-25 has them too)
+Last season   the player's averages over the whole previous season (v2)
 Teammates     missing_min / missing_pts: recent minutes and points of the team's regulars
-              who did not play. Taken from the box score, so it knows about late scratches
+              who did not play; missing_same_pos: the missing minutes at his position (v2). Taken from the box score, so it knows about late scratches
               a pre-game injury report would miss: slightly optimistic, noted in the results.
 """
 import math
@@ -54,6 +56,27 @@ def player_form(p: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([p, f], axis=1)
 
 
+def team_totals(p: pd.DataFrame) -> pd.DataFrame:
+    """Team box score totals summed from the player rows. Points, rebounds, assists and 3s
+    match API-Sports in 99%+ of games; possessions differ by 0.75 on average (team turnovers
+    are credited to no player)."""
+    t = p.groupby(["game_id", "team_id", "opponent_id", "season", "stage", "game_date_et"], as_index=False).agg(
+        points=("points", "sum"), fga=("fga", "sum"), fta=("fta", "sum"), off_reb=("off_reb", "sum"),
+        turnovers=("turnovers", "sum"), tot_reb=("tot_reb", "sum"), assists=("assists", "sum"), tpm=("tpm", "sum"))
+    t["possessions"] = t["fga"] + 0.44 * t["fta"] - t["off_reb"] + t["turnovers"]
+    return t
+
+
+def last_season(p: pd.DataFrame) -> pd.DataFrame:
+    """Each player's averages over his whole previous season, keyed to the next season."""
+    cols = STATS + ["minutes", "fga", "tpa"]
+    s = p.groupby(["player_id", "season"])[cols].mean().add_prefix("prev_")
+    s["prev_games"] = p.groupby(["player_id", "season"]).size()
+    s = s.reset_index()
+    s["season"] += 1
+    return s
+
+
 def team_form(t: pd.DataFrame) -> pd.DataFrame:
     """Each team's pre-game pace, ratings and what it allows, exponential over both seasons."""
     opp = t.rename(columns={c: f"opp_{c}" for c in ("points", "possessions", "tot_reb", "assists", "tpm")})
@@ -72,9 +95,10 @@ def team_form(t: pd.DataFrame) -> pd.DataFrame:
 
 
 def missing_teammates(p: pd.DataFrame) -> pd.DataFrame:
-    """For each team game: recent minutes and points of regulars who did not play."""
+    """For each team game: recent minutes and points of regulars who did not play, in total
+    and by position (a G-F counts as both)."""
     alpha = 1 - math.exp(math.log(0.5) / 10)
-    ewm_min, ewm_pts, last_seen = {}, {}, {}          # player -> value / (team, team game index)
+    ewm_min, ewm_pts, last_seen, position = {}, {}, {}, {}  # player -> value / (team, team game index)
     team_index = {}                                    # team -> games played so far
     rows = []
     games = p.sort_values(["game_date_et", "game_id"]).groupby(["season", "game_date_et", "game_id", "team_id"], sort=False)
@@ -87,22 +111,29 @@ def missing_teammates(p: pd.DataFrame) -> pd.DataFrame:
         idx = team_index.get(team_id, 0)
         present = set(box["player_id"])
         missing_min = missing_pts = 0.0
+        by_pos = {"G": 0.0, "F": 0.0, "C": 0.0}
         for pid, (team, seen) in last_seen.items():
             if team == team_id and pid not in present and idx - seen <= REGULAR_RECENT and ewm_min[pid] >= REGULAR_MIN:
                 missing_min += ewm_min[pid]
                 missing_pts += ewm_pts[pid]
-        rows.append((game_id, team_id, missing_min, missing_pts))
+                for letter in by_pos:
+                    if letter in position.get(pid, ""):
+                        by_pos[letter] += ewm_min[pid]
+        rows.append((game_id, team_id, missing_min, missing_pts, by_pos["G"], by_pos["F"], by_pos["C"]))
+        position.update(zip(box["player_id"], box["position"].fillna("")))
         for pid, m, pts in zip(box["player_id"], box["minutes"], box["points"]):
             ewm_min[pid] = m if pid not in ewm_min else ewm_min[pid] + alpha * (m - ewm_min[pid])
             ewm_pts[pid] = pts if pid not in ewm_pts else ewm_pts[pid] + alpha * (pts - ewm_pts[pid])
             last_seen[pid] = (team_id, idx)  # a traded player stops counting for his old team
         team_index[team_id] = idx + 1
-    return pd.DataFrame(rows, columns=["game_id", "team_id", "missing_min", "missing_pts"])
+    return pd.DataFrame(rows, columns=["game_id", "team_id", "missing_min", "missing_pts",
+                                       "missing_g", "missing_f", "missing_c"])
 
 
-def build(players: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
+def build(players: pd.DataFrame) -> pd.DataFrame:
     df = player_form(players)
-    tf = team_form(teams)
+    df = df.merge(last_season(players), on=["player_id", "season"], how="left")
+    tf = team_form(team_totals(players))
     df = df.merge(tf, on=["game_id", "team_id"], how="left")
     opp = tf.rename(columns={"team_id": "opponent_id",
                              **{c: c.replace("team_", "opp_") for c in tf.columns if c.startswith("team_") and c != "team_id"}})
@@ -116,10 +147,13 @@ def build(players: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
     df["pos_g"] = pos.str.contains("G").astype(int)
     df["pos_f"] = pos.str.contains("F").astype(int)
     df["pos_c"] = pos.str.contains("C").astype(int)
+    letters = (df["pos_g"] + df["pos_f"] + df["pos_c"]).clip(lower=1)
+    df["missing_same_pos"] = (df["pos_g"] * df["missing_g"] + df["pos_f"] * df["missing_f"]
+                              + df["pos_c"] * df["missing_c"]) / letters
     return df.sort_values(["game_date_et", "game_id", "player_id"]).reset_index(drop=True)
 
 
-FEATURES = (
+FEATURES_V1 = (
     [f"{c}_{w}" for c in FORM for w in ("ewm3", "ewm10", "l10", "season")]
     + ["minutes_sd10", "points_sd10"]
     + [f"{c}_per_min" for c in STATS + ["fga", "tpa", "fta"]]
@@ -130,4 +164,6 @@ FEATURES = (
     + ["missing_min", "missing_pts"]
 )
 OPPONENT = ["opp_pace", "opp_def_rtg", "opp_allowed_reb", "opp_allowed_ast", "opp_allowed_tpm", "game_pace"]
-TEAMMATES = ["missing_min", "missing_pts"]
+PREV = [f"prev_{c}" for c in STATS + ["minutes", "fga", "tpa"]] + ["prev_games"]
+FEATURES = FEATURES_V1 + PREV + ["missing_same_pos"]
+TEAMMATES = ["missing_min", "missing_pts", "missing_same_pos"]
