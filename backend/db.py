@@ -57,6 +57,23 @@ def insert(table: str, row: dict) -> dict:
     return _check(resp).json()[0]
 
 
+def insert_many(table: str, rows: list[dict], chunk: int = 500) -> int:
+    """Plain INSERT of new rows (no conflict handling). Returns the number of rows sent."""
+    headers = _headers({"Prefer": "return=minimal"})
+    for i in range(0, len(rows), chunk):
+        _check(requests.post(f"{_base()}/{table}", headers=headers, json=rows[i:i + chunk], timeout=60))
+    return len(rows)
+
+
+def delete_in(table: str, column: str, ids: list) -> None:
+    """DELETE every row whose column is in ids."""
+    headers = _headers({"Prefer": "return=minimal"})
+    for i in range(0, len(ids), 200):
+        chunk = ",".join(str(x) for x in ids[i:i + 200])
+        _check(requests.delete(f"{_base()}/{table}", headers=headers,
+                               params={column: f"in.({chunk})"}, timeout=30))
+
+
 def update_in(table: str, column: str, ids: list, values: dict) -> None:
     """PATCH every row whose column is in ids."""
     headers = _headers({"Prefer": "return=minimal"})

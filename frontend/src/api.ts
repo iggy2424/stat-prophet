@@ -23,6 +23,19 @@ export interface Game {
   home: Team
   away: Team
   prediction: GamePrediction | null
+  injuries?: Injury[]  // only for today and later; most minutes first
+}
+
+export interface Injury {
+  player_id: number
+  player_name: string
+  team_id: number
+  status: string               // 'Out' or 'Day-To-Day'
+  return_date: string | null
+  description: string | null
+  updated_at: string
+  minutes: number | null       // average over the player's last 10 games
+  points: number | null
 }
 
 // Made before tip off by the predictions job; numbers arrive from Postgres as strings or numbers

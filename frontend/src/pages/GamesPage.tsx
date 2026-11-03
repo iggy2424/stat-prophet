@@ -115,6 +115,7 @@ function GameCard({ game: g }: { game: Game }) {
         {g.stage === 1 && <span className="tag">Preseason</span>}
       </div>
       {g.prediction && <PredictionLine game={g} />}
+      {g.status !== 'finished' && g.injuries && g.injuries.length > 0 && <InjuryList game={g} />}
     </article>
   )
 }
@@ -138,6 +139,34 @@ function PredictionLine({ game: g }: { game: Game }) {
       {g.away.code} {away} – {g.home.code} {home} · total {home + away} · {fav} {prob}%
       {result && <span className={`prediction-result ${result}`}>{result === 'right' ? '✓' : '✗'}</span>}
     </p>
+  )
+}
+
+// Players under this many minutes a game are counted, not named, to keep the card short
+const NAMED_MINUTES = 10
+
+function InjuryList({ game: g }: { game: Game }) {
+  return (
+    <div className="injuries">
+      {[g.away, g.home].map(team => {
+        const players = g.injuries!.filter(p => p.team_id === team.id)
+        if (players.length === 0) return null
+        const named = players.filter(p => (p.minutes ?? 0) >= NAMED_MINUTES)
+        const others = players.length - named.length
+        return (
+          <p key={team.id} className="injury-team">
+            <span className="injury-code">{team.code}</span>
+            {named.map(p => (
+              <span key={p.player_id} className={`injury ${p.status === 'Out' ? 'out' : 'dtd'}`}
+                title={p.description ?? undefined}>
+                {p.player_name} <small>{p.status === 'Out' ? 'OUT' : 'DTD'} · {Math.round(p.minutes!)} min</small>
+              </span>
+            ))}
+            {others > 0 && <span className="injury-more">{named.length ? `+${others} bench` : `${others} bench players`}</span>}
+          </p>
+        )
+      })}
+    </div>
   )
 }
 

@@ -172,6 +172,7 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 | `live` | Refreshes live games, then fetches any game we still show as live (or that should have started) but that is missing from the live list, so its final score is saved. | 1, plus 1 per game that just ended | Every 15s while games are on |
 | `boxscores` | Team totals for finished games (section 5.5). | 1 per game | Nightly (not scheduled yet) |
 | `players` | Player box scores from BallDontLie, checked against the final score (section 5.5). | About 3 per game day | Nightly (not scheduled yet) |
+| `injuries` | BallDontLie injury list: updates `player_injuries` and logs every change to `injury_reports` (section 5.11). | 2 (BallDontLie) | Nightly, and from the games endpoint at most every 30 minutes |
 | `predictions` | Predicted score and win chance for today's and tomorrow's games that have not started (section 5.10). | 0 (our tables only) | Nightly, after `players` |
 
 Each job names the API client it uses in `sync.JOBS`. A job that saves some games but leaves
@@ -235,7 +236,7 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
 
 | `?type=` | Who | Returns |
 |---|---|---|
-| `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo, and the model's prediction if there is one |
+| `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo, and the model's prediction if there is one. For today and later, also `injuries` for both teams (refreshed if the list is over 30 minutes old) |
 | `model_record&model=ratings-v1` | Members | The game model's record on finished games: winners right and wrong, average margin and total miss, total bias (+ = real totals higher). All time and last 7 days |
 | `team_rankings&season=2026&window=blended` | Members | All 30 teams with stats and ranks, sorted by net rating. `window` is `blended` (default), `season` or `last10`; `season` defaults to the current one |
 | `sync_status` | Members | Latest run of each sync job |
@@ -262,7 +263,7 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - Functions: `api/index.py` (Python, bundles `backend/**`, up to 60s), `api/login.js` and
   `api/callback.js` (Node, Whop OAuth). Only `/api` reaches `index.py`; routes use `?type=`.
 - **Nightly cron, 09:00 UTC** (4 or 5am ET, after every game has ended):
-  `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players`, `predictions` in order.
+  `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players`, `injuries`, `predictions` in order.
   Each job logs its own `sync_log` row, and one failing never stops the rest. Crons only
   run on production. Live scores stay on demand (Hobby cron runs at most once a day).
 - Environment variables needed in Vercel (Production and Preview): `SUPABASE_URL`,
@@ -274,7 +275,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - React 18 + TypeScript, built with Vite. The production bundle is about 48 KB gzipped.
 - `src/api.ts` is the only place that calls the backend. A 401 sends the user to `/login`.
 - Pages built: **Games** (each card shows the model's prediction, with ✓ or ✗ once final, and
-  the model's record sits above the list), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
+  the model's record sits above the list; games not yet final list injured players who play
+  10+ minutes, with OUT or DTD, their minutes and the news note on hover), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
   DataLab, Bet Slip, Pick History.
 - The page is kept in the URL hash (`/#rankings`), so refreshing or sharing a link keeps it.
 - **Team Rankings page:** Overview (net, offensive and defensive rating, pace, rebound %),
@@ -306,6 +308,22 @@ team, home win chance, and the ratings used (`inputs`). The `predictions` job on
 games that have not started, so a saved prediction is always the pre-game one. Results
 are not stored: the record is graded from the final scores in `games`.
 
+### 5.11 Injuries (`backend/injuries.py`, `database/007`)
+
+- Source: BallDontLie `/v1/player_injuries`, status `Out` or `Day-To-Day`, an expected
+  return date and a news note. Its team ids are mapped to ours by team code.
+- BallDontLie only has the list as it is now. `player_injuries` holds that list;
+  `injury_reports` gets a row for every new player or change in team, status, return date
+  or note, and a `Cleared` row when a player drops off. Anything that needs to know what
+  was known before a game (tests, the model) must read `injury_reports` by `seen_at`.
+- An empty feed while more than 10 players are listed is treated as a feed failure:
+  the job fails and nothing is cleared.
+- No foreign key to `players`: some injured players have not played in our data yet.
+- `player_recent_form` view: each player's games, minutes and points over his last 10
+  games, used to show which injuries matter.
+- Past seasons have no injury list. For tests on 2025-26, missing players are worked out
+  from the box scores instead (a regular who did not play).
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -320,7 +338,8 @@ are not stored: the record is graded from the final scores in `games`.
 - [x] Run `database/006_game_predictions.sql`
 - [x] Game prediction model and nightly tracking (section 5.10)
 - [ ] Game model v2: injuries and rest; check whether predicted totals run high early in the season
-- [ ] Injury sync from `/v1/player_injuries`
+- [x] Run `database/007_player_injuries.sql`
+- [x] Injury sync from `/v1/player_injuries` (section 5.11)
 - [x] Team rankings: blended early season window, ranks on every stat, Team Rankings page
 - [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
 - [x] Schedule the sync jobs: one nightly cron (live scores stay on demand)
@@ -424,3 +443,7 @@ are not stored: the record is graded from the final scores in `games`.
   the Games page.
 - Synced 2 Nov box scores by hand (the nightly cron only runs once `rebuild` is in
   production): 15 games, 30 team rows, 334 player rows, all matching the final scores.
+- **Injury sync** (`backend/injuries.py`, `database/007_player_injuries.sql`): current list
+  plus a history of every change, an `injuries` job in the nightly run and on demand from
+  the games endpoint (at most every 30 minutes), a `player_recent_form` view, and injured
+  players listed on the Games page cards. Added `db.insert_many` and `db.delete_in`.

@@ -87,6 +87,14 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .prediction-result { font-weight: 700; margin-left: 6px; }
 .prediction-result.right { color: var(--green); }
 .prediction-result.wrong { color: var(--red); }
+.game-card:has(.injuries) { flex-wrap: wrap; row-gap: 10px; }
+.injuries { flex-basis: 100%; display: grid; gap: 4px; font-size: 13px; }
+.injury-team { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--muted); }
+.injury-code { font-size: 11px; font-weight: 700; min-width: 3ch; }
+.injury { color: var(--text); }
+.injury small { font-size: 11px; color: var(--muted); }
+.injury.out small { color: var(--red); }
+.injury-more { font-size: 12px; }
 
 /* Segmented buttons */
 .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }

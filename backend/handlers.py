@@ -11,6 +11,8 @@ from . import db, game_model, sync, timeutil
 
 # API-Sports updates live games about every 15 seconds; refreshing faster gains nothing
 LIVE_MAX_AGE = timedelta(seconds=15)
+# Injury news moves through the day; the list is refreshed when viewed, at most this often
+INJURY_MAX_AGE = timedelta(minutes=30)
 
 TEAM_FIELDS = "id,name,nickname,code,logo_url"
 GAME_SELECT = (
@@ -50,6 +52,26 @@ def _live_stale(games: list[dict]) -> bool:
     return not last or now - last > LIVE_MAX_AGE
 
 
+def _attach_injuries(rows: list[dict]) -> None:
+    """Add game["injuries"]: injured players on either team, most minutes first."""
+    team_ids = {g[side]["id"] for g in rows for side in ("home", "away")}
+    injured = db.select("player_injuries", {
+        "select": "player_id,player_name,team_id,status,return_date,description,updated_at",
+        "team_id": f"in.({','.join(str(t) for t in team_ids)})",
+    })
+    form = {}
+    if injured:
+        ids = ",".join(str(p["player_id"]) for p in injured)
+        form = {f["player_id"]: f for f in db.select("player_recent_form", {
+            "select": "player_id,games,minutes,points", "player_id": f"in.({ids})"})}
+    for p in injured:
+        f = form.get(p["player_id"]) or {}
+        p["minutes"], p["points"] = f.get("minutes"), f.get("points")  # last 10 games, None if never played
+    injured.sort(key=lambda p: -float(p["minutes"] or 0))
+    for g in rows:
+        g["injuries"] = [p for p in injured if p["team_id"] in (g["home"]["id"], g["away"]["id"])]
+
+
 def games(params: dict) -> tuple[int, dict]:
     """Games for one US Eastern date. ?date=YYYY-MM-DD, defaults to today."""
     raw = _param(params, "date")
@@ -65,6 +87,13 @@ def games(params: dict) -> tuple[int, dict]:
     if day == timeutil.today_et() and _live_stale(rows):
         refreshed = sync.run_job("live")
         rows = db.select("games", query)
+
+    # The injury list is only "now", so it is shown for today and later, never for past games
+    if day >= timeutil.today_et() and rows:
+        last = _last_run_started("injuries")
+        if not last or timeutil.now_utc() - last > INJURY_MAX_AGE:
+            sync.run_job("injuries")
+        _attach_injuries(rows)
 
     return 200, {
         "date": day.isoformat(),
