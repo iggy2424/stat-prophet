@@ -329,7 +329,8 @@ are not stored: the record is graded from the final scores in `games`.
 - [x] Team and player box score tables, sync job and team rankings view
 - [x] 2026-27 box scores loaded (157 games)
 - [x] Decide the player stats source: BallDontLie passed every check (section 4)
-- [ ] Subscribe to BallDontLie ALL-STAR before the trial ends; confirm commercial use
+- [x] Subscribe to BallDontLie ALL-STAR (3 Nov 2026; 60 requests a minute confirmed)
+- [ ] Confirm commercial use with BallDontLie
 - [x] Switch `player_game_stats` sync to BallDontLie, with a points check on every game
 - [x] Run `database/004_balldontlie_players.sql`, then test the `players` job on a few games
 - [x] Load 2025-26 schedule
@@ -447,3 +448,5 @@ are not stored: the record is graded from the final scores in `games`.
   plus a history of every change, an `injuries` job in the nightly run and on demand from
   the games endpoint (at most every 30 minutes), a `player_recent_form` view, and injured
   players listed on the Games page cards. Added `db.insert_many` and `db.delete_in`.
+- Subscribed to **BallDontLie ALL-STAR**. Checked: 12 requests in 16 seconds with no rate limit
+  errors (the trial allowed 5 a minute). Default spacing (1.05s) applies everywhere now.
