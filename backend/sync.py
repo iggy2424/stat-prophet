@@ -10,6 +10,7 @@ Jobs (all API-Sports unless noted)
   live      live games only, plus final scores for games that just ended (every 15s while games are on)
   boxscores team totals for finished games (see boxscores.py)
   players   player box scores for finished games, from BallDontLie (see player_stats.py)
+  predictions  predicted scores for today's and tomorrow's games, no API (see game_model.py)
 """
 import traceback
 from datetime import timedelta
@@ -190,9 +191,11 @@ def sync_live(api: ApiSports) -> int:
 from .balldontlie import BallDontLie  # noqa: E402  (imported here to keep jobs listed in one place)
 from .boxscores import sync_boxscores  # noqa: E402
 from .player_stats import sync_players  # noqa: E402
+from .game_model import NoApi, sync_predictions  # noqa: E402
 
-# The daily cron runs these in order: last night's finals, then their box scores
-NIGHTLY = ["schedule", "scores", "boxscores", "players"]
+# The daily cron runs these in order: last night's finals, their box scores, then
+# predictions for tonight from the updated ratings
+NIGHTLY = ["schedule", "scores", "boxscores", "players", "predictions"]
 
 # job name -> (function, API client it is given)
 JOBS = {
@@ -202,4 +205,5 @@ JOBS = {
     "live": (sync_live, ApiSports),
     "boxscores": (sync_boxscores, ApiSports),
     "players": (sync_players, BallDontLie),
+    "predictions": (sync_predictions, NoApi),
 }

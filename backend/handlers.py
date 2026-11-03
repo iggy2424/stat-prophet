@@ -7,7 +7,7 @@ the last live sync started more than LIVE_MAX_AGE ago, it runs the live sync fir
 """
 from datetime import date, timedelta
 
-from . import db, sync, timeutil
+from . import db, game_model, sync, timeutil
 
 # API-Sports updates live games about every 15 seconds; refreshing faster gains nothing
 LIVE_MAX_AGE = timedelta(seconds=15)
@@ -16,7 +16,8 @@ TEAM_FIELDS = "id,name,nickname,code,logo_url"
 GAME_SELECT = (
     "id,season,stage,start_time,game_date_et,status,status_detail,home_score,away_score,"
     f"home:teams!games_home_team_id_fkey({TEAM_FIELDS}),"
-    f"away:teams!games_away_team_id_fkey({TEAM_FIELDS})"
+    f"away:teams!games_away_team_id_fkey({TEAM_FIELDS}),"
+    "prediction:game_predictions(model,home_points,away_points,home_win_prob)"
 )
 
 
@@ -101,6 +102,50 @@ def team_rankings(params: dict) -> tuple[int, dict]:
     }
 
 
+def _grade(rows: list[dict]) -> dict:
+    """Winner record and average misses for finished games with a prediction."""
+    n = len(rows)
+    if not n:
+        return {"games": 0}
+    right = margin_miss = total_miss = total_bias = 0.0
+    for r in rows:
+        g = r["game"]
+        pred_margin = float(r["home_points"]) - float(r["away_points"])
+        pred_total = float(r["home_points"]) + float(r["away_points"])
+        margin, total = g["home_score"] - g["away_score"], g["home_score"] + g["away_score"]
+        right += (pred_margin > 0) == (margin > 0)
+        margin_miss += abs(pred_margin - margin)
+        total_miss += abs(pred_total - total)
+        total_bias += total - pred_total
+    return {
+        "games": n, "winners_right": int(right), "winners_wrong": n - int(right),
+        "margin_miss": round(margin_miss / n, 1),   # average points off the real margin
+        "total_miss": round(total_miss / n, 1),     # average points off the real total
+        "total_bias": round(total_bias / n, 1),     # + means real totals came in higher
+    }
+
+
+def model_record(params: dict) -> tuple[int, dict]:
+    """How the game prediction model has done on finished games. ?model=ratings-v1."""
+    model = _param(params, "model", game_model.MODEL)
+    query = {
+        "select": "game_id,home_points,away_points,game:games!inner(status,game_date_et,home_score,away_score)",
+        "model": f"eq.{model}", "game.status": "eq.finished", "order": "game_id.asc", "limit": "1000",
+    }
+    rows = []
+    while True:  # Supabase returns at most 1,000 rows per request
+        page = db.select("game_predictions", {**query, "offset": str(len(rows))})
+        rows += page
+        if len(page) < 1000:
+            break
+    week_ago = (timeutil.today_et() - timedelta(days=7)).isoformat()
+    return 200, {
+        "model": model,
+        "all": _grade(rows),
+        "last_7_days": _grade([r for r in rows if r["game"]["game_date_et"] >= week_ago]),
+    }
+
+
 def sync_status(params: dict) -> tuple[int, dict]:
     """Latest run of each sync job, for spotting failures."""
     rows = db.select("sync_log", {
@@ -133,6 +178,7 @@ def run_sync(params: dict) -> tuple[int, dict]:
 MEMBER_ROUTES = {
     "games": games,
     "team_rankings": team_rankings,
+    "model_record": model_record,
     "sync_status": sync_status,
 }
 

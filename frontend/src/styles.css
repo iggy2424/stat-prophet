@@ -80,6 +80,13 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--text); }
 .badge.live { background: rgba(255, 90, 95, 0.15); color: var(--red); }
 .tag { font-size: 11px; }
+/* Full width last row of the card, so it never squeezes the teams on a phone */
+.game-card:has(.prediction) { flex-wrap: wrap; row-gap: 10px; }
+.prediction { flex-basis: 100%; font-size: 13px; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.prediction-label { display: inline-block; font-size: 11px; font-weight: 600; border: 1px solid var(--line); border-radius: 99px; padding: 0 6px; margin-right: 6px; }
+.prediction-result { font-weight: 700; margin-left: 6px; }
+.prediction-result.right { color: var(--green); }
+.prediction-result.wrong { color: var(--red); }
 
 /* Segmented buttons */
 .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }

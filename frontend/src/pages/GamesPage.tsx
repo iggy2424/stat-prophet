@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, type Game, type GamesResponse } from '../api'
+import { api, type Game, type GamesResponse, type ModelGrade } from '../api'
 import { dayLabel, shiftDay, tipOffET } from '../dates'
 
 // Matches the backend's 15 second live refresh window
@@ -26,6 +26,12 @@ export default function GamesPage() {
   }, [])
 
   useEffect(() => { load(null) }, [load])
+
+  // The model's record is a side panel: if it fails, the games still show
+  const [record, setRecord] = useState<ModelGrade | null>(null)
+  useEffect(() => {
+    api.modelRecord().then(r => setRecord(r.all)).catch(() => setRecord(null))
+  }, [])
 
   // Keep scores fresh while any game on screen is live or due to start
   const hasActive = data?.games.some(g => g.status === 'live' ||
@@ -54,6 +60,14 @@ export default function GamesPage() {
           </div>
         )}
       </header>
+
+      {record && record.games > 0 && (
+        <p className="window-note">
+          Model record: <strong>{record.winners_right}-{record.winners_wrong}</strong> picking winners
+          ({Math.round((record.winners_right ?? 0) / record.games * 100)}%) over {record.games} games.
+          Margin off by {record.margin_miss} points on average, total off by {record.total_miss}.
+        </p>
+      )}
 
       {error && (
         <div className="notice error" role="alert">
@@ -100,7 +114,30 @@ function GameCard({ game: g }: { game: Game }) {
         {g.status === 'canceled' && <span className="badge">Canceled</span>}
         {g.stage === 1 && <span className="tag">Preseason</span>}
       </div>
+      {g.prediction && <PredictionLine game={g} />}
     </article>
+  )
+}
+
+function PredictionLine({ game: g }: { game: Game }) {
+  const p = g.prediction!
+  const home = Math.round(Number(p.home_points))
+  const away = Math.round(Number(p.away_points))
+  const homeProb = Number(p.home_win_prob)
+  const homeFav = homeProb >= 0.5
+  const fav = homeFav ? g.home.code : g.away.code
+  const prob = Math.round((homeFav ? homeProb : 1 - homeProb) * 100)
+  // Graded once the game is final: did the favourite win?
+  let result: 'right' | 'wrong' | null = null
+  if (g.status === 'finished' && g.home_score !== null && g.away_score !== null) {
+    result = (g.home_score > g.away_score) === homeFav ? 'right' : 'wrong'
+  }
+  return (
+    <p className="prediction">
+      <span className="prediction-label">Model</span>
+      {g.away.code} {away} – {g.home.code} {home} · total {home + away} · {fav} {prob}%
+      {result && <span className={`prediction-result ${result}`}>{result === 'right' ? '✓' : '✗'}</span>}
+    </p>
   )
 }
 

@@ -22,6 +22,30 @@ export interface Game {
   away_score: number | null
   home: Team
   away: Team
+  prediction: GamePrediction | null
+}
+
+// Made before tip off by the predictions job; numbers arrive from Postgres as strings or numbers
+export interface GamePrediction {
+  model: string
+  home_points: number | string
+  away_points: number | string
+  home_win_prob: number | string
+}
+
+export interface ModelGrade {
+  games: number
+  winners_right?: number
+  winners_wrong?: number
+  margin_miss?: number
+  total_miss?: number
+  total_bias?: number
+}
+
+export interface ModelRecordResponse {
+  model: string
+  all: ModelGrade
+  last_7_days: ModelGrade
 }
 
 export interface GamesResponse {
@@ -72,4 +96,5 @@ export const api = {
   games: (date?: string) => get<GamesResponse>('games', date ? { date } : {}),
   teamRankings: (season: number | null, window: RankingWindow) =>
     get<TeamRankingsResponse>('team_rankings', season ? { season: String(season), window } : { window }),
+  modelRecord: () => get<ModelRecordResponse>('model_record'),
 }

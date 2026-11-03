@@ -172,6 +172,7 @@ Every job runs inside `run_job()`, which writes a `sync_log` row whether it succ
 | `live` | Refreshes live games, then fetches any game we still show as live (or that should have started) but that is missing from the live list, so its final score is saved. | 1, plus 1 per game that just ended | Every 15s while games are on |
 | `boxscores` | Team totals for finished games (section 5.5). | 1 per game | Nightly (not scheduled yet) |
 | `players` | Player box scores from BallDontLie, checked against the final score (section 5.5). | About 3 per game day | Nightly (not scheduled yet) |
+| `predictions` | Predicted score and win chance for today's and tomorrow's games that have not started (section 5.10). | 0 (our tables only) | Nightly, after `players` |
 
 Each job names the API client it uses in `sync.JOBS`. A job that saves some games but leaves
 others pending raises `PartialSync`: the run is logged as failed, with the rows it did save.
@@ -234,7 +235,8 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
 
 | `?type=` | Who | Returns |
 |---|---|---|
-| `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo |
+| `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo, and the model's prediction if there is one |
+| `model_record&model=ratings-v1` | Members | The game model's record on finished games: winners right and wrong, average margin and total miss, total bias (+ = real totals higher). All time and last 7 days |
 | `team_rankings&season=2026&window=blended` | Members | All 30 teams with stats and ranks, sorted by net rating. `window` is `blended` (default), `season` or `last10`; `season` defaults to the current one |
 | `sync_status` | Members | Latest run of each sync job |
 | `sync&job=...` | Cron secret only | Runs one sync job |
@@ -260,7 +262,7 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - Functions: `api/index.py` (Python, bundles `backend/**`, up to 60s), `api/login.js` and
   `api/callback.js` (Node, Whop OAuth). Only `/api` reaches `index.py`; routes use `?type=`.
 - **Nightly cron, 09:00 UTC** (4 or 5am ET, after every game has ended):
-  `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players` in order.
+  `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players`, `predictions` in order.
   Each job logs its own `sync_log` row, and one failing never stops the rest. Crons only
   run on production. Live scores stay on demand (Hobby cron runs at most once a day).
 - Environment variables needed in Vercel (Production and Preview): `SUPABASE_URL`,
@@ -271,7 +273,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 
 - React 18 + TypeScript, built with Vite. The production bundle is about 48 KB gzipped.
 - `src/api.ts` is the only place that calls the backend. A 401 sends the user to `/login`.
-- Pages built: **Games**, **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
+- Pages built: **Games** (each card shows the model's prediction, with ✓ or ✗ once final, and
+  the model's record sits above the list), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
   DataLab, Bet Slip, Pick History.
 - The page is kept in the URL hash (`/#rankings`), so refreshing or sharing a link keeps it.
 - **Team Rankings page:** Overview (net, offensive and defensive rating, pace, rebound %),
@@ -282,6 +285,26 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - Layout columns use `minmax(0, 1fr)` so wide tables scroll inside their box on phones
   instead of widening the page.
 - Styles are working styles only. The visual design gets its own pass later.
+
+### 5.10 Game predictions (`backend/game_model.py`, `database/006`)
+
+Model `ratings-v1`, built from the blended team ratings (section 5.5):
+
+- Possessions: home pace x away pace / league pace.
+- Each team's score: possessions x (its offensive rating x the opponent's defensive rating /
+  league rating) / 100, plus half of home court (1.8 points) for the home team, minus half
+  for the away team.
+- Home win chance: normal distribution around the predicted margin, spread 14.9 points.
+- Home court and the spread come from a walk-forward test on 2025-26 (1,074 regular season
+  games after each team had 10, using only earlier games): winner right 69% (always picking
+  the home team: 55%), margin off by 11.7 points on average, total off by 15.3. Favourites
+  given 60-70% won 69% of the time, 70-80% won 76%, 90%+ won 84% (a bit overconfident).
+- Knows nothing about injuries, rest or travel yet.
+
+`game_predictions` holds one row per game: model name, time made, predicted points for each
+team, home win chance, and the ratings used (`inputs`). The `predictions` job only writes
+games that have not started, so a saved prediction is always the pre-game one. Results
+are not stored: the record is graded from the final scores in `games`.
 
 ## 6. Open items
 
@@ -294,6 +317,9 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - [x] Load 2025-26 schedule
 - [x] Load 2025-26 team box scores
 - [x] Load player stats for 2025-26 and 2026-27 (done on the trial, 2 Nov 2026)
+- [x] Run `database/006_game_predictions.sql`
+- [x] Game prediction model and nightly tracking (section 5.10)
+- [ ] Game model v2: injuries and rest; check whether predicted totals run high early in the season
 - [ ] Injury sync from `/v1/player_injuries`
 - [x] Team rankings: blended early season window, ranks on every stat, Team Rankings page
 - [ ] Defence vs position (points, rebounds, assists allowed to guards, forwards, centres), after the player stats backfill
@@ -383,3 +409,18 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
   rows, 582 players. 2026-27 has all 92 finished games, 2,078 rows, 442 players. Checked
   against the database: in every game each team's player points add up to its final
   score, and each team's minutes total 240 (more with overtime). No games pending.
+
+### 2026-11-03
+
+- **Game prediction model** (`backend/game_model.py`, section 5.10): predicted score, total
+  and win chance from the blended team ratings. Tested on 2025-26 first (69% winners right).
+- **First night, 2 Nov:** 11 of 15 winners right (expected about 10.4 from its own win
+  chances), margin off by 9.3 points on average, total off by 16.1. Totals came in about
+  6.6 points lower than predicted. These predictions were made at about 00:35 UTC, after
+  the first game had tipped off, but used no data from that night's games. They are saved
+  with that time.
+- **Prediction tracking:** `database/006_game_predictions.sql`, a `predictions` sync job
+  in the nightly run, a `model_record` endpoint, and the prediction plus the record on
+  the Games page.
+- Synced 2 Nov box scores by hand (the nightly cron only runs once `rebuild` is in
+  production): 15 games, 30 team rows, 334 player rows, all matching the final scores.
