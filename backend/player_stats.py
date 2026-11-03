@@ -21,6 +21,7 @@ from .errors import PartialSync
 from .names import search_name
 
 DATES_PER_REQUEST = 7
+PLAYED_STATS = ("pts", "fga", "fta", "reb", "ast", "stl", "blk", "turnover", "pf")
 
 GAME_COLS = (
     "id,season,stage,start_time,game_date_et,home_team_id,away_team_id,home_score,away_score,"
@@ -116,7 +117,10 @@ def _build_rows(game: dict, bdl: dict, team_by_code: dict) -> tuple[list[dict], 
     stat_rows, players = [], {}
     for r in bdl["rows"]:
         p, tid, mins = r.get("player") or {}, team_by_code.get(r["team"]["abbreviation"]), _minutes(r.get("min"))
-        if not p.get("id") or tid not in (home, away) or mins <= 0:
+        # A few seconds of garbage time shows as '0' minutes, sometimes with a free throw made,
+        # so a row counts as played if it has minutes or any stat
+        played = mins > 0 or any(r.get(k) for k in PLAYED_STATS)
+        if not p.get("id") or tid not in (home, away) or not played:
             continue  # did not play
         full = f"{p.get('first_name') or ''} {p.get('last_name') or ''}".strip()
         players[p["id"]] = {
