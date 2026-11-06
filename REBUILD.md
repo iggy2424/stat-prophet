@@ -386,6 +386,21 @@ season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games)
   scaling by league scoring (no change) and subtracting the model's own average miss so far
   this season (helped A and B slightly, hurt C).
 
+**First real-line check (6 Nov 2026, DunkAPI free credits).** 22 January 2026 games,
+closing lines from 7 books (BetMGM, DraftKings, FanDuel, Bovada, ESPN BET, BetOnline,
+Pinnacle), 1,356 points / rebounds / assists / 3s props where the player played. v2 trained
+on games before 1 January only. Consensus line per prop; the market's chance is each book's
+price with the margin removed, averaged.
+
+- Brier score (lower is better): market 0.2458, model 0.2473, 50/50 blend 0.2447. The model
+  beat the market on rebounds (0.2387 vs 0.2436), tied on 3s, lost on points and assists.
+- Pretend bets where the model's chance beat the market's by 5%+: 703 bets, 55.0% won,
+  +2.5% return at the average price, but the margin of error is about +/- 6.9%: no
+  conclusion either way. Most of those bets were unders (578 of 703).
+- DunkAPI data checks out: all 22 games and 94% of lines matched our games and players;
+  the rest were players who did not play (void). Lines captured before the books' listed
+  start. Commercial use, storing and training models are allowed on every plan.
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -417,6 +432,8 @@ season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games)
 - [ ] Picks engine, including early season handling (few current season games)
 - [ ] Prop Analyzer, DataLab, Bet Slip
 - [ ] Paid Odds API plan before picks go live: **$30 / 20K credits** (decided 2 Nov 2026)
+- [ ] Full-season real-line test: DunkAPI Pro ($49, 30K credits) covers every 2025-26 game
+  (about 26.4K credits) with all books and markets in one call per game
 - [ ] Backtest plan (decided 2 Nov 2026):
   1. Projection test on all of 2025-26 player stats (free): only data from before each game,
      check accuracy against simple averages, which factors help, and whether probabilities are honest
@@ -556,3 +573,6 @@ season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games)
   its last run was over 15s old, so polls that landed a moment early got the old data.
   Server threshold lowered to 10s. Explains at least part of the clock and quarter looking
   stuck (the real game clock also stops for fouls, timeouts and reviews).
+- **First real-line check with DunkAPI** (free 500 credits: 22 January 2026 games, 1,356
+  props). Market slightly better than the model overall (Brier 0.2458 vs 0.2473), the model
+  better on rebounds; a 50/50 blend beat both. Too few games to say anything about profit.
