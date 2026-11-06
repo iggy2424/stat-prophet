@@ -1,0 +1,50 @@
+loading lines and box scores...
+  374,656 book lines, 71,852 props, 36,487 with a Pinnacle line
+
+--- ev_pinnacle: price beats Pinnacle's fair price
+  dev  EV 0%+                              7,075 bets, won 49.3%, return -1.7% (-119 units), 95% range -4.0% to +0.5%
+  dev  EV 2%+                              3,453 bets, won 48.9%, return -0.8% (-27 units), 95% range -4.1% to +2.6%
+  dev  EV 4%+                              1,475 bets, won 49.7%, return +3.7% (+55 units), 95% range -1.6% to +9.1%
+  dev  EV 6%+                                608 bets, won 50.8%, return +9.5% (+57 units), 95% range +0.6% to +17.8%
+  HOLDOUT, setting chosen on dev = EV 6%+:    345 bets, won 49.3%, return +1.7% (+6 units), 95% range -9.1% to +13.1%
+
+--- ev_consensus: price beats the other books' fair price
+  dev  EV 0%+                              8,218 bets, won 48.3%, return +0.4% (+33 units), 95% range -1.6% to +2.4%
+  dev  EV 2%+                              2,926 bets, won 48.1%, return +2.4% (+70 units), 95% range -1.3% to +6.1%
+  dev  EV 4%+                                984 bets, won 48.3%, return +4.5% (+45 units), 95% range -1.9% to +11.0%
+  dev  EV 6%+                                366 bets, won 47.5%, return +3.9% (+14 units), 95% range -7.0% to +14.4%
+  HOLDOUT, setting chosen on dev = EV 4%+:    811 bets, won 46.7%, return +1.6% (+13 units), 95% range -5.5% to +8.8%
+
+--- off_line: book's line away from Pinnacle's
+  dev  gap 0.5+                            9,259 bets, won 55.3%, return -2.9% (-269 units), 95% range -4.5% to -1.1%
+  dev  gap 1.0+                            9,259 bets, won 55.3%, return -2.9% (-269 units), 95% range -4.6% to -1.1%
+  dev  gap 1.5+                              353 bets, won 61.2%, return +9.5% (+33 units), 95% range +0.3% to +18.8%
+  dev  gap 2.0+                              353 bets, won 61.2%, return +9.5% (+33 units), 95% range -0.4% to +19.0%
+  HOLDOUT, setting chosen on dev = gap 1.5+:    183 bets, won 62.3%, return +13.0% (+24 units), 95% range -0.2% to +26.1%
+
+--- legacy_main: old engine's over rules on main lines
+  dev  all, price -300 or better             322 bets, won 58.4%, return +9.1% (+29 units), 95% range -1.6% to +19.6%
+  dev  all, price -200 or better             322 bets, won 58.4%, return +9.1% (+29 units), 95% range -0.8% to +19.7%
+  dev  no assists, -300 or better            244 bets, won 55.7%, return +5.1% (+12 units), 95% range -6.5% to +17.1%
+  HOLDOUT, setting chosen on dev = all, price -300 or better:    253 bets, won 52.6%, return -1.6% (-4 units), 95% range -12.6% to +9.3%
+
+--- known_out: teammate out since the previous game, over
+  dev  missing 5+ pts                     14,662 bets, won 47.5%, return -6.8% (-991 units), 95% range -8.7% to -4.9%
+  dev  missing 10+ pts                    11,714 bets, won 47.2%, return -7.2% (-841 units), 95% range -9.3% to -5.1%
+  dev  missing 15+ pts                     7,734 bets, won 47.0%, return -7.8% (-600 units), 95% range -10.4% to -5.3%
+  dev  missing 20+ pts                     5,124 bets, won 47.2%, return -7.2% (-368 units), 95% range -10.3% to -4.1%
+  HOLDOUT, setting chosen on dev = missing 5+ pts: 10,831 bets, won 47.9%, return -6.0% (-648 units), 95% range -8.2% to -3.8%
+
+--- overreact: fade the last game
+  dev  last game 30%+ off the line        27,621 bets, won 47.8%, return -5.7% (-1582 units), 95% range -7.0% to -4.4%
+  dev  last game 50%+ off the line        17,493 bets, won 47.3%, return -6.4% (-1112 units), 95% range -7.9% to -4.8%
+  dev  last game 75%+ off the line        11,370 bets, won 47.2%, return -6.1% (-692 units), 95% range -8.1% to -4.3%
+  HOLDOUT, setting chosen on dev = last game 30%+ off the line: 18,508 bets, won 47.8%, return -6.0% (-1104 units), 95% range -7.6% to -4.3%
+
+--- b2b_under: second night of a back-to-back
+  dev  all                                 6,382 bets, won 53.1%, return +0.7% (+45 units), 95% range -2.0% to +3.7%
+  dev  points                              1,657 bets, won 52.8%, return +1.4% (+23 units), 95% range -3.2% to +5.7%
+  dev  rebounds                            1,638 bets, won 51.6%, return -1.6% (-26 units), 95% range -6.0% to +2.8%
+  dev  assists                             1,554 bets, won 53.4%, return +1.7% (+26 units), 95% range -2.9% to +6.4%
+  dev  threes                              1,533 bets, won 54.5%, return +1.4% (+22 units), 95% range -3.1% to +6.0%
+  HOLDOUT, setting chosen on dev = assists:    840 bets, won 52.5%, return -1.4% (-12 units), 95% range -7.8% to +5.7%

@@ -430,6 +430,32 @@ billed as one region: 52,973 credits. Raw files in `research/.cache/odds/2025/` 
 - **Conclusion:** a box-score projection model does not beat NBA prop lines. The test was,
   if anything, kind to the model (missing teammates came from the real box score).
 
+### 5.14 Strategy lab, 2025-26 (`research/odds/strategies.py`, local only)
+
+Rule-based strategies on the same lines (no model). Settings chosen on 21 Oct 2025 to 31 Jan
+2026 only, then the chosen setting checked once on 1 Feb to 13 Jun 2026 (holdout). Output:
+`research/odds/strategies_2025-26.txt`.
+
+| Strategy | Chosen on dev | Dev | Holdout |
+|---|---|---|---|
+| Price beats Pinnacle's fair price | EV 6%+ | 608 bets, +9.5% | 345 bets, +1.7% (-9.1% to +13.1%) |
+| Price beats the other books' fair price | EV 4%+ | 984 bets, +4.5% | 811 bets, +1.6% (-5.5% to +8.8%) |
+| **Book's line 2+ points off Pinnacle's** | gap 2+ | 353 bets, +9.5% | **183 bets, +13.0% (-0.2% to +26.1%)** |
+| Old engine's over rules on main lines | -300 or better | 322 bets, +9.1% | 253 bets, -1.6% |
+| Teammate out since last game, over | 5+ pts missing | -6.8% | -6.0% |
+| Fade the last game | 30%+ off | -5.7% | -6.0% |
+| Back-to-back unders | assists | +1.7% | -1.4% |
+
+- **Off-line (stale line) bets**, whole season: 529 bets, 61.8% won, +11.2% at a median
+  price of 1.81; positive in 7 of 9 months, over and under alike (+9.3% / +13.0%), mostly
+  points (498). Bovada +19.7% (223), DraftKings +10.5%, FanDuel +14.0%, BetOnline +6.2%,
+  BetMGM -4.3%, ESPN BET -5.8%. A 1-point gap loses (-2.9% on 9,259 bets): only big gaps
+  are stale. Needs live checks of every book's line before tip to use.
+- **Old engine's real record** (`pick_history`, 11 Mar to 10 Jun 2026, alternate lines):
+  396 settled picks, 64.6% won, +3.0% (+11.8 units), 95% range -4.5% to +11.2%. Rebounds
+  +13.8% (138), points +1.9% (194), assists -17.0% (64). A full-season test of the same
+  rules needs alternate lines (about 30 credits a game, 39,700 for 2025-26).
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -608,3 +634,6 @@ billed as one region: 52,973 credits. Raw files in `research/.cache/odds/2025/` 
 - **Full-season real-line test** (section 5.13): The Odds API, 1,322 games, 69,938 props,
   60 minutes before tip. The market beats projection model v2 everywhere; betting the
   model's disagreements loses 2.3% (95% range -3.4% to -1.3%). 47,027 credits left.
+- **Strategy lab** (section 5.14): seven rule-based strategies on the 2025-26 lines with a
+  dev/holdout split. Lines 2+ points off Pinnacle's held up on the holdout (+13.0%, 183
+  bets; whole season +11.2%, 529 bets). The old engine's real record: +3.0% over 396 picks.
