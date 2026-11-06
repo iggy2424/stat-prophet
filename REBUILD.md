@@ -401,6 +401,35 @@ price with the margin removed, averaged.
   the rest were players who did not play (void). Lines captured before the books' listed
   start. Commercial use, storing and training models are allowed on every plan.
 
+### 5.13 Real-line test, 2025-26 (`research/odds/`, local only)
+
+The Odds API 100K plan ($59/mo, bought 6 Nov 2026). `pull_props.py` downloaded every
+2025-26 game (1,322: regular season, play-in, playoffs) as lines stood about 60 minutes
+before tip (the snapshot at or before that time: 60 to 64 minutes), points / rebounds /
+assists / 3s, 7 books (DraftKings, FanDuel, BetMGM, ESPN BET, Bovada, BetOnline, Pinnacle),
+billed as one region: 52,973 credits. Raw files in `research/.cache/odds/2025/` (not in git).
+`real_line_test.py` runs the test; output in `research/odds/results_2025-26.txt`.
+
+- **Data checks:** all 1,322 games matched to an Odds API event; 4 had no lines; 71,705
+  props; 70,228 with a player who played, 1,393 void (did not play), 84 names not found
+  (0.1%, nicknames). The market is well calibrated against results, which also confirms
+  the line, price and box score joins are right.
+- **Model:** v2 retrained each month on earlier games only (walk-forward), 69,938 props.
+- **Result: the market beats the model** for every stat and every month. Brier score:
+  market 0.2459, model 0.2518; a 25% model / 75% market mix 0.2456 (barely better than the
+  market alone). The model is overconfident exactly where it disagrees with the market
+  ("24% over" happened 39%).
+- **Main test** (fixed before the run: model beats the market's fair chance by 5%+, 1 unit
+  at the average price): 39,310 bets, 52.3% won, **-2.3%** (95% range -3.4% to -1.3%).
+  Every secondary version lost or was flat: 12%+ edge -0.1%, best price across 7 books
+  +0.3% (-0.7% to +1.4%, and needs an account at every book), DraftKings -1.6%, FanDuel
+  -1.8%, every month negative.
+- **Every under:** overs are priced about 1.4 points too high (47.7% happened vs 49.1%
+  implied), but not enough to beat the margin (6.6% at the average book): -3.5% at the
+  average price, -0.9% at the best price.
+- **Conclusion:** a box-score projection model does not beat NBA prop lines. The test was,
+  if anything, kind to the model (missing teammates came from the real box score).
+
 ## 6. Open items
 
 - [x] Team and player box score tables, sync job and team rankings view
@@ -576,3 +605,6 @@ price with the margin removed, averaged.
 - **First real-line check with DunkAPI** (free 500 credits: 22 January 2026 games, 1,356
   props). Market slightly better than the model overall (Brier 0.2458 vs 0.2473), the model
   better on rebounds; a 50/50 blend beat both. Too few games to say anything about profit.
+- **Full-season real-line test** (section 5.13): The Odds API, 1,322 games, 69,938 props,
+  60 minutes before tip. The market beats projection model v2 everywhere; betting the
+  model's disagreements loses 2.3% (95% range -3.4% to -1.3%). 47,027 credits left.

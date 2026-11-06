@@ -1,0 +1,89 @@
+=== 1. Data checks
+  games not matched to an Odds API event: 0
+  games with a file: 1322
+  games with no lines: 4
+  books per game (median): 7.0
+  minutes before tip (median, min, max): (64.38333333333334, 60.36666666666667, 64.4)
+  book lines incl. alternates: 612830
+  main lines: 379540
+  props (consensus): 71705
+  books at the consensus (median): 5.0
+  props by market: {'player_points': 19054, 'player_rebounds': 18783, 'player_assists': 16957, 'player_threes': 16911}
+  main lines by book: {'betmgm': 64491, 'draftkings': 60625, 'betonlineag': 59474, 'espnbet': 55564, 'fanduel': 54834, 'bovada': 47606, 'pinnacle': 36946}
+  whole number lines left out (can push): 0
+  nickname fallback matched 1,131 of 1,215 unknown names
+  props whose player played: 70,228; did not play (void): 1,393; name not found: 84
+    names not found (top 10): [('Herb Jones', 36), ('Vincent Williams Jr', 19), ('Alex Sarr', 12), ('Moe Wagner', 11), ('Yang Hansen', 6)]
+
+=== Training v2 walk-forward (one model per block, earlier games only)
+  trained block from 2025-10-21: 25,384 training games, 6,543 games predicted
+  trained block from 2025-12-01: 31,603 training games, 4,273 games predicted
+  trained block from 2026-01-01: 35,828 training games, 4,986 games predicted
+  trained block from 2026-02-01: 40,797 training games, 3,590 games predicted
+  trained block from 2026-03-01: 44,343 training games, 5,170 games predicted
+  trained block from 2026-04-01: 49,405 training games, 3,130 games predicted
+  trained block from 2026-05-01: 52,484 training games, 978 games predicted
+  scored props (player had 5+ earlier games): 69,938 of 70,228
+
+=== 2. Is the market itself sensible? (it should be well calibrated)
+  over hit 47.7%; market said 49.1% on average
+    market 0%-30%: 179 said 25.7% happened 24.0%
+    market 30%-40%: 4,621 said 37.2% happened 35.6%
+    market 40%-45%: 11,062 said 42.8% happened 41.3%
+    market 45%-55%: 43,309 said 49.8% happened 48.3%
+    market 55%-60%: 8,230 said 57.0% happened 56.3%
+    market 60%-70%: 2,537 said 62.5% happened 61.1%
+
+=== 3. Accuracy of the over chance (lower is better)
+                        n   market    model    25/75    50/50    75/25   log loss market / model / 50-50
+  player_points    18,553   0.2493   0.2573   0.2492   0.2505   0.2532   0.6918 / 0.7097 / 0.6943
+  player_rebounds  18,311   0.2474   0.2534   0.2471   0.2480   0.2501   0.6879 / 0.7016 / 0.6892
+  player_assists   16,584   0.2450   0.2511   0.2447   0.2456   0.2477   0.6830 / 0.6974 / 0.6843
+  player_threes    16,490   0.2414   0.2446   0.2408   0.2411   0.2424   0.6756 / 0.6847 / 0.6752
+  all              69,938   0.2459   0.2518   0.2456   0.2465   0.2486   0.6849 / 0.6988 / 0.6861
+  Pinnacle only (30,704 props): Pinnacle 0.2476, all-book market 0.2476, model 0.2546
+  by block (market / model):
+    from 2025-10-21: 16,884 props  0.2471 / 0.2573
+    from 2025-12-01: 11,347 props  0.2446 / 0.2492
+    from 2026-01-01: 13,084 props  0.2457 / 0.2493
+    from 2026-02-01:  8,754 props  0.2460 / 0.2510
+    from 2026-03-01: 11,490 props  0.2456 / 0.2498
+    from 2026-04-01:  5,847 props  0.2455 / 0.2518
+    from 2026-05-01:  2,532 props  0.2468 / 0.2510
+  player's first 10 games: 10,431 props  0.2476 / 0.2607
+
+=== 4. Model calibration and lean
+    model 0%-30%: 4,697 said 24.0% happened 39.1%
+    model 30%-40%: 16,129 said 35.9% happened 43.7%
+    model 40%-45%: 13,348 said 42.6% happened 46.3%
+    model 45%-55%: 24,469 said 49.6% happened 49.6%
+    model 55%-60%: 6,096 said 57.3% happened 52.9%
+    model 60%-70%: 4,469 said 63.7% happened 56.2%
+    model 70%-100%: 730 said 73.8% happened 58.4%
+  player_points    model minus line +0.19, actual minus line +0.23, model says over 44.8%, market 49.8%, happened 48.6%
+  player_rebounds  model minus line +0.04, actual minus line +0.09, model says over 45.5%, market 49.2%, happened 47.9%
+  player_assists   model minus line +0.08, actual minus line +0.13, model says over 46.2%, market 49.3%, happened 48.2%
+  player_threes    model minus line +0.07, actual minus line +0.09, model says over 44.2%, market 48.2%, happened 46.0%
+
+=== 5. MAIN TEST: edge 5%+, average price across books
+  39,310 bets (9225 over, 30085 under), won 52.3%, return -2.3% (95% range -3.4% to -1.3%)
+
+=== 6. Secondary bet tests (many slices: expect some to look good by chance)
+  edge 3%+, average price: 50,654 bets (13270 over, 37384 under), won 52.1%, return -2.5% (95% range -3.4% to -1.7%)
+  edge 8%+, average price: 25,331 bets (5146 over, 20185 under), won 52.6%, return -1.6% (95% range -2.8% to -0.3%)
+  edge 12%+, average price: 12,817 bets (2193 over, 10624 under), won 53.3%, return -0.1% (95% range -1.8% to +1.6%)
+  edge 5%+, best price across books: 39,310 bets (9225 over, 30085 under), won 52.3%, return +0.3% (95% range -0.7% to +1.4%)
+  edge 5%+ vs draftkings's own line and price: 30,991 bets (6806 over, 24185 under), won 52.2%, return -1.6% (95% range -2.7% to -0.3%)
+  edge 5%+ vs fanduel's own line and price: 27,456 bets (6235 over, 21221 under), won 51.8%, return -1.8% (95% range -3.0% to -0.6%)
+  edge 5%+ vs Pinnacle's chance, average price: 17,837 bets (3454 over, 14383 under), won 51.9%, return -2.7% (95% range -4.2% to -1.2%)
+  player_points    edge 5%+: 11,490 bets (2332 over, 9158 under), won 51.8%, return -3.1% (95% range -4.7% to -1.5%)
+  player_rebounds  edge 5%+: 10,252 bets (2601 over, 7651 under), won 51.9%, return -2.9% (95% range -4.8% to -1.0%)
+  player_assists   edge 5%+: 9,540 bets (2916 over, 6624 under), won 52.1%, return -2.7% (95% range -4.6% to -0.9%)
+  player_threes    edge 5%+: 8,028 bets (1376 over, 6652 under), won 53.8%, return -0.2% (95% range -2.2% to +1.9%)
+  block from 2025-10-21: 10,449 bets (2309 over, 8140 under), won 51.5%, return -3.4% (95% range -5.5% to -1.2%)
+  block from 2025-12-01: 5,993 bets (1736 over, 4257 under), won 52.2%, return -2.6% (95% range -5.3% to +0.1%)
+  block from 2026-01-01: 6,755 bets (1627 over, 5128 under), won 52.8%, return -1.8% (95% range -4.1% to +0.7%)
+  block from 2026-02-01: 4,739 bets (1289 over, 3450 under), won 52.5%, return -2.0% (95% range -4.9% to +0.8%)
+  block from 2026-03-01: 6,103 bets (1395 over, 4708 under), won 52.5%, return -1.9% (95% range -4.6% to +0.9%)
+  block from 2026-04-01: 3,599 bets (714 over, 2885 under), won 52.7%, return -1.7% (95% range -5.3% to +1.9%)
+  block from 2026-05-01: 1,672 bets (155 over, 1517 under), won 53.1%, return -1.2% (95% range -6.3% to +3.9%)
