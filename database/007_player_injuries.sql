@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS player_injuries (
   player_id     INTEGER PRIMARY KEY,
   player_name   TEXT NOT NULL,
   team_id       INTEGER REFERENCES teams (id),
-  status        TEXT NOT NULL,          -- 'Out' or 'Day-To-Day'
+  status        TEXT NOT NULL,          -- as BallDontLie sends it: Out, Doubtful, Questionable, Probable, Day-To-Day, Available
   return_date   DATE,
   description   TEXT,
   first_seen_at TIMESTAMPTZ NOT NULL,   -- when this status first appeared

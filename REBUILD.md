@@ -276,7 +276,8 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - `src/api.ts` is the only place that calls the backend. A 401 sends the user to `/login`.
 - Pages built: **Games** (each card shows the model's prediction, with ✓ or ✗ once final, and
   the model's record sits above the list; games not yet final list injured players who play
-  10+ minutes, with OUT or DTD, their minutes and the news note on hover), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
+  10+ minutes, with their status (Out and Doubtful in red; Available not shown), their
+  minutes and the news note on hover), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
   DataLab, Bet Slip, Pick History.
 - The page is kept in the URL hash (`/#rankings`), so refreshing or sharing a link keeps it.
 - **Team Rankings page:** Overview (net, offensive and defensive rating, pace, rebound %),
@@ -310,7 +311,8 @@ are not stored: the record is graded from the final scores in `games`.
 
 ### 5.11 Injuries (`backend/injuries.py`, `database/007`)
 
-- Source: BallDontLie `/v1/player_injuries`, status `Out` or `Day-To-Day`, an expected
+- Source: BallDontLie `/v1/player_injuries`, status (`Out`, `Doubtful`, `Questionable`,
+  `Probable`, `Day-To-Day`, `Available`; the last four appeared on 6 Nov 2026), an expected
   return date and a news note. Its team ids are mapped to ours by team code.
 - BallDontLie only has the list as it is now. `player_injuries` holds that list;
   `injury_reports` gets a row for every new player or change in team, status, return date
@@ -533,3 +535,18 @@ season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games)
   gains everywhere (points miss 4.59 to 4.52 on Feb-Jun 2026), better early season
   calibration. Last season's averages add nothing; the extra training season does the work.
   2026-27 points still run about 0.5 high; two corrections tested and not adopted.
+
+### 2026-11-06
+
+- Ran the nightly jobs by hand (`rebuild` not merged yet, so the cron has not run since
+  3 Nov): 4 and 5 Nov finals, box scores and player stats (16 games, 368 player rows),
+  injuries, predictions for 6 and 7 Nov. The 2 games on 5 Nov have **no prediction**: the
+  job did not run before they tipped off, and predictions are never made after the fact.
+- The `boxscores` job fills any finished game without team totals, so it also took 240
+  2024-25 games (240 API-Sports requests). Left as is: about 5 more nightly runs finish
+  2024-25 within the daily quota.
+- Game model record so far: 20 of 29 winners right (69%), margin off 9.6, total off 13.3
+  (real totals 4.5 lower than predicted on average).
+- BallDontLie's injury feed now also sends `Doubtful`, `Questionable`, `Probable` and
+  `Available`. The Games page showed all of them as DTD; it now shows each status, red for
+  Out and Doubtful, and hides Available players.

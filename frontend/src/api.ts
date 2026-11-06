@@ -30,7 +30,7 @@ export interface Injury {
   player_id: number
   player_name: string
   team_id: number
-  status: string               // 'Out' or 'Day-To-Day'
+  status: string               // Out, Doubtful, Questionable, Probable, Day-To-Day or Available
   return_date: string | null
   description: string | null
   updated_at: string

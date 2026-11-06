@@ -145,11 +145,18 @@ function PredictionLine({ game: g }: { game: Game }) {
 // Players under this many minutes a game are counted, not named, to keep the card short
 const NAMED_MINUTES = 10
 
+// BallDontLie status -> short label. Out and Doubtful are shown in red.
+const INJURY_LABELS: Record<string, string> = {
+  'Out': 'OUT', 'Doubtful': 'DOUBTFUL', 'Questionable': 'QUESTIONABLE', 'Probable': 'PROBABLE', 'Day-To-Day': 'DTD',
+}
+const LIKELY_OUT = new Set(['Out', 'Doubtful'])
+
 function InjuryList({ game: g }: { game: Game }) {
   return (
     <div className="injuries">
       {[g.away, g.home].map(team => {
-        const players = g.injuries!.filter(p => p.team_id === team.id)
+        // 'Available' means cleared to play: nothing to show
+        const players = g.injuries!.filter(p => p.team_id === team.id && p.status !== 'Available')
         if (players.length === 0) return null
         const named = players.filter(p => (p.minutes ?? 0) >= NAMED_MINUTES)
         const others = players.length - named.length
@@ -157,9 +164,9 @@ function InjuryList({ game: g }: { game: Game }) {
           <p key={team.id} className="injury-team">
             <span className="injury-code">{team.code}</span>
             {named.map(p => (
-              <span key={p.player_id} className={`injury ${p.status === 'Out' ? 'out' : 'dtd'}`}
+              <span key={p.player_id} className={`injury ${LIKELY_OUT.has(p.status) ? 'out' : 'dtd'}`}
                 title={p.description ?? undefined}>
-                {p.player_name} <small>{p.status === 'Out' ? 'OUT' : 'DTD'} · {Math.round(p.minutes!)} min</small>
+                {p.player_name} <small>{INJURY_LABELS[p.status] ?? p.status.toUpperCase()} · {Math.round(p.minutes!)} min</small>
               </span>
             ))}
             {others > 0 && <span className="injury-more">{named.length ? `+${others} bench` : `${others} bench players`}</span>}
