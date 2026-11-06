@@ -9,8 +9,11 @@ from datetime import date, timedelta
 
 from . import db, game_model, sync, timeutil
 
-# API-Sports updates live games about every 15 seconds; refreshing faster gains nothing
-LIVE_MAX_AGE = timedelta(seconds=15)
+# The page asks every 15 seconds (API-Sports updates about that often). The server
+# threshold sits below that: at exactly 15s, requests landing a moment early got the old
+# data and scores really refreshed only every 30s (measured 2 Nov). Every viewer still
+# shares one refresh, so this is at most 6 API requests a minute.
+LIVE_MAX_AGE = timedelta(seconds=10)
 # Injury news moves through the day; the list is refreshed when viewed, at most this often
 INJURY_MAX_AGE = timedelta(minutes=30)
 

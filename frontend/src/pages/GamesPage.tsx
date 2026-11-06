@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, type Game, type GamesResponse, type ModelGrade } from '../api'
 import { dayLabel, shiftDay, tipOffET } from '../dates'
 
-// Matches the backend's 15 second live refresh window
+// The backend refreshes when its last live run is over 10s old, so every 15s poll gets fresh data
 const LIVE_REFRESH_MS = 15_000
 
 export default function GamesPage() {

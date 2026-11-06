@@ -182,12 +182,13 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
 ### 5.4 Live scores
 
 - When someone opens the Games page for today, the backend checks whether any game is live
-  or should have tipped off. If so, and the last `live` run **started** more than 15 seconds
+  or should have tipped off. If so, and the last `live` run **started** more than 10 seconds
   ago, it runs `live` before answering. Using the start time (not success) means a failing
   API is not retried in a tight loop.
 - All viewers share that one refresh, so cost does not grow with the number of viewers.
-  A full night of games costs roughly 1,000 to 1,500 of the 7,500 daily requests.
-- The page polls every 15 seconds while any game on screen is live or due, pauses while the
+  A full night of games costs roughly 1,000 to 2,000 of the 7,500 daily requests.
+- The page polls every 15 seconds while any game on screen is live or due (the server
+  threshold is 10s, below the poll interval, so every poll gets fresh data), pauses while the
   browser tab is hidden, and flashes a score when it changes.
 - Limitation: scores only update while someone has the page open. Results needed for pick
   history will come from a nightly job instead.
@@ -550,3 +551,8 @@ season. New split **C**: train 2024-25, test 21 Oct to 30 Nov 2025 (6,219 games)
 - BallDontLie's injury feed now also sends `Doubtful`, `Questionable`, `Probable` and
   `Available`. The Games page showed all of them as DTD; it now shows each status, red for
   Out and Doubtful, and hides Available players.
+- **Live scores refreshed every 30 seconds, not 15.** Measured from `sync_log` on 2 Nov:
+  137 runs, median gap 30.2s. The page polls every 15s and the server refreshed only when
+  its last run was over 15s old, so polls that landed a moment early got the old data.
+  Server threshold lowered to 10s. Explains at least part of the clock and quarter looking
+  stuck (the real game clock also stops for fouls, timeouts and reviews).
