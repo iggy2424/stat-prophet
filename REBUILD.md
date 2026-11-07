@@ -454,7 +454,33 @@ Rule-based strategies on the same lines (no model). Settings chosen on 21 Oct 20
 - **Old engine's real record** (`pick_history`, 11 Mar to 10 Jun 2026, alternate lines):
   396 settled picks, 64.6% won, +3.0% (+11.8 units), 95% range -4.5% to +11.2%. Rebounds
   +13.8% (138), points +1.9% (194), assists -17.0% (64). A full-season test of the same
-  rules needs alternate lines (about 30 credits a game, 39,700 for 2025-26).
+  rules needs alternate lines (about 30 credits a game, 39,700 for 2025-26). Done for half
+  the season in 5.15. Note the "main lines" row above was an approximate port (player's own
+  last 10, no defence rank, H2H over all seasons, no 6-per-game cap); 5.15 is the exact one.
+
+### 5.15 Old engine replay on alternate lines (`research/odds/legacy_alt_test.py`, local only)
+
+`pull_alt.py` downloaded alternate points / rebounds / assists lines (6 US books; Pinnacle has
+none) for the 758 regular season games of Nov-Dec 2025 and Mar-Apr 2026, 60 minutes before
+tip, 22,740 credits (24,287 left). Saved in `research/.cache/odds/2025_alt/`. The replay is an
+exact port of the legacy picks loop and `_score_pick`, checked against the code and its git
+history and by hand on single props, in two versions: REG (regular season rules of 9-14 Apr
+2026: odds -250, 75% points-only tier, H2H 30/20 and 18/12) and PO (final playoff code: odds
+-300, 70% tier, H2H 40/28 and 25/15). Output: `research/odds/legacy_alt_2025-26.txt`.
+
+| Version | Bets | Won | Return (95% range) | Points / Rebounds / Assists |
+|---|---|---|---|---|
+| REG | 490 | 59.6% | -6.3% (-13.3% to +0.7%) | -9.5% / -1.4% / -7.1% |
+| PO | 1,101 | 62.5% | -5.0% (-9.4% to -0.9%) | -6.0% / -3.5% / -5.4% |
+
+Both halves of the season lose in both versions. **But the timing differs from live use.**
+Live picks were first saved a median 7.8 hours before tip (quartiles 2.6 to 14.0). On the
+125 live picks in these games (65.0% won, +8.4%), the market moved toward them by tip: the
+over's implied chance went from 60.7% when picked to 63.3% at 60 minutes before tip (the
+picks beat the closing price). The replay at 60 minutes only reproduced 39% (REG) to 57%
+(PO) of the live picks, because by then the ladder has moved. So these rules at the closing
+price lose; the live edge looks like it came from betting the rules on the morning lines,
+before the books adjust. Testing that needs an earlier snapshot (another 30 credits a game).
 
 ## 6. Open items
 
@@ -637,3 +663,10 @@ Rule-based strategies on the same lines (no model). Settings chosen on 21 Oct 20
 - **Strategy lab** (section 5.14): seven rule-based strategies on the 2025-26 lines with a
   dev/holdout split. Lines 2+ points off Pinnacle's held up on the holdout (+13.0%, 183
   bets; whole season +11.2%, 529 bets). The old engine's real record: +3.0% over 396 picks.
+
+### 2026-11-07
+- **Old engine replay on alternate lines** (section 5.15): 758 games (Nov-Dec 2025, Mar-Apr
+  2026), exact port of the legacy rules in both versions. At the price 60 minutes before tip
+  the rules lose (-6.3% / -5.0%). The live picks were made about 8 hours before tip and beat
+  the closing price, which points to the morning lines as where the edge was. 24,287
+  credits left. DunkAPI files (22 January games) kept in `research/.cache/dunk/`.
