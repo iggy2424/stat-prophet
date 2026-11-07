@@ -484,6 +484,9 @@ before the books adjust. Testing that needs an earlier snapshot (another 30 cred
 
 ## 6. Open items
 
+- [ ] (Parked 7 Nov 2026, potential) Old engine on morning lines: alternate lines 8 hours
+  before tip for the 417 Nov-Dec 2025 games (12,510 credits), run the gates on them, settle
+  at the morning price, and check the price movement to 60 minutes before tip (section 5.15)
 - [x] Team and player box score tables, sync job and team rankings view
 - [x] 2026-27 box scores loaded (157 games)
 - [x] Decide the player stats source: BallDontLie passed every check (section 4)
