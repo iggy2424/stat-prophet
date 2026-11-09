@@ -199,6 +199,18 @@ from .injuries import sync_injuries  # noqa: E402
 # predictions for tonight from the updated ratings
 NIGHTLY = ["schedule", "scores", "boxscores", "players", "injuries", "predictions"]
 
+def nightly_args(name: str) -> tuple:
+    """Arguments for a nightly job: (season, limit) for the box score jobs, else none.
+
+    Current season only, at most 30 games: a night has at most 15, so this covers last
+    night plus retries and keeps the whole run inside Vercel's 60 second limit. Older
+    seasons (two 2024-25 games have no complete team stats at API-Sports) and larger
+    backlogs are handled by hand with scripts/sync.py, so they never fail the cron.
+    """
+    if name in ("boxscores", "players"):
+        return (timeutil.current_season(), 30)
+    return ()
+
 # job name -> (function, API client it is given)
 JOBS = {
     "teams": (sync_teams, ApiSports),

@@ -95,7 +95,7 @@ function emptyLabel(label: string): string {
   return ['Today', 'Tomorrow', 'Yesterday'].includes(label) ? label.toLowerCase() : `on ${label}`
 }
 
-function GameCard({ game: g }: { game: Game }) {
+export function GameCard({ game: g }: { game: Game }) {
   const showScore = g.status === 'live' || g.status === 'finished'
   const awayWon = g.status === 'finished' && (g.away_score ?? 0) > (g.home_score ?? 0)
   const homeWon = g.status === 'finished' && (g.home_score ?? 0) > (g.away_score ?? 0)

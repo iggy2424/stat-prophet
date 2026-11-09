@@ -199,7 +199,7 @@ def run_sync(params: dict) -> tuple[int, dict]:
     """
     job = _param(params, "job")
     if job == "nightly":
-        results = [sync.run_job(name) for name in sync.NIGHTLY]
+        results = [sync.run_job(name, *sync.nightly_args(name)) for name in sync.NIGHTLY]
         return (200 if all(r["ok"] for r in results) else 500), {"jobs": results}
     if job not in sync.JOBS:
         return 400, {"error": f"job must be nightly or one of {sorted(sync.JOBS)}"}
@@ -207,8 +207,51 @@ def run_sync(params: dict) -> tuple[int, dict]:
     return (200 if result["ok"] else 500), result
 
 
+def model_calendar(params: dict) -> tuple[int, dict]:
+    """The model's record day by day for one month. ?month=YYYY-MM, defaults to this month (ET).
+
+    Each day: games played, graded (games: finished with a prediction), winners right and wrong,
+    average misses. first_month is the earliest month with a prediction, for navigation.
+    """
+    today = timeutil.today_et()
+    raw = _param(params, "month")
+    try:
+        start = date.fromisoformat(f"{raw}-01") if raw else today.replace(day=1)
+    except ValueError:
+        return 400, {"error": "month must be YYYY-MM"}
+    end = (start + timedelta(days=32)).replace(day=1)
+
+    rows = db.select("games", {
+        "select": "id,game_date_et,status,home_score,away_score,"
+                  "prediction:game_predictions(home_points,away_points)",
+        "and": f"(game_date_et.gte.{start.isoformat()},game_date_et.lt.{end.isoformat()})",
+        "status": "neq.canceled", "order": "game_date_et.asc", "limit": "1000",
+    })
+    by_day: dict[str, list] = {}
+    graded_by_day: dict[str, list] = {}
+    for g in rows:
+        by_day.setdefault(g["game_date_et"], []).append(g)
+        p = g.get("prediction")
+        p = p[0] if isinstance(p, list) else p
+        if p and g["status"] == "finished" and g["home_score"] is not None and g["away_score"] is not None:
+            graded_by_day.setdefault(g["game_date_et"], []).append({**p, "game": g})
+
+    first = db.select("game_predictions", {"select": "game:games!inner(game_date_et)",
+                                           "order": "game(game_date_et).asc", "limit": "1"})
+    # played = games that day; games (from _grade) = how many of them were graded
+    days = [{"date": d, **_grade(graded_by_day.get(d, [])), "played": len(gs)} for d, gs in sorted(by_day.items())]
+    return 200, {
+        "month": start.isoformat()[:7],
+        "today": today.isoformat(),
+        "first_month": first[0]["game"]["game_date_et"][:7] if first else None,
+        "record": _grade([r for d in graded_by_day.values() for r in d]),
+        "days": days,
+    }
+
+
 MEMBER_ROUTES = {
     "games": games,
+    "model_calendar": model_calendar,
     "team_rankings": team_rankings,
     "model_record": model_record,
     "sync_status": sync_status,

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import GamesPage from './pages/GamesPage'
+import HistoryPage from './pages/HistoryPage'
 import RankingsPage from './pages/RankingsPage'
 
 // Pages get added here as they are rebuilt. Disabled entries are not built yet.
 const PAGES = [
   { id: 'games', label: 'Games', ready: true },
+  { id: 'games-history', label: 'Games History', ready: true },
   { id: 'rankings', label: 'Team Rankings', ready: true },
   { id: 'picks', label: 'Picks', ready: false },
   { id: 'analyzer', label: 'Prop Analyzer', ready: false },
@@ -56,6 +58,7 @@ export default function App() {
       </nav>
       <main className="content">
         {page === 'games' && <GamesPage />}
+        {page === 'games-history' && <HistoryPage />}
         {page === 'rankings' && <RankingsPage />}
       </main>
     </div>

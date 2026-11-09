@@ -129,7 +129,39 @@ tbody .team-col { display: flex; align-items: center; gap: 8px; font-weight: 600
 .rank.good { color: var(--green); background: rgba(51, 204, 51, 0.12); }
 .rank.bad { color: var(--red); background: rgba(255, 90, 95, 0.12); }
 
+/* Games History calendar */
+.day-nav > button:disabled { opacity: 0.35; cursor: default; }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.calendar.skeleton { height: 420px; background: var(--surface); border-radius: var(--radius); animation: pulse 1.4s ease-in-out infinite; }
+.cal-head { font-size: 12px; color: var(--muted); text-align: center; padding-bottom: 2px; }
+.cal-cell {
+  min-height: 68px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line);
+  padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+  text-align: left; font-variant-numeric: tabular-nums;
+}
+.cal-cell.pad { background: none; border: 0; }
+.cal-cell.empty { opacity: 0.45; }
+button.cal-cell:hover { border-color: var(--muted); }
+.cal-cell.good { background: rgba(51, 204, 51, 0.10); border-color: rgba(51, 204, 51, 0.35); }
+.cal-cell.bad { background: rgba(255, 90, 95, 0.10); border-color: rgba(255, 90, 95, 0.35); }
+.cal-cell.selected { outline: 2px solid var(--text); outline-offset: -1px; }
+.cal-cell.today .cal-date { color: var(--green); font-weight: 700; }
+.cal-date { font-size: 12px; color: var(--muted); }
+.cal-score { font-size: 18px; font-weight: 700; }
+.cal-score .r { color: var(--green); }
+.cal-score .w { color: var(--red); }
+.cal-games { font-size: 12px; color: var(--muted); }
+.day-games { margin-top: 24px; }
+.day-games h2 { font-size: 18px; margin-bottom: 8px; }
+@media (max-width: 720px) {
+  .calendar { gap: 4px; }
+  .cal-cell { min-height: 54px; padding: 4px 5px; }
+  .cal-score { font-size: 14px; }
+  .cal-games { font-size: 12px; }
+  .cal-word { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .game-card.skeleton, .table-wrap.skeleton { animation: none; }
+  .game-card.skeleton, .table-wrap.skeleton, .calendar.skeleton { animation: none; }
   .team-score, .table-wrap { transition: none; }
 }

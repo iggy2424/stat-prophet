@@ -238,6 +238,7 @@ others pending raises `PartialSync`: the run is logged as failed, with the rows 
 | `?type=` | Who | Returns |
 |---|---|---|
 | `games&date=YYYY-MM-DD` | Members | Games for that Eastern date (default today) with both teams' name, code and logo, and the model's prediction if there is one. For today and later, also `injuries` for both teams (refreshed if the list is over 30 minutes old) |
+| `model_calendar&month=YYYY-MM` | Members | The model's record per day for one month (default this month, ET): games played, graded, winners right and wrong, average misses; the month's record; `first_month` with a prediction |
 | `model_record&model=ratings-v1` | Members | The game model's record on finished games: winners right and wrong, average margin and total miss, total bias (+ = real totals higher). All time and last 7 days |
 | `team_rankings&season=2026&window=blended` | Members | All 30 teams with stats and ranks, sorted by net rating. `window` is `blended` (default), `season` or `last10`; `season` defaults to the current one |
 | `sync_status` | Members | Latest run of each sync job |
@@ -265,6 +266,9 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
   `api/callback.js` (Node, Whop OAuth). Only `/api` reaches `index.py`; routes use `?type=`.
 - **Nightly cron, 09:00 UTC** (4 or 5am ET, after every game has ended):
   `/api?type=sync&job=nightly` runs `schedule`, `scores`, `boxscores`, `players`, `injuries`, `predictions` in order.
+  `boxscores` and `players` run for the current season only, at most 30 games
+  (`sync.nightly_args`), so the run stays well inside the 60 second limit (7.8s measured);
+  older seasons and backlogs are synced by hand with `scripts/sync.py`.
   Each job logs its own `sync_log` row, and one failing never stops the rest. Crons only
   run on production. Live scores stay on demand (Hobby cron runs at most once a day).
 - Environment variables needed in Vercel (Production and Preview): `SUPABASE_URL`,
@@ -278,7 +282,10 @@ Any handler error returns HTTP 500 with the error message. Errors are never turn
 - Pages built: **Games** (each card shows the model's prediction, with ✓ or ✗ once final, and
   the model's record sits above the list; games not yet final list injured players who play
   10+ minutes, with their status (Out and Doubtful in red; Available not shown), their
-  minutes and the news note on hover), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
+  minutes and the news note on hover), **Games History** (month calendar of the model's
+  winners right-wrong per day, green when more right, red when more wrong; days the model
+  did not predict show the game count; click a day to list its games with prediction and
+  result; month record above), **Team Rankings**. Listed but not built yet: Picks, Prop Analyzer,
   DataLab, Bet Slip, Pick History.
 - The page is kept in the URL hash (`/#rankings`), so refreshing or sharing a link keeps it.
 - **Team Rankings page:** Overview (net, offensive and defensive rating, pace, rebound %),
@@ -684,3 +691,12 @@ before the books adjust. Testing that needs an earlier snapshot (another 30 cred
   out. The nightly cron (09:00 UTC) now runs on its own. Live site has Games and Team
   Rankings only; picks and the Pick History page are still to be rebuilt (the
   `pick_history` data is untouched). Roll back: Vercel's Instant Rollback, or tag `legacy-v1`.
+- **Nightly run was too slow for Vercel:** `boxscores` alone took 65s (it worked through
+  709 old 2024-25 games, 240 a night), over the 60s function limit, which would have cut
+  off players, injuries and predictions. Cleared the backlog by hand (707 saved; 2 games
+  have no complete team stats at API-Sports and stay pending) and limited the nightly
+  box score jobs to the current season, 30 games. Full nightly run now 7.8s, every job ok.
+- **Games History page:** calendar of the model's daily record, click a day for its games
+  (`model_calendar` route). `GameCard` is shared with the Games page. Checked on desktop and
+  at phone width (390px), including the day list; month totals match `model_record`
+  (40-12 on 52 games).

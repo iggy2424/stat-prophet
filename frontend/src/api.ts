@@ -61,6 +61,20 @@ export interface ModelRecordResponse {
   last_7_days: ModelGrade
 }
 
+// One day of the model calendar: played = games that day, games = how many were graded
+export interface CalendarDay extends ModelGrade {
+  date: string
+  played: number
+}
+
+export interface ModelCalendarResponse {
+  month: string              // YYYY-MM
+  today: string
+  first_month: string | null // earliest month with a prediction
+  record: ModelGrade         // the whole month
+  days: CalendarDay[]        // only days with games
+}
+
 export interface GamesResponse {
   date: string
   today: string
@@ -110,4 +124,5 @@ export const api = {
   teamRankings: (season: number | null, window: RankingWindow) =>
     get<TeamRankingsResponse>('team_rankings', season ? { season: String(season), window } : { window }),
   modelRecord: () => get<ModelRecordResponse>('model_record'),
+  modelCalendar: (month?: string) => get<ModelCalendarResponse>('model_calendar', month ? { month } : {}),
 }
