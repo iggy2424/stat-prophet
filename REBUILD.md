@@ -507,7 +507,7 @@ before the books adjust. Testing that needs an earlier snapshot (another 30 cred
 - [x] Schedule the sync jobs: one nightly cron (live scores stay on demand)
 - [x] `vercel.json` for the new structure
 - [x] Preview deployment works (Games, Team Rankings, logos, Vercel login wall on previews)
-- [ ] Check live scores on the preview during a game, then merge `rebuild` into `main`
+- [x] Check live scores on the preview during a game, then merge `rebuild` into `main` (9 Nov 2026)
 - [x] Projection test on 2025-26 (section 5.12)
 - [x] Projection model v2 (section 5.12): two seasons of training, early season spread
 - [ ] Projection model v3: a minutes model that uses the injury list; keep watching the
@@ -673,3 +673,14 @@ before the books adjust. Testing that needs an earlier snapshot (another 30 cred
   the rules lose (-6.3% / -5.0%). The live picks were made about 8 hours before tip and beat
   the closing price, which points to the morning lines as where the edge was. 24,287
   credits left. DunkAPI files (22 January games) kept in `research/.cache/dunk/`.
+
+### 2026-11-09
+- Ran the nightly jobs by hand for 7-8 Nov (8 and 9-10 Nov predictions). Model record 40 of
+  52 winners (77%), margin miss 10.1, total miss 14.4, totals 4.1 points low on average.
+- **Rebuild is live:** `rebuild` fast-forwarded into `main` (`ed351e6`), production build
+  served on app.trendbet.ai within about 30 seconds. Checked before: frontend type check and
+  build, every environment variable the backend reads already set in Production, secret scan
+  of the whole diff. Checked after: new bundle served, `/login` 200, data API 401 when logged
+  out. The nightly cron (09:00 UTC) now runs on its own. Live site has Games and Team
+  Rankings only; picks and the Pick History page are still to be rebuilt (the
+  `pick_history` data is untouched). Roll back: Vercel's Instant Rollback, or tag `legacy-v1`.
