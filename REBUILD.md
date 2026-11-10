@@ -489,6 +489,58 @@ picks beat the closing price). The replay at 60 minutes only reproduced 39% (REG
 price lose; the live edge looks like it came from betting the rules on the morning lines,
 before the books adjust. Testing that needs an earlier snapshot (another 30 credits a game).
 
+### 5.16 Injury backtest for the game model (`research/injuries/backtest.py`, local only)
+
+Question: does adjusting ratings-v1 for who plays make the predictions better? ratings-v1 is
+rebuilt day by day from earlier games only. Each player gets a value: Game Score per minute
+over his last 82 games, shrunk toward replacement level (300 minutes), minus replacement
+level R. A team's adjustment = value x expected minutes (last 10 games) of tonight's players,
+minus value x average minutes in the team's rating window (same weights as the ratings), so
+an injury the ratings already contain changes nothing and a returning star adds. Who plays
+comes from the real box score, so this is a little optimistic (late scratches look known).
+Margin += K x (home adj - away adj), total += K x (home adj + away adj). R and K chosen on
+dev (2025-26 to 31 Jan); holdout scored once. Output: `research/injuries/results_2026-11-10.txt`.
+
+R = 0.45, K margin 0.305; the margin adjustment is median 1.0 point, 90th percentile 2.8.
+
+| Period | Games | Margin off v1 / injury | Improvement (95% range) | Total off v1 / injury | Log loss v1 / injury |
+|---|---|---|---|---|---|
+| Dev to 31 Jan | 575 | 11.26 / 11.17 | +0.09 (-0.04 to +0.21) | 15.64 / 15.58 | 0.643 / 0.638 |
+| Holdout from 1 Feb | 507 | 12.00 / 11.81 | +0.19 (+0.05 to +0.33) | 14.51 / 14.57 | 0.562 / 0.551 |
+| 2026-27 so far | 98 | 11.01 / 10.80 | +0.21 (-0.09 to +0.50) | 15.62 / 16.04 | 0.564 / 0.550 |
+
+- The margin and win chances improve in every period; winners right barely move.
+- Totals do not improve (worse in both holdouts): adjust the margin only.
+- The result depends on R: a first run with a narrower grid chose R = 0.35, holdout margin
+  gain +0.56. Small, real gain; the value metric is the place to improve.
+- Not tested against sportsbook spreads yet (none saved: the saved odds are player props).
+
+### 5.17 Game model against sportsbook lines (`research/odds/game_lines_test.py`, local only)
+
+`pull_game_lines.py` downloaded moneyline, spread and total (7 books, Pinnacle included) for
+the 605 holdout games of section 5.16 (2025-26 from 1 Feb, 2026-27 to 8 Nov), one snapshot per
+group of tip times, 60-120 minutes before tip: 213 snapshots, 6,390 credits (17,897 left).
+Saved in `research/.cache/odds/game_lines/`. Rules fixed before results (see the script):
+spread edge 3 points, total edge 5 points, moneyline 5 points over Pinnacle's no-vig chance.
+Output: `research/odds/game_lines_2025-27.txt`.
+
+| | Market | v1 | Injury |
+|---|---|---|---|
+| Margin off (points) | 10.99 | 11.84 | 11.64 |
+| Total off (points) | 14.47 | 14.69 | 14.81 |
+| Win chance log loss | 0.506 (Pinnacle) | 0.561 | 0.549 |
+| Spread, main rule | | 297 bets, -8.8% | 255 bets, -4.3% |
+| Total, main rule | | 189 bets, +5.3% (-8.9% to +19.3%) | 157 bets, +3.4% |
+| Moneyline, main rule | | 398 bets, -29.0% | 363 bets, -23.8% |
+
+- The market is clearly more accurate than our model on every measure. The injury
+  adjustment closes about a fifth of the margin gap (11.84 to 11.64, market 10.99).
+- Spreads and moneylines lose; the model's disagreements with the market are mostly its
+  own errors. Moneyline bets lean to underdogs, and favourites won 75% in these games.
+- Totals are positive in Feb-Apr (+13.4%) but -43.6% in 2026-27 (27 bets): no reliable edge.
+- Conclusion: ratings-v1 (with or without injuries) is a display model, not a betting edge on
+  game lines.
+
 ## 6. Open items
 
 - [ ] (Parked 7 Nov 2026, potential) Old engine on morning lines: alternate lines 8 hours
@@ -700,3 +752,13 @@ before the books adjust. Testing that needs an earlier snapshot (another 30 cred
   (`model_calendar` route). `GameCard` is shared with the Games page. Checked on desktop and
   at phone width (390px), including the day list; month totals match `model_record`
   (40-12 on 52 games).
+
+### 2026-11-10
+- **Injury backtest** (section 5.16): adjusting ratings-v1 for who plays makes the margin
+  about 0.2 points closer on unseen games and the win chances better calibrated; totals do
+  not improve. Research cache now also holds fgm, ftm, steals, blocks, fouls and plus-minus
+  (`research/projections/data.py`).
+- **Game model against real lines** (section 5.17): 605 holdout games, 6,390 credits (17,897
+  left). The market beats the model on margin, total and win chance; spreads and moneylines
+  lose at the fixed rules, totals are mixed. The injury adjustment helps but does not close
+  the gap.

@@ -1,0 +1,29 @@
+Choosing replacement level R on dev only (margin miss with K fitted on dev):
+  R=0.25  K margin 0.310  K total 0.288  dev margin off 11.177
+  R=0.35  K margin 0.385  K total 0.389  dev margin off 11.171
+  R=0.45  K margin 0.305  K total 0.335  dev margin off 11.169
+  R=0.55  K margin 0.082  K total 0.115  dev margin off 11.222
+  R=0.65  K margin -0.037  K total 0.000  dev margin off 11.272
+
+Chosen: R=0.45, K margin 0.305, K total 0.335
+Adjustment to the margin: median 1.0 points, 90th percentile 2.8, max 8.6
+
+DEV 2025-26 to 31 Jan (used to choose R and K): 575 games
+            winners  margin off  total off  log loss
+  v1          64.7%       11.26      15.64    0.6426
+  injury      63.3%       11.17      15.58    0.6384
+  margin improvement +0.09 points (95% range -0.04 to +0.21); total +0.06 (95% range -0.09 to +0.21)
+
+HOLDOUT 2025-26 from 1 Feb: 507 games
+            winners  margin off  total off  log loss
+  v1          75.1%       12.00      14.51    0.5615
+  injury      74.8%       11.81      14.57    0.5507
+  margin improvement +0.19 points (95% range +0.05 to +0.33); total -0.06 (95% range -0.25 to +0.12)
+
+HOLDOUT 2026-27 so far: 98 games
+            winners  margin off  total off  log loss
+  v1          74.5%       11.01      15.62    0.5642
+  injury      73.5%       10.80      16.04    0.5503
+  margin improvement +0.21 points (95% range -0.09 to +0.50); total -0.42 (95% range -0.85 to -0.03)
+
+Margin only (no total adjustment) = the v1 total column above.

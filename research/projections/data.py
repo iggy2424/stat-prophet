@@ -17,7 +17,7 @@ CACHE = ROOT / "research" / ".cache"
 PAGE = 1000
 
 PLAYER_COLS = ("game_id,player_id,team_id,opponent_id,is_home,season,stage,game_date_et,position,"
-               "minutes,points,fga,fta,tpm,tpa,off_reb,def_reb,tot_reb,assists,turnovers")
+               "minutes,points,fgm,fga,ftm,fta,tpm,tpa,off_reb,def_reb,tot_reb,assists,steals,blocks,turnovers,fouls,plus_minus")
 TEAM_COLS = "game_id,team_id,opponent_id,season,stage,game_date_et,points,possessions,tot_reb,assists,tpm"
 
 

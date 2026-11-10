@@ -1,0 +1,44 @@
+605 of 605 holdout games have lines (605 spread, 605 total, 603 Pinnacle moneyline)
+
+How close is each to the real result (average points off)?
+  margin: market 10.99   v1 11.84   injury 11.64
+  total:  market 14.47   v1 14.69   injury 14.81
+  win chance log loss (lower is better): Pinnacle 0.5055   v1 0.5607   injury 0.5494
+
+SPREAD
+  MAIN v1     edge >= 3 points   297 bets  won 47.6%  return  -8.8% (95% -20.1% to +2.0%)
+       v1     edge >= 1.5 points  434 bets  won 47.6%  return  -9.0% (95% -18.2% to +0.1%)
+       v1     edge >= 5 points   166 bets  won 49.1%  return  -6.1% (95% -21.6% to +7.8%)
+  MAIN injury edge >= 3 points   255 bets  won 50.0%  return  -4.3% (95% -15.6% to +7.2%)
+       injury edge >= 1.5 points  408 bets  won 49.5%  return  -5.2% (95% -14.0% to +4.2%)
+       injury edge >= 5 points   120 bets  won 47.5%  return  -9.2% (95% -26.7% to +8.3%)
+
+TOTAL
+  MAIN v1     edge >= 5 points   189 bets  won 55.0%  return  +5.3% (95% -8.9% to +19.3%)
+       v1     edge >= 3 points   320 bets  won 52.8%  return  +1.1% (95% -9.1% to +11.9%)
+       v1     edge >= 8 points    50 bets  won 50.0%  return  -4.7% (95% -31.4% to +21.9%)
+  MAIN injury edge >= 5 points   157 bets  won 54.1%  return  +3.4% (95% -11.3% to +18.1%)
+       injury edge >= 3 points   307 bets  won 51.8%  return  -1.0% (95% -11.6% to +9.6%)
+       injury edge >= 8 points    48 bets  won 52.1%  return  -0.8% (95% -28.5% to +26.9%)
+
+MONEY
+  MAIN v1     edge >= 5%         398 bets  won 27.9%  return -29.0% (95% -41.5% to -14.6%)
+       v1     edge >= 0%         603 bets  won 33.2%  return -24.6% (95% -34.5% to -14.6%)
+       v1     edge >= 10%        242 bets  won 24.0%  return -30.3% (95% -48.0% to -12.1%)
+  MAIN injury edge >= 5%         363 bets  won 30.0%  return -23.8% (95% -37.4% to -10.1%)
+       injury edge >= 0%         603 bets  won 34.7%  return -23.3% (95% -32.9% to -13.4%)
+       injury edge >= 10%        199 bets  won 24.6%  return -28.8% (95% -48.2% to -8.8%)
+
+By period, main rules:
+  2025-26 Feb-Apr  spread v1      261 bets  won 46.2%  return -11.5% (95% -22.9% to +0.2%)
+  2025-26 Feb-Apr  spread injury  215 bets  won 47.7%  return  -8.6% (95% -21.5% to +4.5%)
+  2025-26 Feb-Apr  total  v1      162 bets  won 59.3%  return +13.4% (95% -2.0% to +26.8%)
+  2025-26 Feb-Apr  total  injury  126 bets  won 60.3%  return +15.3% (95% -1.4% to +30.5%)
+  2025-26 Feb-Apr  money  v1      351 bets  won 25.4%  return -30.0% (95% -44.7% to -14.9%)
+  2025-26 Feb-Apr  money  injury  322 bets  won 26.7%  return -27.1% (95% -41.9% to -10.9%)
+  2026-27          spread v1       36 bets  won 58.3%  return +11.2% (95% -21.0% to +42.9%)
+  2026-27          spread injury   40 bets  won 62.5%  return +19.1% (95% -9.7% to +47.5%)
+  2026-27          total  v1       27 bets  won 29.6%  return -43.6% (95% -71.9% to -8.3%)
+  2026-27          total  injury   31 bets  won 29.0%  return -44.7% (95% -75.4% to -13.9%)
+  2026-27          money  v1       47 bets  won 46.8%  return -20.9% (95% -45.7% to +5.6%)
+  2026-27          money  injury   41 bets  won 56.1%  return  +2.3% (95% -27.1% to +33.1%)
